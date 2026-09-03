@@ -63,12 +63,22 @@ export const revealSecret = asyncHandler(async (req, res) => {
       .json({ success: false, message: "Secret not found." });
   }
 
-  // Real on-demand AES-256-GCM decryption
-  const decryptedPlaintext = decryptSecret({
-    ciphertext: secret.ciphertext,
-    iv: secret.iv,
-    authTag: secret.authTag,
-  });
+  // Real on-demand AES-256-GCM decryption with graceful barrier key check
+  let decryptedPlaintext;
+  try {
+    decryptedPlaintext = decryptSecret({
+      ciphertext: secret.ciphertext,
+      iv: secret.iv,
+      authTag: secret.authTag,
+    });
+    // eslint-disable-next-line no-unused-vars
+  } catch (err) {
+    return res.status(400).json({
+      success: false,
+      message:
+        "Decryption failed. This secret was encrypted with a previous master barrier key.",
+    });
+  }
 
   // Record an immutable audit log entry
   await AuditLog.create({
