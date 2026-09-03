@@ -15,7 +15,7 @@ const app = express();
 // 1. ENVIRONMENT & INFRASTRUCTURE TIER
 // =============================================================================
 if (env.NODE_ENV === "production") {
-  app.set("trust proxy", 1);
+  app.set("trust proxy", true);
 }
 
 // =============================================================================

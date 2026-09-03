@@ -21,7 +21,7 @@ import {
  * via the Session model and high-speed in-memory cache.
  */
 export const authMiddleware = asyncHandler(async (req, res, next) => {
-  const token = req.signedCookies.access_token;
+  const token = req.signedCookies?.access_token || req.cookies?.access_token;
 
   if (!token) {
     logger.debug({

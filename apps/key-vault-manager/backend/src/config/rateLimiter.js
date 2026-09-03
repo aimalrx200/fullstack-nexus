@@ -22,6 +22,7 @@ export const createRateLimiter = ({ windowMs, max, message, prefix }) => {
     max: isTestRun ? 99999 : max,
     standardHeaders: true,
     legacyHeaders: false,
+    validate: false,
     message: {
       success: false,
       message,
