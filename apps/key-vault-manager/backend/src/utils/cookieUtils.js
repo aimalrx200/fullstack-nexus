@@ -20,6 +20,7 @@ export const accessTokenCookieOptions = {
   path: baseApiPath,
   signed: shouldSign,
   maxAge: ACCESS_TOKEN_TTL_MS,
+  partitioned: isProd, // 🟢 Enables CHIPS partitioning for cross-subdomain cookies
 };
 
 export const refreshTokenCookieOptions = {
@@ -29,6 +30,7 @@ export const refreshTokenCookieOptions = {
   path: baseApiPath,
   signed: shouldSign,
   maxAge: REFRESH_TOKEN_TTL_MS,
+  partitioned: isProd,
 };
 
 export const accessTokenClearCookieOptions = {
@@ -39,6 +41,7 @@ export const accessTokenClearCookieOptions = {
   signed: shouldSign,
   maxAge: 0,
   expires: new Date(0),
+  partitioned: isProd,
 };
 
 export const refreshTokenClearCookieOptions = {
@@ -49,4 +52,5 @@ export const refreshTokenClearCookieOptions = {
   signed: shouldSign,
   maxAge: 0,
   expires: new Date(0),
+  partitioned: isProd,
 };
