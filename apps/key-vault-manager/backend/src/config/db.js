@@ -1,69 +1,48 @@
-// /src/config/db.js
+// /apps/key-vault-manager/backend/src/config/db.js
 
 import mongoose from "mongoose";
 import env from "./env.js";
-import { logger } from "./logger.js"; // Import your centralized Pino instance
+import { logger } from "./logger.js";
 
-let connectionRetries = 0;
-const MAX_RETRIES = 5;
-const INITIAL_RETRY_INTERVAL_MS = 2000;
+// Global cache across serverless warm invocations
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
 
 export const connectDB = async () => {
-  // Production optimization options
-  const mongooseOptions = {
-    autoIndex: env.NODE_ENV !== "production", // Overhead reduction: avoid automatic index builds in production
-    maxPoolSize: 10, // Maintain a stable pool of connections (adjust based on load)
-    serverSelectionTimeoutMS: 10000, // Fast fail during cluster selection (don't hang indefinitely)
-    socketTimeoutMS: 45000, // Close inactive sockets after 45 seconds
-  };
+  // If already connected, reuse the active connection
+  if (cached.conn && mongoose.connection.readyState === 1) {
+    return cached.conn;
+  }
+
+  if (!cached.promise) {
+    const mongooseOptions = {
+      autoIndex: false,
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    };
+
+    cached.promise = mongoose
+      .connect(env.MONGO_URI, mongooseOptions)
+      .then((mongooseInstance) => {
+        logger.info({ msg: "💚 MongoDB connected successfully!" });
+        return mongooseInstance;
+      });
+  }
 
   try {
-    await mongoose.connect(env.MONGO_URI, mongooseOptions);
-    logger.info({ msg: "💚 MongoDB connected successfully!" });
-    connectionRetries = 0; // Reset retries on a successful connection
+    cached.conn = await cached.promise;
   } catch (error) {
-    connectionRetries++;
-
+    cached.promise = null;
     logger.error({
-      msg: `❌ MongoDB connection failed (Attempt ${connectionRetries}/${MAX_RETRIES})`,
-      error: error.stack || error.message || error,
+      msg: "❌ MongoDB serverless connection failed",
+      error: error.message,
     });
-
-    if (connectionRetries < MAX_RETRIES) {
-      // Exponential backoff: 2s, 4s, 8s, 16s...
-      const delay =
-        INITIAL_RETRY_INTERVAL_MS * Math.pow(2, connectionRetries - 1);
-
-      logger.info({
-        msg: `Retrying database handshake`,
-        delaySeconds: delay / 1000,
-        nextAttempt: connectionRetries + 1,
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      return connectDB();
-    }
-
-    // Bubble the error up to index.js so it handles the crash orchestrating sequence
-    throw new Error("Catastrophic database connection failure limit reached.", {
-      cause: error,
-    });
+    throw error;
   }
+
+  return cached.conn;
 };
-
-// =============================================================================
-// RUNTIME HEALTH TELEMETRY
-// =============================================================================
-
-mongoose.connection.on("error", (err) => {
-  logger.error({
-    msg: "⚠️ MongoDB runtime connection error occurred",
-    error: err.stack || err.message || err,
-  });
-});
-
-mongoose.connection.on("disconnected", () => {
-  logger.warn({
-    msg: "⚠️ MongoDB lost connection. Driver attempting automatic reconnection...",
-  });
-});

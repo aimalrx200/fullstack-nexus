@@ -3,12 +3,12 @@ import app from "../src/app.js";
 import { connectDB } from "../src/config/db.js";
 import { initEmailService } from "../src/services/emailService.js";
 
-let isInitialized = false;
-
 export default async function handler(req, res) {
-  if (!isInitialized) {
-    await Promise.all([connectDB(), initEmailService()]);
-    isInitialized = true;
+  try {
+    await connectDB();
+    await initEmailService();
+  } catch (err) {
+    console.error("Serverless bootstrap initialization error:", err);
   }
   return app(req, res);
 }
