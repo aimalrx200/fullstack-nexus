@@ -34,27 +34,37 @@ app.use(
   }),
 );
 
-const allowedOrigins =
-  env.NODE_ENV === "development" ? ["http://localhost:5173"] : [env.CLIENT_URL];
+const configuredClientUrl = env.CLIENT_URL
+  ? env.CLIENT_URL.replace(/\/$/, "")
+  : "";
+
+const allowedOrigins = ["http://localhost:5173", configuredClientUrl].filter(
+  Boolean,
+);
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // 🟢 FIX 1: Allow missing origins ONLY during local development environment cycles
-      if (env.NODE_ENV === "development" && !origin) {
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+      if (!origin) {
         return callback(null, true);
       }
 
-      // Validate incoming browser origin strictly against the system whitelist
-      if (allowedOrigins.includes(origin)) {
+      const cleanOrigin = origin.replace(/\/$/, "");
+
+      // Match exact configured origin OR any preview deployments under your vercel project
+      const isAllowed =
+        allowedOrigins.includes(cleanOrigin) ||
+        (cleanOrigin.endsWith(".vercel.app") &&
+          cleanOrigin.includes("fullstack-nexus"));
+
+      if (isAllowed) {
         callback(null, true);
       } else {
-        // 🟢 FIX 2: Generate an actual error instance.
-        // This drops unauthorized requests instantly BEFORE hitting application controllers.
         const corsError = new Error(
-          `CORS policy violation: Origin '${origin || "Anonymous"}' denied.`,
+          `CORS policy violation: Origin '${origin}' denied.`,
         );
-        corsError.status = 403; // Forbidden
+        corsError.status = 403;
         callback(corsError, false);
       }
     },
@@ -63,9 +73,9 @@ app.use(
     allowedHeaders: [
       "Content-Type",
       "Authorization",
-      "x-client-instance-id", // ✅ Preserved: Your tab validation header passes safely
-      "x-request-id", // 🌟 Added for tracking unique cycles
-      "x-request-timestamp", // 🌟 Added for microsecond delay evaluation
+      "x-client-instance-id",
+      "x-request-id",
+      "x-request-timestamp",
     ],
     exposedHeaders: ["set-cookie"],
     maxAge: 600,
