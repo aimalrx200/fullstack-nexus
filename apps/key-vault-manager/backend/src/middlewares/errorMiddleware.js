@@ -4,6 +4,14 @@ import env from "#config/env.js";
 
 // eslint-disable-next-line no-unused-vars
 export const errorHandler = (err, req, res, next) => {
+  // 🟢 Prints raw error and stack trace directly to Vercel runtime logs
+  console.error(
+    "💥 SERVERLESS PIPELINE EXCEPTION:",
+    err.name,
+    err.message,
+    err.stack,
+  );
+
   let statusCode = err.status || err.statusCode || 500;
   let message = "Something went wrong on our end. Please try again later.";
   let errors = undefined;
