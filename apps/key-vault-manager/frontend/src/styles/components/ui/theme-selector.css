@@ -1,0 +1,32 @@
+/* src/styles/components/common/ui/theme-selector.css */
+
+@layer components {
+  /* ==========================================================================
+     Theme Selector Component
+     ========================================================================== */
+
+  /* Container Layout */
+  .theme-selector-container {
+    @apply relative z-10 flex items-center gap-1 p-1 bg-surface-card border border-surface-border rounded-lg backdrop-blur-md shadow-lg font-code;
+  }
+
+  /* Base Option Button */
+  .theme-selector-btn {
+    @apply relative flex items-center gap-1.5 px-3 py-1.5 text-10px font-bold tracking-widest uppercase rounded-md transition-[background-color,color,border-color,box-shadow] duration-150 cursor-pointer select-none;
+  }
+
+  /* Active Option Variant */
+  .theme-selector-btn-active {
+    @apply bg-brand-primary text-white cyber-button-glow border border-brand-primary/40;
+  }
+
+  /* Inactive Option Variant */
+  .theme-selector-btn-inactive {
+    @apply text-text-subtle hover:text-text-main hover:bg-surface-hover/80 border border-transparent;
+  }
+
+  /* Icon Sizing */
+  .theme-selector-icon {
+    @apply w-3.5 h-3.5;
+  }
+}

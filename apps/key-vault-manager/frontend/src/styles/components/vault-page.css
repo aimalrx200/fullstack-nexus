@@ -1,0 +1,157 @@
+/* src/styles/components/vault-page.css */
+
+@layer components {
+  /* ==========================================================================
+     Shared Vault Page Layout Components
+     ========================================================================== */
+
+  /* Page Root Container */
+  .vault-container {
+    @apply flex flex-col gap-6 w-full min-w-0;
+  }
+
+  /* Header Banner Section */
+  .vault-header {
+    @apply flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pb-4;
+  }
+
+  .vault-header-titles {
+    @apply flex items-center gap-2;
+  }
+
+  .vault-title {
+    @apply font-mono text-base font-bold uppercase tracking-wider text-text-main;
+  }
+
+  .vault-namespace {
+    @apply font-mono text-xs font-semibold text-brand-primary uppercase;
+  }
+
+  .vault-subtitle {
+    @apply font-mono text-xs text-text-subtle mt-0.5;
+  }
+
+  /* Header Badges & Actions Group */
+  .vault-header-badges {
+    @apply flex items-center gap-2;
+  }
+
+  .vault-cluster-badge {
+    @apply inline-flex items-center gap-1.5 rounded-md border border-surface-border bg-surface-card px-2.5 py-1 font-mono text-xs text-text-subtle;
+  }
+
+  .vault-cluster-icon {
+    @apply h-3.5 w-3.5 text-brand-primary;
+  }
+
+  /* Environment Badges */
+  .vault-env-sandbox-badge {
+    @apply inline-flex items-center gap-1.5 rounded-md border border-brand-primary/30 bg-brand-primary/10 px-2.5 py-1 font-mono text-xs font-semibold text-brand-primary;
+  }
+
+  .vault-env-staging-badge {
+    @apply inline-flex items-center gap-1.5 rounded-md border border-status-warning/30 bg-status-warning/10 px-2.5 py-1 font-mono text-xs font-semibold text-status-warning;
+  }
+
+  .vault-env-security-badge {
+    @apply inline-flex items-center gap-1.5 rounded-md border border-status-danger/30 bg-status-danger/10 px-2.5 py-1 font-mono text-xs font-semibold text-status-danger;
+  }
+
+  .vault-badge-icon {
+    @apply h-3.5 w-3.5;
+  }
+
+  /* Metrics Grid */
+  .vault-metrics-grid {
+    @apply grid grid-cols-1 gap-4 sm:grid-cols-3;
+  }
+
+  /* Secret Explorer Section */
+  .vault-explorer-section {
+    @apply space-y-3;
+  }
+
+  /* Explorer Breadcrumb Bar */
+  .vault-breadcrumb-bar {
+    @apply flex items-center gap-1 font-mono text-xs bg-surface-card/60 border border-surface-border/60 rounded-md px-3 py-2 text-text-subtle;
+  }
+
+  .vault-breadcrumb-icon {
+    @apply text-text-subtle;
+  }
+
+  .vault-breadcrumb-active {
+    @apply font-semibold text-brand-primary cursor-pointer hover:underline;
+  }
+
+  .vault-breadcrumb-item {
+    @apply font-semibold text-text-main cursor-pointer hover:underline;
+  }
+
+  /* Engine Table Cell Specific Styles */
+  .vault-engine-cell {
+    @apply flex items-center gap-2;
+  }
+
+  .vault-engine-icon {
+    @apply h-4 w-4 text-brand-primary shrink-0;
+  }
+
+  .vault-engine-path {
+    @apply font-mono text-xs font-bold text-text-main hover:text-brand-primary cursor-pointer transition-colors;
+  }
+
+  .vault-text-cell-bold {
+    @apply font-mono text-xs font-semibold text-text-main;
+  }
+
+  .vault-text-cell-muted {
+    @apply font-mono text-xs text-text-subtle;
+  }
+
+  .vault-text-cell-medium {
+    @apply font-mono text-xs font-medium text-text-main;
+  }
+
+  .vault-health-badge {
+    @apply inline-flex items-center gap-1 rounded border px-2 py-0.5 font-mono text-10px font-semibold tracking-wider uppercase;
+  }
+
+  .vault-health-success {
+    @apply bg-status-success/10 text-status-success border-status-success/30;
+  }
+
+  .vault-health-warning {
+    @apply bg-status-warning/10 text-status-warning border-status-warning/30;
+  }
+
+  .vault-health-icon {
+    @apply h-3 w-3;
+  }
+
+  /* Table Actions Alignment & Buttons */
+  .vault-actions-header {
+    @apply font-mono text-xs font-semibold text-text-subtle text-right block pr-1;
+  }
+
+  .vault-actions-group {
+    @apply flex items-center justify-end gap-1;
+  }
+
+  .vault-action-btn {
+    @apply flex h-7 w-7 items-center justify-center rounded border border-surface-border/60 bg-surface-card text-text-subtle hover:border-brand-primary/50 hover:bg-brand-primary/10 hover:text-brand-primary transition-all cursor-pointer;
+  }
+
+  .vault-action-icon {
+    @apply h-3.5 w-3.5;
+  }
+
+  /* Secret Tree Cell Styles */
+  .vault-tree-icon {
+    @apply h-4 w-4 text-brand-primary;
+  }
+
+  .vault-tree-name {
+    @apply font-mono text-xs font-bold text-text-main hover:text-brand-primary cursor-pointer transition-colors;
+  }
+}

@@ -1,0 +1,57 @@
+/* src/index.css */
+@import "tailwindcss";
+
+/* ==========================================================================
+   1. Theme & Dynamic Color Tokens
+   ========================================================================== */
+@import "./styles/tokens/light.css";
+@import "./styles/tokens/dark.css";
+@import "./styles/theme.css";
+
+/* ==========================================================================
+   2. Base Styles & Resets
+   ========================================================================== */
+@import "./styles/base/resets.css";
+@import "./styles/base/scrollbars.css";
+
+/* ==========================================================================
+   3. Common & Reusable Components
+   ========================================================================== */
+@import "./styles/components/common/breadcrumbs.css";
+@import "./styles/components/common/data-table.css";
+@import "./styles/components/common/stats-card.css";
+
+/* ==========================================================================
+   4. UI Components
+   ========================================================================== */
+@import "./styles/components/ui/google-button.css";
+@import "./styles/components/ui/progress-bar.css";
+@import "./styles/components/ui/spinner.css";
+@import "./styles/components/ui/theme-selector.css";
+@import "./styles/components/ui/command-palette.css";
+
+/* ==========================================================================
+   5. Layout & Top-Level Components
+   ========================================================================== */
+@import "./styles/components/layout/dashboard.css";
+@import "./styles/components/layout/root-layout.css";
+
+/* ==========================================================================
+   6. View & Feature Components
+   ========================================================================== */
+@import "./styles/components/animated-page.css";
+@import "./styles/components/auth.css";
+@import "./styles/components/error-views.css";
+@import "./styles/components/vault-page.css";
+
+/* ==========================================================================
+   7. Page-Specific Styles
+   ========================================================================== */
+@import "./styles/pages/overview.css";
+
+/* ==========================================================================
+   8. Custom Utilities & Cyberpunk Effects
+   ========================================================================== */
+@import "./styles/utilities/clip-paths.css";
+@import "./styles/utilities/glow.css";
+@import "./styles/utilities/layout.css";

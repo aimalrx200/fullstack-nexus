@@ -1,0 +1,277 @@
+/* src/styles/components/auth.css */
+
+@layer components {
+  /* ==========================================================================
+     Shared Auth Layout & Containers
+     ========================================================================== */
+  .auth-container {
+    @apply flex flex-col items-center justify-center min-h-dvh w-full px-4 py-12 relative z-10;
+  }
+
+  .auth-card {
+    @apply relative w-full max-w-md bg-surface-card/90 backdrop-blur-md border border-surface-border rounded-xl shadow-2xl p-8 transition-all cyber-card-glow cyber-notch;
+  }
+
+  /* ==========================================================================
+     Shared Header Section
+     ========================================================================== */
+  .auth-header {
+    @apply flex items-center justify-between pb-4 mb-6 border-b border-surface-border/60;
+  }
+
+  .auth-header-status {
+    @apply flex items-center gap-2;
+  }
+
+  .auth-badge-dot {
+    @apply w-2 h-2 rounded-full bg-brand-primary cyber-badge-dot animate-pulse;
+  }
+
+  .auth-header-title {
+    @apply font-mono text-10px tracking-widest text-text-subtle uppercase;
+  }
+
+  .auth-version {
+    @apply font-mono text-10px text-brand-primary/80 font-bold;
+  }
+
+  .auth-title {
+    @apply text-2xl font-bold text-text-main text-center tracking-tight mb-6;
+  }
+
+  .auth-description {
+    @apply text-xs text-text-subtle text-center mb-6 leading-relaxed font-mono;
+  }
+
+  /* ==========================================================================
+     Shared Form Elements
+     ========================================================================== */
+  .auth-form {
+    @apply space-y-4;
+  }
+
+  .auth-field-group {
+    @apply flex flex-col gap-1.5;
+  }
+
+  .auth-field-header {
+    @apply flex justify-between items-center;
+  }
+
+  .auth-label {
+    @apply text-xs font-mono tracking-wider text-text-subtle uppercase;
+  }
+
+  .auth-input {
+    @apply w-full bg-surface-app/70 text-text-main border px-3.5 py-2.5 rounded-md focus:ring-2 outline-none transition-all text-sm font-mono placeholder:text-text-subtle/50 backdrop-blur-sm border-surface-border focus:border-brand-primary focus:ring-brand-primary/40 shadow-xs;
+  }
+
+  .auth-input-error {
+    @apply border-status-danger focus:border-status-danger focus:ring-status-danger/30;
+  }
+
+  .auth-error-text {
+    @apply text-status-danger text-[11px] font-mono mt-0.5;
+  }
+
+  .auth-submit-button {
+    @apply w-full bg-brand-primary hover:bg-brand-primary-hover text-white font-semibold py-2.5 rounded-md transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed mt-2 cursor-pointer cyber-button-glow font-mono uppercase tracking-wider shadow-md;
+  }
+
+  .auth-demo-button {
+    @apply relative flex items-center justify-center gap-2.5 bg-brand-secondary/10 hover:bg-brand-secondary/20 text-brand-secondary border border-brand-secondary/40 hover:border-brand-secondary/70 w-full py-2.5 px-4 rounded-md font-mono text-xs uppercase font-bold tracking-wider shadow-sm cursor-pointer transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cyber-button-glow;
+  }
+
+  /* ==========================================================================
+     Shared Links & Footers
+     ========================================================================== */
+  .auth-link {
+    @apply text-brand-primary hover:text-brand-primary-hover hover:underline transition-colors;
+  }
+
+  .auth-link-mono {
+    @apply text-brand-primary hover:text-brand-primary-hover hover:underline transition-colors text-xs font-mono;
+  }
+
+  .auth-footer-text {
+    @apply mt-6 text-xs text-text-subtle text-center font-mono;
+  }
+
+  .auth-footer {
+    @apply text-center mt-6;
+  }
+
+  /* ==========================================================================
+     Shared Divider
+     ========================================================================== */
+  .auth-divider-container {
+    @apply relative my-6;
+  }
+
+  .auth-divider-line-wrapper {
+    @apply absolute inset-0 flex items-center;
+  }
+
+  .auth-divider-line {
+    @apply w-full border-t border-surface-border/80;
+  }
+
+  .auth-divider-text-wrapper {
+    @apply relative flex justify-center text-10px uppercase;
+  }
+
+  .auth-divider-text {
+    @apply bg-surface-card px-3 text-text-subtle font-mono tracking-widest backdrop-blur-sm;
+  }
+
+  /* ==========================================================================
+     Register Specific Components
+     ========================================================================== */
+  .register-optional-tag {
+    @apply text-10px font-mono text-text-subtle/70 uppercase;
+  }
+
+  .register-error-list {
+    @apply mt-1 list-none space-y-0.5 font-mono;
+  }
+
+  .register-error-item {
+    @apply text-status-danger text-[11px];
+  }
+
+  /* Password Strength Bar */
+  .strength-bar-container {
+    @apply mt-2 space-y-1.5 font-mono;
+  }
+
+  .strength-bar-segments {
+    @apply flex gap-1.5;
+  }
+
+  .strength-bar-segment {
+    @apply h-1 flex-1 rounded-none transition-all duration-300;
+  }
+
+  .strength-bar-segment-empty {
+    @apply bg-surface-border/40;
+  }
+
+  .strength-bar-meta {
+    @apply flex items-center justify-between text-[11px];
+  }
+
+  .strength-bar-label {
+    @apply text-text-subtle uppercase tracking-wider;
+  }
+
+  .strength-bar-score {
+    @apply font-bold;
+  }
+
+  .strength-bar-feedback {
+    @apply space-y-0.5 text-[11px] pt-1;
+  }
+
+  .strength-bar-warning {
+    @apply text-status-warning flex items-center gap-1;
+  }
+
+  .strength-bar-suggestion {
+    @apply text-text-subtle/80;
+  }
+
+  /* Success State Views */
+  .register-success-container {
+    @apply text-center space-y-4 py-4;
+  }
+
+  .register-success-icon-badge {
+    @apply mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-status-success/10 text-status-success border border-status-success/30 cyber-badge-dot;
+  }
+
+  .register-success-checkmark {
+    @apply font-bold text-xl font-mono;
+  }
+
+  .register-success-title {
+    @apply text-2xl font-bold text-text-main tracking-tight;
+  }
+
+  .register-success-message {
+    @apply text-xs text-text-subtle leading-relaxed font-mono;
+  }
+
+  .register-success-email {
+    @apply text-text-main font-semibold;
+  }
+
+  .register-success-action {
+    @apply pt-4;
+  }
+
+  .register-success-link {
+    @apply inline-block text-xs font-mono text-brand-primary hover:text-brand-primary-hover hover:underline uppercase tracking-wider font-semibold transition-colors;
+  }
+
+  /* ==========================================================================
+     Verify Email Specific Components
+     ========================================================================== */
+  .verify-email-badge-dot-danger {
+    @apply bg-status-danger;
+  }
+
+  .verify-email-badge-dot-success {
+    @apply bg-status-success;
+  }
+
+  .verify-email-badge-dot-active {
+    @apply bg-brand-primary animate-pulse;
+  }
+
+  .verify-email-error-wrapper {
+    @apply space-y-4 flex flex-col justify-center items-center;
+  }
+
+  .verify-email-error-title {
+    @apply text-xl font-bold text-status-danger font-mono uppercase tracking-wide;
+  }
+
+  .verify-email-error-description {
+    @apply text-text-subtle text-xs font-mono;
+  }
+
+  .verify-email-action-button {
+    @apply inline-block bg-brand-primary hover:bg-brand-primary-hover text-white px-5 py-2.5 rounded-md font-mono font-semibold text-xs uppercase tracking-wider transition-all cyber-button-glow shadow-md mt-2;
+  }
+
+  .verify-email-stage-wrapper {
+    @apply flex flex-col items-center justify-center space-y-3 py-4;
+  }
+
+  .verify-email-stage-primary {
+    @apply inline-flex items-center gap-2 text-brand-primary animate-pulse font-mono font-bold text-lg;
+  }
+
+  .verify-email-stage-success {
+    @apply inline-flex items-center gap-2 text-status-success font-mono font-bold text-lg;
+  }
+
+  .verify-email-stage-text {
+    @apply text-text-subtle text-xs font-mono;
+  }
+
+  /* ==========================================================================
+     Password Reset / Forgot Password Specific Alerts
+     ========================================================================== */
+  .auth-success-alert {
+    @apply p-4 bg-status-success/10 border border-status-success/30 text-status-success rounded-md text-center space-y-2 font-mono;
+  }
+
+  .auth-success-alert-title {
+    @apply text-xs font-semibold uppercase tracking-wide;
+  }
+
+  .auth-success-alert-text {
+    @apply text-[11px] text-text-subtle;
+  }
+}

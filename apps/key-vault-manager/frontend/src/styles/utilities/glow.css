@@ -1,0 +1,49 @@
+/* src/styles/utilities/glow.css */
+
+/* Generic Glow Utilities */
+@utility cyber-badge-dot {
+  box-shadow: 0 0 10px currentColor;
+}
+
+/* Card Glows */
+@utility cyber-card-glow {
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+  &:hover {
+    border-color: var(--color-brand-primary);
+    box-shadow:
+      0 0 25px -3px var(--color-glow-primary),
+      inset 0 0 12px -4px var(--color-glow-primary);
+  }
+}
+
+/* Button Glows */
+@utility cyber-button-glow {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
+  &:hover:not(:disabled) {
+    box-shadow: 0 0 22px 2px var(--color-glow-primary);
+    transform: translateY(-1px);
+    filter: brightness(1.1);
+  }
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+    box-shadow: 0 0 10px 1px var(--color-glow-primary);
+  }
+}
+
+/* Status & Secondary Glow Utilities */
+@utility cyber-glow-secondary {
+  box-shadow: 0 0 20px 2px var(--color-glow-secondary);
+}
+
+@utility cyber-glow-success {
+  box-shadow: 0 0 20px 2px var(--color-glow-success);
+}
+
+@utility cyber-glow-danger {
+  box-shadow: 0 0 20px 2px var(--color-glow-danger);
+}

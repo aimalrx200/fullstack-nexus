@@ -1,0 +1,84 @@
+/* src/styles/components/common/stats-card.css */
+
+@layer components {
+  /* ==========================================================================
+     Stats Card Component
+     ========================================================================== */
+
+  /* Stats Card Container */
+  .stats-card-container {
+    @apply cyber-card-glow flex flex-col justify-between rounded-lg border border-surface-border bg-surface-card/80 p-4 backdrop-blur-md transition-all;
+  }
+
+  /* Header Row */
+  .stats-card-header {
+    @apply flex items-center justify-between gap-2;
+  }
+
+  .stats-card-title-group {
+    @apply flex items-center gap-2 text-text-subtle;
+  }
+
+  .stats-card-icon {
+    @apply h-4 w-4 text-brand-primary shrink-0;
+  }
+
+  .stats-card-title {
+    @apply font-code text-xs font-semibold uppercase tracking-wider text-text-subtle;
+  }
+
+  /* Badges Base & Variants */
+  .stats-card-badge {
+    @apply inline-flex items-center gap-1.5 rounded border px-2 py-0.5 font-code text-10px font-bold uppercase;
+  }
+
+  .stats-card-badge-success {
+    @apply bg-status-success/10 text-status-success border-status-success/30;
+  }
+
+  .stats-card-badge-warning {
+    @apply bg-status-warning/10 text-status-warning border-status-warning/30;
+  }
+
+  .stats-card-badge-danger {
+    @apply bg-status-danger/10 text-status-danger border-status-danger/30;
+  }
+
+  .stats-card-badge-muted {
+    @apply bg-surface-border/40 text-text-subtle border-surface-border;
+  }
+
+  /* Badge Dots Base & Variants */
+  .stats-card-dot {
+    @apply h-1.5 w-1.5 rounded-full;
+  }
+
+  .stats-card-dot-success {
+    @apply bg-status-success animate-pulse;
+  }
+
+  .stats-card-dot-warning {
+    @apply bg-status-warning;
+  }
+
+  .stats-card-dot-danger {
+    @apply bg-status-danger animate-ping;
+  }
+
+  .stats-card-dot-muted {
+    @apply bg-text-subtle;
+  }
+
+  /* Value & Subtext Area */
+  .stats-card-body {
+    @apply mt-3 flex items-baseline justify-between gap-2;
+  }
+
+  .stats-card-value {
+    @apply font-code text-xl font-bold tracking-tight text-text-main;
+  }
+
+  .stats-card-subtext {
+    @apply font-code text-[11px] text-text-subtle/80;
+  }
+}

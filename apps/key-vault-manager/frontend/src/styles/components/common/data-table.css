@@ -1,0 +1,126 @@
+/* src/styles/components/common/data-table.css */
+
+@layer components {
+  /* ==========================================================================
+     Data Table Component
+     ========================================================================== */
+
+  /* Container Layout */
+  .data-table-section {
+    @apply space-y-3 w-full;
+  }
+
+  /* Header & Toolbar Controls */
+  .data-table-toolbar {
+    @apply flex items-center justify-between min-h-8;
+  }
+
+  .data-table-title {
+    @apply font-code text-xs font-semibold uppercase tracking-wider text-text-main;
+  }
+
+  .data-table-toolbar-actions {
+    @apply flex items-center gap-2;
+  }
+
+  .data-table-filter-button {
+    @apply flex items-center gap-1.5 rounded-md border border-surface-border bg-surface-card px-2.5 py-1 font-code text-xs text-text-subtle hover:border-brand-primary hover:text-brand-primary transition-all cursor-pointer;
+  }
+
+  .data-table-filter-icon {
+    @apply h-3.5 w-3.5;
+  }
+
+  .data-table-action-button {
+    @apply flex items-center gap-1.5 rounded-md border border-brand-primary/50 bg-brand-primary/10 px-2.5 py-1 font-code text-xs font-semibold text-brand-primary hover:bg-brand-primary/20 cyber-button-glow transition-all cursor-pointer;
+  }
+
+  .data-table-action-icon {
+    @apply h-3.5 w-3.5;
+  }
+
+  /* Table Container & Base Elements */
+  .data-table-card {
+    @apply cyber-card-glow rounded-lg border border-surface-border bg-surface-card/80 backdrop-blur-md overflow-hidden;
+  }
+
+  .data-table-scroll-wrapper {
+    @apply w-full overflow-x-auto;
+  }
+
+  .data-table-element {
+    @apply w-full text-left text-sm border-collapse;
+  }
+
+  /* Table Header */
+  .data-table-thead {
+    @apply bg-surface-hover/60 border-b border-surface-border text-text-subtle font-code text-xs uppercase tracking-wider;
+  }
+
+  .data-table-th {
+    @apply p-3.5 font-semibold;
+  }
+
+  /* Table Body */
+  .data-table-tbody {
+    @apply divide-y divide-surface-border;
+  }
+
+  .data-table-tr {
+    @apply hover:bg-surface-hover/40 transition-colors duration-150;
+  }
+
+  .data-table-td {
+    @apply p-3.5 text-text-main font-sans-main;
+  }
+
+  /* Empty State View */
+  .data-table-empty-td {
+    @apply p-12 text-center text-text-subtle font-code;
+  }
+
+  .data-table-empty-wrapper {
+    @apply flex flex-col items-center justify-center gap-2.5 max-w-md mx-auto py-4;
+  }
+
+  .data-table-empty-icon-box {
+    @apply h-11 w-11 rounded-full bg-surface-hover border border-surface-border flex items-center justify-center text-brand-primary shadow-inner mb-1;
+  }
+
+  .data-table-empty-icon {
+    @apply h-5 w-5 text-brand-primary;
+  }
+
+  .data-table-empty-title {
+    @apply text-sm font-bold uppercase tracking-wider text-text-main font-code;
+  }
+
+  .data-table-empty-desc {
+    @apply text-xs text-text-subtle font-code leading-relaxed text-center;
+  }
+
+  .data-table-empty-badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-surface-hover border border-surface-border text-10px font-semibold text-text-subtle uppercase tracking-wider my-1;
+  }
+
+  .data-table-empty-action-btn {
+    @apply mt-2 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-brand-primary/10 border border-brand-primary/40 text-brand-primary text-xs font-bold uppercase tracking-wider hover:bg-brand-primary/20 cyber-button-glow transition-all cursor-pointer;
+  }
+
+  /* Pagination Controls */
+  .data-table-pagination {
+    @apply flex items-center justify-between p-3.5 border-t border-surface-border bg-surface-hover/30;
+  }
+
+  .data-table-pagination-info {
+    @apply font-code text-xs text-text-subtle tracking-wider;
+  }
+
+  .data-table-pagination-actions {
+    @apply flex items-center gap-2;
+  }
+
+  .data-table-pagination-button {
+    @apply px-3 py-1 text-xs font-code rounded border border-surface-border bg-surface-card text-text-main disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-hover cyber-button-glow transition-all;
+  }
+}

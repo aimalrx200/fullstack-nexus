@@ -1,0 +1,19 @@
+/* src/styles/base/scrollbars.css */
+
+@layer base {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-surface-app);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-surface-border);
+    border-radius: 0px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-brand-primary);
+    box-shadow: 0 0 8px var(--color-glow-primary);
+  }
+}

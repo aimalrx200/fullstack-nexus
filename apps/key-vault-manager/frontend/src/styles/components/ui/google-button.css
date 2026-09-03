@@ -1,0 +1,30 @@
+/* src/styles/components/common/ui/google-button.css */
+
+@layer components {
+  /* ==========================================================================
+     Google OAuth Login Button Component
+     ========================================================================== */
+
+  /* Google Login Button Base */
+  .google-login-button {
+    @apply relative flex items-center justify-center gap-3 bg-surface-card/80 hover:bg-surface-hover backdrop-blur-md text-text-main border border-surface-border hover:border-brand-primary/60 w-full py-2.5 px-4 rounded-md font-code text-xs uppercase tracking-wider shadow-sm cursor-pointer transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed cyber-button-glow;
+  }
+
+  /* Icon & Motion States */
+  .google-login-icon {
+    @apply w-4 h-4 shrink-0 overflow-visible transition-transform duration-200;
+  }
+
+  .google-login-button:hover .google-login-icon {
+    @apply scale-110;
+  }
+
+  .google-login-icon-loading {
+    @apply animate-spin;
+  }
+
+  /* Label Text */
+  .google-login-text {
+    @apply font-semibold font-code tracking-wider;
+  }
+}

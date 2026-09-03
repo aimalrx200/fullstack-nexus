@@ -1,0 +1,31 @@
+/* src/styles/layouts/root-layout.css */
+
+@layer components {
+  /* ==========================================================================
+     Root Layout Shell & Cyber Overlay Utilities
+     ========================================================================== */
+
+  /* Viewport Base Container */
+  .root-layout-container {
+    @apply cyber-viewport antialiased;
+  }
+
+  /* Cyberpunk Pattern & Scanline Overlays */
+  .root-layout-grid-overlay {
+    @apply cyber-grid-overlay;
+  }
+
+  .root-layout-scanline-overlay {
+    @apply cyber-scanline-overlay;
+  }
+
+  /* HUD Frame Overlay */
+  .root-layout-hud-frame {
+    @apply cyber-hud-frame;
+  }
+
+  /* Main Viewport Scroll Container */
+  .root-layout-main {
+    @apply relative z-10 w-full h-full min-h-0 overflow-y-auto;
+  }
+}

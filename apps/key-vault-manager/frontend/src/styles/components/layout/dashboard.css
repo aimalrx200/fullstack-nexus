@@ -1,0 +1,212 @@
+/* src/styles/components/dashboard.css */
+
+@layer components {
+  /* ==========================================================================
+     Main Layout Structure
+     ========================================================================== */
+
+  /* Main Layout Root Container */
+  .dashboard-layout-container {
+    @apply relative h-full w-full flex text-text-main font-sans-main overflow-hidden;
+  }
+
+  /* Content Wrapper Container */
+  .dashboard-layout-content-wrapper {
+    @apply relative z-10 flex-1 flex flex-col min-w-0 h-full overflow-hidden;
+  }
+
+  /* Main Content Area */
+  .dashboard-content-main {
+    @apply flex-1 overflow-y-auto p-6 flex flex-col w-full min-w-0 min-h-0;
+  }
+
+  /* Inner Layout Flex Wrapper */
+  .dashboard-content-wrapper {
+    @apply flex-1 flex flex-col w-full min-w-0;
+  }
+
+  /* ==========================================================================
+     Dashboard Header Bar
+     ========================================================================== */
+
+  /* Sticky Header Container */
+  .dashboard-header {
+    @apply sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-surface-border bg-surface-card/80 p-6 backdrop-blur-md;
+  }
+
+  /* Left Section: Mobile Menu & Search */
+  .dashboard-header-left {
+    @apply flex items-center gap-4 flex-1;
+  }
+
+  .dashboard-header-menu-btn {
+    @apply flex h-9 w-9 items-center justify-center rounded-md border border-surface-border text-text-subtle transition-colors hover:bg-surface-hover hover:text-text-main lg:hidden cursor-pointer;
+  }
+
+  .dashboard-header-menu-icon {
+    @apply h-5 w-5;
+  }
+
+  /* Search Bar (Desktop) */
+  .dashboard-header-search-wrapper {
+    @apply hidden max-w-md w-full md:block;
+  }
+
+  .dashboard-header-search-btn {
+    @apply flex w-full items-center justify-between rounded-md border border-surface-border bg-surface-app/60 px-3 py-1.5 font-code text-xs text-text-subtle transition-colors hover:border-brand-primary/50 hover:bg-surface-hover/40 cursor-pointer;
+  }
+
+  .dashboard-header-search-content {
+    @apply flex items-center gap-2;
+  }
+
+  .dashboard-header-search-icon {
+    @apply h-3.5 w-3.5 text-text-subtle;
+  }
+
+  .dashboard-header-kbd {
+    @apply inline-flex items-center gap-0.5 rounded border border-surface-border bg-surface-card px-1.5 py-0.5 text-10px font-semibold text-text-subtle;
+  }
+
+  .dashboard-header-kbd-icon {
+    @apply h-2.5 w-2.5;
+  }
+
+  /* Right Section: Controls & User Profile */
+  .dashboard-header-right {
+    @apply flex items-center gap-3;
+  }
+
+  .dashboard-header-mobile-search-btn {
+    @apply flex h-9 w-9 items-center justify-center rounded-md border border-surface-border text-text-subtle transition-colors hover:bg-surface-hover hover:text-text-main md:hidden cursor-pointer;
+  }
+
+  .dashboard-header-mobile-search-icon {
+    @apply h-4 w-4;
+  }
+
+  .dashboard-header-settings-btn {
+    @apply flex h-9 w-9 items-center justify-center rounded-md border border-surface-border text-text-subtle transition-colors hover:bg-surface-hover hover:text-text-main cursor-pointer;
+  }
+
+  .dashboard-header-settings-icon {
+    @apply h-4 w-4;
+  }
+
+  .dashboard-header-avatar {
+    @apply flex h-9 w-9 items-center justify-center rounded-full border border-surface-border bg-surface-hover/50 text-brand-primary shadow-xs;
+  }
+
+  .dashboard-header-avatar-icon {
+    @apply h-4 w-4;
+  }
+
+  /* ==========================================================================
+     Sidebar Navigation
+     ========================================================================== */
+
+  /* Mobile Overlay Backdrop */
+  .dashboard-sidebar-overlay {
+    @apply fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden;
+  }
+
+  /* Sidebar Container (Synchronized with --spacing-sidebar-width) */
+  .dashboard-sidebar {
+    @apply fixed inset-y-0 left-0 z-50 flex w-sidebar-width flex-col border-r border-surface-border bg-surface-card backdrop-blur-md transition-transform duration-200 ease-in-out shrink-0 lg:static lg:h-full;
+  }
+
+  /* Visibility State Modifier Classes */
+  .dashboard-sidebar-open {
+    @apply translate-x-0;
+  }
+
+  /* Responsive visibility modifier for mobile drawer */
+  .dashboard-sidebar-closed {
+    @apply -translate-x-full lg:translate-x-0;
+  }
+
+  /* Header Section */
+  .dashboard-sidebar-header {
+    @apply flex h-16 shrink-0 items-center px-6 border-b border-surface-border;
+  }
+
+  .dashboard-sidebar-brand {
+    @apply flex items-center gap-2 font-code text-sm font-bold tracking-wider text-text-main uppercase;
+  }
+
+  .dashboard-sidebar-badge-dot {
+    @apply h-2 w-2 rounded-full bg-brand-primary cyber-badge-dot;
+  }
+
+  .dashboard-sidebar-brand-icon {
+    @apply h-4 w-4 text-brand-primary;
+  }
+
+  /* Navigation List Container */
+  .dashboard-sidebar-nav {
+    @apply flex-1 overflow-y-auto space-y-1 p-4 font-code text-xs;
+  }
+
+  .dashboard-sidebar-section-title {
+    @apply px-3 py-2 text-10px font-semibold tracking-widest text-text-subtle/70 uppercase;
+  }
+
+  /* Navigation Links Base Style */
+  .dashboard-sidebar-nav-item {
+    @apply flex items-center gap-2.5 rounded-md px-3 py-2 transition-all;
+  }
+
+  .dashboard-sidebar-nav-item-active {
+    @apply border-l-2 border-brand-primary bg-surface-hover font-semibold text-brand-primary shadow-xs;
+  }
+
+  .dashboard-sidebar-nav-item-inactive {
+    @apply text-text-subtle hover:bg-surface-hover/50 hover:text-text-main;
+  }
+
+  .dashboard-sidebar-nav-icon {
+    @apply h-4 w-4 text-text-subtle;
+  }
+
+  .dashboard-sidebar-nav-label {
+    @apply tracking-wide;
+  }
+
+  /* Accordion Engine Button */
+  .dashboard-sidebar-accordion-btn {
+    @apply flex w-full items-center justify-between rounded-md px-3 py-2 text-text-subtle transition-colors hover:bg-surface-hover/50 hover:text-text-main cursor-pointer;
+  }
+
+  .dashboard-sidebar-accordion-content {
+    @apply flex items-center gap-2.5;
+  }
+
+  .dashboard-sidebar-accordion-icon {
+    @apply h-4 w-4 text-brand-primary;
+  }
+
+  .dashboard-sidebar-chevron {
+    @apply h-3.5 w-3.5 text-text-subtle;
+  }
+
+  /* Nested Vault Sub-Items Container & Items */
+  .dashboard-sidebar-subitems {
+    @apply mt-1 space-y-1 pl-6 border-l border-surface-border/60 ml-5;
+  }
+
+  .dashboard-sidebar-subitem {
+    @apply flex items-center gap-2 rounded-md px-3 py-1.5 transition-all;
+  }
+
+  .dashboard-sidebar-subitem-active {
+    @apply bg-surface-hover font-semibold text-brand-primary;
+  }
+
+  .dashboard-sidebar-subitem-inactive {
+    @apply text-text-subtle hover:bg-surface-hover/50 hover:text-text-main;
+  }
+
+  .dashboard-sidebar-subitem-prefix {
+    @apply text-text-subtle/60;
+  }
+}

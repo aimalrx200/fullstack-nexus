@@ -1,0 +1,31 @@
+/* src/styles/tokens/light.css */
+
+:root {
+  --color-primary: #6300ff;
+  --color-primary-hover: #4e00cc;
+  --color-secondary: #ff0055;
+
+  --color-bg-app: #ebf0f7;
+  --color-bg-surface: rgba(255, 255, 255, 0.88);
+  --color-bg-surface-hover: #dbe4f0;
+  --color-border: #b8c5d6;
+
+  --color-text-main: #050814;
+  --color-text-muted: #4a5568;
+
+  --color-success: #00aa4f;
+  --color-warning: #d97706;
+  --color-danger: #e60039;
+
+  --glow-primary: rgba(99, 0, 255, 0.4);
+  --glow-secondary: rgba(255, 0, 85, 0.4);
+  --glow-success: rgba(0, 170, 79, 0.35);
+  --glow-danger: rgba(230, 0, 57, 0.4);
+
+  --grid-line-color: rgba(99, 0, 255, 0.12);
+  --scanline-color: rgba(5, 8, 20, 0.035);
+
+  /* Glassmorphism & Translucent Tokens */
+  --color-bg-surface-glass: rgba(255, 255, 255, 0.9);
+  --color-border-subtle: rgba(5, 8, 20, 0.12);
+}

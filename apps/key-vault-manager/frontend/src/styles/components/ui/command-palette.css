@@ -1,0 +1,218 @@
+/* src/styles/components/ui/command-palette.css */
+
+@keyframes commandPaletteFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes commandPaletteScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@layer components {
+  /* ==========================================================================
+     Command Palette & Global Search Modal Component
+     ========================================================================== */
+
+  /* Modal Backdrop Overlay */
+  .command-palette-backdrop {
+    @apply fixed inset-0 z-100 flex items-start justify-center pt-[10vh] px-4 bg-black/75 backdrop-blur-xs font-mono;
+    animation: commandPaletteFadeIn 0.15s ease-out;
+  }
+
+  .command-palette-backdrop-dismiss {
+    @apply fixed inset-0 -z-10 cursor-default;
+  }
+
+  /* Main Modal Frame */
+  .command-palette-card {
+    @apply relative w-full max-w-2xl bg-surface-card border border-surface-border rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] cyber-card-glow;
+    animation: commandPaletteScaleIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: center top;
+  }
+
+  /* Top Terminal Header Bar */
+  .command-palette-header {
+    @apply flex items-center justify-between px-4 py-2.5 bg-surface-hover/60 border-b border-surface-border;
+  }
+
+  .command-palette-header-title-group {
+    @apply flex items-center gap-2;
+  }
+
+  .command-palette-badge-dot {
+    @apply w-2 h-2 rounded-full bg-brand-primary cyber-badge-dot animate-pulse;
+  }
+
+  .command-palette-header-title {
+    @apply text-10px font-bold uppercase tracking-widest text-text-subtle;
+  }
+
+  .command-palette-close-btn {
+    @apply text-text-subtle hover:text-text-main p-1 rounded transition-colors cursor-pointer;
+  }
+
+  .command-palette-close-icon {
+    @apply w-3.5 h-3.5;
+  }
+
+  /* Search Input Field Container */
+  .command-palette-search-wrapper {
+    @apply flex items-center gap-3 px-4 py-3.5 border-b border-surface-border bg-surface-app/70 backdrop-blur-sm;
+  }
+
+  .command-palette-search-icon {
+    @apply w-4 h-4 text-brand-primary shrink-0;
+  }
+
+  .command-palette-input {
+    @apply w-full bg-transparent text-sm text-text-main font-mono placeholder:text-text-subtle/50 focus:outline-none;
+  }
+
+  .command-palette-clear-btn {
+    @apply text-text-subtle hover:text-text-main text-xs font-mono transition-colors cursor-pointer;
+  }
+
+  /* Category Filter Chips Bar */
+  .command-palette-categories-bar {
+    @apply flex items-center gap-1.5 px-4 py-2 bg-surface-app/40 border-b border-surface-border/60 overflow-x-auto;
+  }
+
+  .command-palette-category-chip {
+    @apply px-2.5 py-1 rounded text-10px font-bold uppercase transition-all cursor-pointer whitespace-nowrap;
+  }
+
+  .command-palette-category-chip-active {
+    @apply bg-brand-primary text-white cyber-button-glow border border-brand-primary/50;
+  }
+
+  .command-palette-category-chip-inactive {
+    @apply text-text-subtle hover:text-text-main hover:bg-surface-hover border border-transparent;
+  }
+
+  /* Scrollable Results List */
+  .command-palette-results-list {
+    @apply flex-1 overflow-y-auto divide-y divide-surface-border/40 p-2 space-y-1;
+  }
+
+  /* Empty State */
+  .command-palette-empty-container {
+    @apply py-12 text-center text-text-subtle text-xs space-y-1;
+  }
+
+  .command-palette-empty-title {
+    @apply font-semibold uppercase tracking-wider text-text-main;
+  }
+
+  .command-palette-empty-subtitle {
+    @apply text-10px text-text-subtle/70;
+  }
+
+  /* Item Row Base & States */
+  .command-palette-item {
+    @apply flex items-center justify-between p-2.5 rounded-lg cursor-pointer transition-all duration-150;
+  }
+
+  .command-palette-item-selected {
+    @apply bg-brand-primary/10 border border-brand-primary/40 text-text-main shadow-xs;
+  }
+
+  .command-palette-item-unselected {
+    @apply border border-transparent hover:bg-surface-hover text-text-subtle hover:text-text-main;
+  }
+
+  /* Item Icon Container */
+  .command-palette-item-icon-box {
+    @apply p-1.5 rounded-md shrink-0;
+  }
+
+  .command-palette-item-icon-box-selected {
+    @apply bg-brand-primary/20 text-brand-primary;
+  }
+
+  .command-palette-item-icon-box-unselected {
+    @apply bg-surface-app text-text-subtle;
+  }
+
+  .command-palette-item-icon {
+    @apply w-4 h-4;
+  }
+
+  /* Item Content */
+  .command-palette-item-content {
+    @apply flex items-center gap-3 min-w-0 pr-2;
+  }
+
+  .command-palette-item-title-row {
+    @apply flex items-center gap-2;
+  }
+
+  .command-palette-item-title {
+    @apply font-bold text-xs text-text-main truncate;
+  }
+
+  .command-palette-item-category {
+    @apply text-10px font-semibold text-brand-primary/80 uppercase tracking-wider;
+  }
+
+  .command-palette-item-subtitle {
+    @apply text-10px text-text-subtle truncate mt-0.5;
+  }
+
+  /* Right Meta Badges */
+  .command-palette-item-meta {
+    @apply flex items-center gap-2 shrink-0;
+  }
+
+  .command-palette-badge {
+    @apply text-10px px-1.5 py-0.5 rounded font-bold uppercase;
+  }
+
+  .command-palette-badge-success {
+    @apply bg-status-success/10 text-status-success border border-status-success/30;
+  }
+
+  .command-palette-badge-warning {
+    @apply bg-status-warning/10 text-status-warning border border-status-warning/30;
+  }
+
+  .command-palette-badge-danger {
+    @apply bg-status-danger/10 text-status-danger border border-status-danger/30;
+  }
+
+  .command-palette-badge-muted {
+    @apply bg-surface-hover text-text-subtle border border-surface-border;
+  }
+
+  .command-palette-copy-icon {
+    @apply w-3.5 h-3.5 text-text-subtle hover:text-brand-primary transition-colors;
+  }
+
+  .command-palette-enter-icon {
+    @apply w-3.5 h-3.5 text-brand-primary animate-pulse;
+  }
+
+  /* Bottom Shortcut Helper Footer */
+  .command-palette-footer {
+    @apply flex items-center justify-between px-4 py-2.5 bg-surface-app/70 border-t border-surface-border text-10px text-text-subtle;
+  }
+
+  .command-palette-shortcuts-group {
+    @apply flex items-center gap-3 flex-wrap;
+  }
+
+  .command-palette-kbd {
+    @apply px-1.5 py-0.5 bg-surface-card border border-surface-border rounded text-[9px] font-semibold text-text-main shadow-xs;
+  }
+}

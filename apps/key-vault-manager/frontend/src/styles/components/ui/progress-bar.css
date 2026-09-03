@@ -1,0 +1,28 @@
+/* src/styles/components/common/ui/progress-bar.css */
+
+@layer components {
+  /* ==========================================================================
+     Global Top Progress Bar Component
+     ========================================================================== */
+
+  /* Container Bar Layout & Fixed Position */
+  .progress-bar-container {
+    @apply fixed top-0 left-0 right-0 z-50 h-1 bg-surface-border/30 pointer-events-none backdrop-blur-xs;
+  }
+
+  /* Active Fill Bar with Dynamic Custom Gradient & Glow Effects */
+  .progress-bar-fill {
+    @apply h-full bg-linear-to-r from-brand-primary via-brand-secondary to-brand-primary relative;
+    box-shadow:
+      0 0 12px var(--color-glow-primary),
+      0 0 6px var(--color-glow-secondary);
+    transition-property: width, opacity;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+
+  /* Leading Cyberpunk Laser Tip Effect */
+  .progress-bar-tip {
+    @apply absolute right-0 top-0 bottom-0 w-10 bg-linear-to-r from-transparent to-brand-secondary blur-xs opacity-90;
+  }
+}

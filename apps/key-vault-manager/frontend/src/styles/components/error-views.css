@@ -1,0 +1,218 @@
+/* src/styles/components/error-views.css */
+
+@layer components {
+  /* ==========================================================================
+     Shared Route Error Element Components
+     ========================================================================== */
+
+  /* Layout & Background Layers */
+  .route-error-container {
+    @apply relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-surface-app px-4 py-8 antialiased transition-colors z-10;
+  }
+
+  .route-error-grid-overlay {
+    @apply cyber-grid-overlay;
+  }
+
+  .route-error-scanline-overlay {
+    @apply cyber-scanline-overlay;
+  }
+
+  .route-error-hud-frame {
+    @apply cyber-hud-frame;
+  }
+
+  .route-error-ambient-glow {
+    @apply absolute top-1/2 left-1/2 -z-10 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-status-danger/20 blur-3xl pointer-events-none transform-gpu animate-pulse;
+  }
+
+  /* Card Content Wrapper */
+  .route-error-wrapper {
+    @apply relative z-10 w-full max-w-lg text-center;
+  }
+
+  .route-error-motion-container {
+    @apply w-full transform-gpu;
+  }
+
+  .route-error-card {
+    @apply relative w-full rounded-xl border border-surface-border bg-surface-card p-8 shadow-2xl backdrop-blur-md cyber-card-glow cyber-notch sm:p-12 transition-[border-color,box-shadow] duration-200;
+  }
+
+  /* Terminal Status Bar Header */
+  .route-error-header {
+    @apply flex items-center justify-between pb-4 mb-6 border-b border-surface-border/60 font-mono text-10px;
+  }
+
+  .route-error-header-status {
+    @apply flex items-center gap-2;
+  }
+
+  .route-error-badge-dot {
+    @apply w-2 h-2 rounded-full bg-status-danger cyber-badge-dot animate-pulse;
+  }
+
+  .route-error-header-title {
+    @apply tracking-widest text-text-subtle uppercase;
+  }
+
+  .route-error-header-log {
+    @apply flex items-center gap-1 text-brand-primary font-bold;
+  }
+
+  .route-error-header-log-icon {
+    @apply h-3 w-3;
+  }
+
+  /* Alert Icon Badge & Status Tag */
+  .route-error-icon-badge {
+    @apply mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-status-danger/10 border border-status-danger/30 text-status-danger shadow-[0_0_15px_var(--color-glow-danger)];
+  }
+
+  .route-error-icon {
+    @apply h-8 w-8 animate-pulse;
+  }
+
+  .route-error-status-tag {
+    @apply inline-block rounded-md bg-status-danger/10 border border-status-danger/30 px-3 py-1 text-[11px] font-mono font-bold tracking-widest text-status-danger uppercase;
+  }
+
+  /* Title & Error Details Box */
+  .route-error-title {
+    @apply mt-4 text-2xl font-extrabold tracking-tight text-text-main sm:text-3xl;
+  }
+
+  .route-error-message-box {
+    @apply mt-4 rounded-md bg-surface-app/70 border border-surface-border/50 p-3.5 text-left backdrop-blur-sm;
+  }
+
+  .route-error-message-text {
+    @apply text-xs font-mono text-text-subtle leading-relaxed;
+    word-break: break-word;
+  }
+
+  .route-error-message-prefix {
+    @apply text-status-danger font-bold;
+  }
+
+  /* Action Buttons Area */
+  .route-error-actions {
+    @apply mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center;
+  }
+
+  .route-error-btn-reload {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-surface-border bg-surface-card/80 px-5 py-2.5 font-mono text-xs font-semibold uppercase tracking-wider text-text-main shadow-xs hover:bg-surface-hover hover:border-brand-primary/50 focus-visible:outline-2 focus-visible:outline-brand-primary active:translate-y-0.5 transition-[background-color,border-color,transform] duration-150 cursor-pointer;
+  }
+
+  .route-error-btn-reload-icon {
+    @apply h-4 w-4 text-text-subtle;
+  }
+
+  .route-error-btn-home {
+    @apply inline-flex items-center justify-center gap-2 rounded-md bg-brand-primary px-5 py-2.5 font-mono text-xs font-semibold uppercase tracking-wider text-white shadow-md hover:bg-brand-primary-hover focus-visible:outline-2 focus-visible:outline-brand-primary cyber-button-glow cursor-pointer;
+  }
+
+  .route-error-btn-home-icon {
+    @apply h-4 w-4;
+  }
+
+  /* Footer Terminal Info */
+  .route-error-footer-text {
+    @apply mt-6 text-[11px] text-text-subtle font-mono tracking-wider;
+  }
+
+  /* ==========================================================================
+     404 Not Found View Components
+     ========================================================================== */
+
+  /* Layout & Background Layers */
+  .not-found-container {
+    @apply flex min-h-screen w-full items-center justify-center bg-transparent px-4 py-8 relative z-10 overflow-hidden;
+  }
+
+  .not-found-wrapper {
+    @apply relative w-full max-w-lg text-center;
+  }
+
+  .not-found-ambient-glow {
+    @apply absolute top-1/2 left-1/2 -z-10 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-brand-primary/15 blur-3xl pointer-events-none transform-gpu;
+  }
+
+  /* Motion & Card Containers */
+  .not-found-motion-container {
+    @apply w-full transform-gpu;
+  }
+
+  .not-found-card {
+    @apply relative w-full rounded-xl border border-surface-border bg-surface-card/90 p-8 shadow-2xl backdrop-blur-md cyber-card-glow cyber-notch sm:p-12 transition-[border-color,box-shadow] duration-200;
+  }
+
+  /* Top Terminal Header Bar */
+  .not-found-header {
+    @apply flex items-center justify-between pb-4 mb-6 border-b border-surface-border/60;
+  }
+
+  .not-found-header-status {
+    @apply flex items-center gap-2;
+  }
+
+  .not-found-badge-dot {
+    @apply w-2 h-2 rounded-full bg-status-danger cyber-badge-dot animate-pulse;
+  }
+
+  .not-found-header-title {
+    @apply font-mono text-10px tracking-widest text-text-subtle uppercase;
+  }
+
+  .not-found-version {
+    @apply font-mono text-10px text-brand-primary/80 font-bold;
+  }
+
+  /* Compass Badge & Error Tag */
+  .not-found-icon-badge {
+    @apply mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-xl bg-brand-primary/10 border border-brand-primary/20 text-brand-primary;
+  }
+
+  .not-found-icon {
+    @apply h-7 w-7 animate-pulse;
+  }
+
+  .not-found-status-tag {
+    @apply inline-block rounded-md bg-status-danger/10 border border-status-danger/30 px-3 py-1 text-xs font-mono font-bold tracking-widest text-status-danger uppercase;
+  }
+
+  /* Typography */
+  .not-found-title {
+    @apply mt-4 text-3xl font-extrabold tracking-tight text-text-main sm:text-4xl;
+  }
+
+  .not-found-description {
+    @apply mt-3 text-xs leading-relaxed text-text-subtle font-mono sm:text-sm;
+  }
+
+  /* Actions Group */
+  .not-found-actions {
+    @apply mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center;
+  }
+
+  .not-found-btn-back {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-surface-border bg-surface-card/80 px-5 py-2.5 font-mono text-xs font-semibold uppercase tracking-wider text-text-main shadow-xs hover:bg-surface-hover hover:border-brand-primary/50 focus-visible:outline-2 focus-visible:outline-brand-primary active:translate-y-0.5 transition-[background-color,border-color,transform] duration-150 cursor-pointer;
+  }
+
+  .not-found-btn-back-icon {
+    @apply h-4 w-4 text-text-subtle;
+  }
+
+  .not-found-link-home {
+    @apply inline-flex items-center justify-center gap-2 rounded-md bg-brand-primary px-5 py-2.5 font-mono text-xs font-semibold uppercase tracking-wider text-white shadow-md hover:bg-brand-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary cyber-button-glow;
+  }
+
+  .not-found-link-home-icon {
+    @apply h-4 w-4;
+  }
+
+  /* Footer Note */
+  .not-found-footer-note {
+    @apply mt-8 text-[11px] text-text-subtle font-mono;
+  }
+}

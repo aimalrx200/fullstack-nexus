@@ -1,0 +1,10 @@
+/* src/styles/components/animated-page.css */
+
+@layer components {
+  /* ==========================================================================
+     Animated Page Layout Component
+     ========================================================================== */
+  .animated-page {
+    @apply col-start-1 row-start-1 flex flex-col w-full h-full bg-transparent text-text-main overflow-hidden transition-colors duration-200 transform-gpu;
+  }
+}

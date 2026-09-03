@@ -1,0 +1,41 @@
+/* src/styles/components/common/breadcrumbs.css */
+
+@layer components {
+  /* ==========================================================================
+     Breadcrumbs Navigation Component
+     ========================================================================== */
+
+  /* Breadcrumb Navigation Container */
+  .breadcrumbs-nav {
+    @apply mb-4 flex items-center space-x-2 font-code text-xs;
+  }
+
+  /* Home Link */
+  .breadcrumbs-home-link {
+    @apply flex items-center gap-1 text-text-subtle transition-colors hover:text-brand-primary;
+  }
+
+  .breadcrumbs-home-icon {
+    @apply h-3.5 w-3.5;
+  }
+
+  /* Crumb Item Wrapper */
+  .breadcrumbs-item {
+    @apply flex items-center space-x-2;
+  }
+
+  /* Separator Icon */
+  .breadcrumbs-separator {
+    @apply h-3.5 w-3.5 text-text-subtle/60;
+  }
+
+  /* Active Crumb (Current Page) */
+  .breadcrumbs-active-crumb {
+    @apply font-semibold uppercase tracking-wider text-text-main;
+  }
+
+  /* Inactive Crumb Link */
+  .breadcrumbs-link {
+    @apply uppercase tracking-wider text-text-subtle transition-colors hover:text-brand-primary;
+  }
+}
