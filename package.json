@@ -9,7 +9,7 @@
     "apps/key-vault-manager/backend"
   ],
   "scripts": {
-    "prepare": "husky",
+    "prepare": "node -e \"if (!process.env.VERCEL && !process.env.CI && process.env.NODE_ENV !== 'production') { import('child_process').then(cp => { try { cp.execSync('npx husky', { stdio: 'inherit' }); } catch(e){} }); }\"",
     "lint": "eslint .",
     "format": "prettier --write .",
     "dev": "concurrently --kill-others \"npm run dev:key-vault\"",
