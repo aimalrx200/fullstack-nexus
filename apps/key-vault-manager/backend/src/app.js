@@ -23,6 +23,13 @@ if (env.NODE_ENV === "production") {
 // =============================================================================
 app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));
+// 🟢 Vercel Serverless Fix: Force cookie-parser to register secret
+app.use((req, res, next) => {
+  req.secret = env.COOKIE_SECRET;
+  delete req.cookies;
+  next();
+});
+
 app.use(cookieParser(env.COOKIE_SECRET));
 
 // =============================================================================
