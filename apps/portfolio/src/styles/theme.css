@@ -1,0 +1,21 @@
+@theme {
+  --color-brand-primary: #ff6b00;
+  --color-brand-primary-hover: #ff8533;
+  --color-brand-secondary: #00f0ff;
+
+  --color-surface-app: #030305;
+  --color-surface-card: rgba(10, 10, 16, 0.85);
+  --color-surface-hover: #141424;
+  --color-surface-border: #232334;
+
+  --color-text-main: #f0f3ff;
+  --color-text-subtle: #737890;
+
+  --color-status-success: #00ff66;
+  --color-status-warning: #ffb700;
+  --color-status-danger: #ff0055;
+
+  --font-sans-main:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}

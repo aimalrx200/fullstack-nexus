@@ -1,0 +1,41 @@
+@import "tailwindcss";
+@import "./styles/theme.css";
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: var(--font-sans-main);
+  }
+  code,
+  kbd,
+  samp,
+  pre,
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Cyber Glassmorphism & Glow Utilities */
+.cyber-glass {
+  background: rgba(10, 10, 16, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cyber-glass-hover {
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.cyber-glass-hover:hover {
+  border-color: rgba(255, 107, 0, 0.4);
+  box-shadow: 0 0 24px -4px rgba(255, 107, 0, 0.25);
+}
+
+.cyber-grid {
+  background-image:
+    linear-gradient(to right, rgba(255, 107, 0, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 107, 0, 0.06) 1px, transparent 1px);
+  background-size: 36px 36px;
+}
