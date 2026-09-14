@@ -30,7 +30,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#030305] text-[#f0f3ff] flex flex-col font-sans-main">
+    <div className="min-h-screen bg-surface-app text-text-main flex flex-col font-sans-main">
       <Navbar onOpenPalette={() => setIsPaletteOpen(true)} />
 
       <main className="flex-1">

@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/v1/:path*",
-      "destination": "https://fullstack-nexus-commerce-api.vercel.app/api/v1/:path*"
+      "destination": "https://nexus-commerce-backend.vercel.app/api/v1/:path*"
     },
     {
       "source": "/(.*)",
