@@ -1,11 +1,23 @@
-import DOMPurify from "isomorphic-dompurify";
-
 /**
- * Sanitizes a single string against XSS injection vectors.
+ * Serverless-safe input sanitizer that strips dangerous HTML tags,
+ * scripts, and malicious XSS vectors without relying on JSDOM.
  */
 export const sanitizeInput = (dirty) => {
   if (typeof dirty !== "string") return dirty;
-  return DOMPurify.sanitize(dirty.trim());
+
+  return (
+    dirty
+      .trim()
+      // Strip script and style tags along with their content
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+      // Strip all remaining HTML tags
+      .replace(/<\/?[^>]+(>|$)/g, "")
+      // Strip javascript: pseudo-protocols
+      .replace(/javascript:/gi, "")
+      // Neutralize inline event handlers
+      .replace(/on\w+\s*=/gi, "")
+  );
 };
 
 /**

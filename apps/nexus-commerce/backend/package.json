@@ -41,7 +41,6 @@
     "helmet": "^8.2.0",
     "hpp": "^0.2.3",
     "ioredis": "^5.5.0",
-    "isomorphic-dompurify": "^2.20.0",
     "jsonwebtoken": "^9.0.3",
     "libphonenumber-js": "^1.11.19",
     "lru-cache": "^11.5.2",
