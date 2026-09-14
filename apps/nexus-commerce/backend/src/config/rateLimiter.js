@@ -16,6 +16,17 @@ export const createRateLimiter = ({ windowMs, max, message, prefix }) => {
     standardHeaders: true,
     legacyHeaders: false,
     passOnStoreError: true, // Guarantees requests proceed smoothly even if Redis reconnects
+    // Disable trustProxy warning for Vercel Serverless environment
+    validate: { trustProxy: false, xForwardedForHeader: false },
+    // Custom keyGenerator to extract client IP reliably behind Vercel edge proxy
+    keyGenerator: (req) => {
+      return (
+        req.headers["x-forwarded-for"]?.split(",")[0].trim() ||
+        req.ip ||
+        req.socket?.remoteAddress ||
+        "127.0.0.1"
+      );
+    },
     message: { success: false, message },
     skip: () => isTest,
   };

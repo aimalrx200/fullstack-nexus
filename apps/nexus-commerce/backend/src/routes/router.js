@@ -14,7 +14,20 @@ import supportRoutes from "./support.routes.js";
 const router = Router();
 
 // =============================================================================
-// 1. HEALTH & TELEMETRY MONITORING ENDPOINTS
+// 1. ROOT API GATEWAY WELCOME ENDPOINT
+// =============================================================================
+router.get("/", (req, res) => {
+  return res.status(200).json({
+    success: true,
+    service: "Nexus Commerce API v1 Gateway",
+    status: "online",
+    healthCheck: "/api/v1/health",
+    version: "1.0.0",
+  });
+});
+
+// =============================================================================
+// 2. HEALTH & TELEMETRY MONITORING ENDPOINTS
 // =============================================================================
 
 /**
@@ -148,7 +161,7 @@ router.get("/health", async (req, res) => {
 });
 
 // =============================================================================
-// 2. DOMAIN PIPELINE MOUNTS
+// 3. DOMAIN PIPELINE MOUNTS
 // =============================================================================
 router.use("/auth", authRoutes);
 router.use("/products", productRoutes);

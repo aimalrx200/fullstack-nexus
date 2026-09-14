@@ -120,21 +120,10 @@ app.use("/api/v1/checkout", checkoutLimiter);
 app.use("/api/v1/orders", checkoutLimiter);
 app.use("/api/v1", globalLimiter);
 
-// 6. Base Welcome Endpoint
-app.get("/", (req, res) => {
-  return res.status(200).json({
-    success: true,
-    service: "Nexus Commerce API Engine",
-    status: "online",
-    healthCheck: "/api/v1/health",
-    version: "1.0.0",
-  });
-});
-
-// 7. Master Routing
+// 6. Master Routing
 app.use("/api/v1", masterRouter);
 
-// 8. Error Handling
+// 7. Error Handling
 app.use((req, res, next) => {
   const error = new Error(`Route ${req.originalUrl} not found`);
   error.status = 404;
