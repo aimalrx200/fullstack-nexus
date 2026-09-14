@@ -49,3 +49,8 @@ old_code
 
 # notes
 notes
+
+# Local Media & File Uploads
+apps/nexus-commerce/backend/uploads/
+uploads/
+*.tmp

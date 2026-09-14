@@ -5,7 +5,7 @@ import currency from "currency.js";
 import { logger } from "#config/logger.js";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-12-18.acacia",
+  apiVersion: "2026-08-26.dahlia",
   typescript: false,
 });
 

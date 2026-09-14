@@ -4,12 +4,17 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import hpp from "hpp";
 import env from "./config/env.js";
+import path from "path";
+import { fileURLToPath } from "url";
 import { requestLogger } from "./middlewares/logger.js";
 import { createRateLimiter } from "./config/rateLimiter.js";
 import { errorHandler } from "./middlewares/errorMiddleware.js";
 import masterRouter from "./routes/router.js";
 
 const app = express();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // 1. Production Trust Proxy
 if (env.NODE_ENV === "production") {
@@ -80,6 +85,9 @@ app.use(
 
 // 4. Telemetry Logger
 app.use(requestLogger);
+
+// Serve local media uploads publicly
+app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
 
 // 5. Distributed Rate Limiters
 const authLimiter = createRateLimiter({
