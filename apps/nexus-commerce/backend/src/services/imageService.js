@@ -1,19 +1,18 @@
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
+import os from "os";
 import sharp from "sharp";
 import cloudinary from "#config/cloudinary.js";
 import env from "#config/env.js";
 import { logger } from "#config/logger.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const UPLOADS_DIR = path.resolve(__dirname, "../../uploads");
-
-// Ensure local uploads directory exists on startup
-if (!fs.existsSync(UPLOADS_DIR)) {
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-}
+// Determine safe storage directory (uses /tmp on serverless / Linux, local /uploads in dev)
+const getSafeUploadsDir = () => {
+  if (env.NODE_ENV === "production") {
+    return os.tmpdir();
+  }
+  return path.resolve(process.cwd(), "uploads");
+};
 
 /**
  * Optimizes an image buffer: auto-rotates EXIF orientation, resizes, and converts to WebP.
@@ -37,7 +36,7 @@ export const processImageToWebP = async (
 };
 
 /**
- * Uploads to Cloudinary if configured; otherwise writes to local /uploads directory.
+ * Uploads to Cloudinary if configured; otherwise safely saves locally or returns Data URI.
  */
 export const uploadImage = async (
   fileBuffer,
@@ -45,7 +44,7 @@ export const uploadImage = async (
 ) => {
   const webpBuffer = await processImageToWebP(fileBuffer);
 
-  // 1. Cloudinary Storage (if keys provided)
+  // 1. Cloudinary Storage (Recommended for Production)
   if (
     env.CLOUDINARY_CLOUD_NAME &&
     env.CLOUDINARY_API_KEY &&
@@ -76,18 +75,42 @@ export const uploadImage = async (
     });
   }
 
-  // 2. Local Disk Storage Fallback
-  const fileName = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.webp`;
-  const filePath = path.join(UPLOADS_DIR, fileName);
+  // 2. Production Serverless Fallback (Base64 Data URI)
+  if (env.NODE_ENV === "production") {
+    const base64 = webpBuffer.toString("base64");
+    return {
+      url: `data:image/webp;base64,${base64}`,
+      publicId: `local_upload_${Date.now()}`,
+    };
+  }
 
-  await fs.promises.writeFile(filePath, webpBuffer);
+  // 3. Local Development Disk Storage
+  try {
+    const uploadsDir = getSafeUploadsDir();
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
 
-  logger.debug({ msg: "Saved image to local storage", fileName });
+    const fileName = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.webp`;
+    const filePath = path.join(uploadsDir, fileName);
 
-  // Public URL served by Express static middleware
-  const baseUrl = env.CLIENT_URL ? "http://localhost:4000" : "";
-  return {
-    url: `${baseUrl}/uploads/${fileName}`,
-    publicId: fileName,
-  };
+    await fs.promises.writeFile(filePath, webpBuffer);
+    logger.debug({ msg: "Saved image to local storage", fileName });
+
+    const baseUrl = env.CLIENT_URL ? "http://localhost:4000" : "";
+    return {
+      url: `${baseUrl}/uploads/${fileName}`,
+      publicId: fileName,
+    };
+  } catch (err) {
+    logger.warn({
+      msg: "Local disk write failed, falling back to Data URI",
+      error: err.message,
+    });
+    const base64 = webpBuffer.toString("base64");
+    return {
+      url: `data:image/webp;base64,${base64}`,
+      publicId: `local_upload_${Date.now()}`,
+    };
+  }
 };
