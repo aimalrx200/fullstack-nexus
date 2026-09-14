@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "#config/*": ["./src/config/*"],
+      "#controllers/*": ["./src/controllers/*"],
+      "#gateways/*": ["./src/gateways/*"],
+      "#middlewares/*": ["./src/middlewares/*"],
+      "#models/*": ["./src/models/*"],
+      "#routes/*": ["./src/routes/*"],
+      "#services/*": ["./src/services/*"],
+      "#utils/*": ["./src/utils/*"],
+      "#validations/*": ["./src/validations/*"],
+      "#websockets/*": ["./src/websockets/*"]
+    }
+  },
+  "exclude": ["node_modules"]
+}

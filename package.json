@@ -6,15 +6,18 @@
   "workspaces": [
     "apps/portfolio",
     "apps/key-vault-manager/frontend",
-    "apps/key-vault-manager/backend"
+    "apps/key-vault-manager/backend",
+    "apps/nexus-commerce/frontend",
+    "apps/nexus-commerce/backend"
   ],
   "scripts": {
     "prepare": "node -e \"if (!process.env.VERCEL && !process.env.CI && process.env.NODE_ENV !== 'production') { import('child_process').then(cp => { try { cp.execSync('npx husky', { stdio: 'inherit' }); } catch(e){} }); }\"",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "dev": "concurrently --kill-others \"npm run dev:key-vault\"",
+    "dev": "concurrently --kill-others \"npm run dev:commerce\"",
     "dev:key-vault": "concurrently --delay 0,2000 -n \"KV-BACK\",\"KV-FRONT\" -c \"cyan,blue\" \"npm run dev --workspace=apps/key-vault-manager/backend\" \"npm run dev --workspace=apps/key-vault-manager/frontend\"",
-    "dev:portfolio": "npm run dev --workspace=apps/portfolio"
+    "dev:portfolio": "npm run dev --workspace=apps/portfolio",
+    "dev:commerce": "concurrently --delay 0,2000 -n \"NEXUS-API\",\"NEXUS-UI\" -c \"magenta,green\" \"npm run dev --workspace=apps/nexus-commerce/backend\" \"npm run dev --workspace=apps/nexus-commerce/frontend\""
   },
   "lint-staged": {
     "*.{js,jsx}": [
@@ -38,7 +41,7 @@
   },
   "allowScripts": {
     "bcrypt@6.0.0": true,
-    "esbuild@0.28.1": true,
-    "mongodb-memory-server@11.2.0": true
+    "mongodb-memory-server@11.2.0": true,
+    "esbuild@0.25.12": true
   }
 }
