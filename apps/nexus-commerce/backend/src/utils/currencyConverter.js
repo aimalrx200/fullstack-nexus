@@ -1,7 +1,5 @@
 import currency from "currency.js";
-
-// Configurable baseline exchange rate (1 USD = 280 PKR)
-const DEFAULT_USD_TO_PKR_RATE = 280.0;
+import { DEFAULT_USD_TO_PKR_RATE } from "#services/currencyService.js";
 
 /**
  * Converts USD amount to PKR with zero floating-point precision loss.

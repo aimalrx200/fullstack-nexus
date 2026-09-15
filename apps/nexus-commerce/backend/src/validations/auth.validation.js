@@ -137,3 +137,42 @@ export const AddressSchema = z.object({
       .optional(),
   }),
 });
+
+// 6. Forgot Password Request Schema
+export const ForgotPasswordSchema = z.object({
+  body: z.object({
+    email: z
+      .string()
+      .email("Please provide a valid email address.")
+      .toLowerCase()
+      .trim(),
+  }),
+});
+
+// 7. Reset Password Execution Schema with zxcvbn Entropy Verification
+export const ResetPasswordSchema = z.object({
+  body: z
+    .object({
+      token: z.string().min(1, "Password reset token is required."),
+      password: z
+        .string()
+        .min(8, "Password must be at least 8 characters long.")
+        .max(100, "Password cannot exceed 100 characters.")
+        .regex(
+          /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=])[A-Za-z\d@$!%*?&#^()_+\-=]{8,}$/,
+          "Password must include uppercase, lowercase, a number, and a special character.",
+        ),
+    })
+    .superRefine((data, ctx) => {
+      const result = checkPasswordStrength(data.password);
+      if (result.score < MIN_PASSWORD_SCORE) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["password"],
+          message:
+            result.feedback.warning ||
+            "Password is too easy to guess. Try adding more uncommon words.",
+        });
+      }
+    }),
+});

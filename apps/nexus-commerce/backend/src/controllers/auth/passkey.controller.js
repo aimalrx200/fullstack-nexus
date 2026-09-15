@@ -12,6 +12,8 @@ import {
   refreshTokenCookieOptions,
 } from "#utils/cookieUtils.js";
 import { formatUserResponse } from "#utils/userSerializer.js";
+import { cacheStore } from "#config/redis.js";
+import { WEBAUTHN_CHALLENGE_TTL_SECONDS } from "#config/time.constants.js";
 
 /**
  * Generates WebAuthn registration options.
@@ -23,6 +25,7 @@ export const getPasskeyRegistrationOptions = asyncHandler(async (req, res) => {
   const authenticatedUserId = req.user?.id;
 
   let user;
+  let challengeKey;
 
   if (authenticatedUserId) {
     // 1. Authenticated Device Binding Flow
@@ -32,6 +35,7 @@ export const getPasskeyRegistrationOptions = asyncHandler(async (req, res) => {
         .status(404)
         .json({ success: false, message: "User account not found." });
     }
+    challengeKey = `passkey:reg:uid:${user._id}`;
   } else {
     // 2. Unauthenticated Signup Flow (Guards against Account Hijacking)
     const cleanEmail = email?.toLowerCase().trim();
@@ -57,15 +61,17 @@ export const getPasskeyRegistrationOptions = asyncHandler(async (req, res) => {
       email: cleanEmail,
       name: name?.trim() || cleanEmail.split("@")[0],
     });
+    challengeKey = `passkey:reg:email:${cleanEmail}`;
   }
 
   const options = await createPasskeyRegistrationOptions(user);
-  user.currentChallenge = options.challenge;
 
-  // Persist challenge if user already exists in DB
-  if (!user.isNew) {
-    await user.save();
-  }
+  // Store challenge in distributed cache with TTL (Works in stateless serverless lambdas)
+  await cacheStore.setex(
+    challengeKey,
+    WEBAUTHN_CHALLENGE_TTL_SECONDS,
+    options.challenge,
+  );
 
   return res.status(200).json({ success: true, options });
 });
@@ -79,15 +85,15 @@ export const verifyPasskeyRegistrationResponse = asyncHandler(
     const authenticatedUserId = req.user?.id;
 
     let user;
+    let challengeKey;
 
     if (authenticatedUserId) {
-      user =
-        await User.findById(authenticatedUserId).select("+currentChallenge");
+      user = await User.findById(authenticatedUserId);
+      challengeKey = `passkey:reg:uid:${authenticatedUserId}`;
     } else {
       const cleanEmail = email?.toLowerCase().trim();
-      user = await User.findOne({ email: cleanEmail }).select(
-        "+currentChallenge",
-      );
+      user = await User.findOne({ email: cleanEmail });
+      challengeKey = `passkey:reg:email:${cleanEmail}`;
 
       // If user was created fresh in registration step
       if (!user) {
@@ -105,7 +111,10 @@ export const verifyPasskeyRegistrationResponse = asyncHandler(
       }
     }
 
-    if (!user || !user.currentChallenge) {
+    // Fetch challenge from distributed cache (Redis or LRU fallback)
+    const expectedChallenge = await cacheStore.get(challengeKey);
+
+    if (!expectedChallenge) {
       return res.status(400).json({
         success: false,
         message: "Registration challenge expired or missing. Please try again.",
@@ -115,7 +124,7 @@ export const verifyPasskeyRegistrationResponse = asyncHandler(
     const { verified, passkey, error } = await verifyPasskeyRegistration(
       user,
       response,
-      user.currentChallenge,
+      expectedChallenge,
     );
 
     if (!verified || !passkey) {
@@ -125,16 +134,19 @@ export const verifyPasskeyRegistrationResponse = asyncHandler(
       });
     }
 
+    // Invalidate challenge immediately to prevent replay
+    await cacheStore.del(challengeKey);
+
     // Prevent duplicate passkey credential IDs
     const alreadyExists = user.passkeys?.some(
       (pk) => pk.credentialID === passkey.credentialID,
     );
 
     if (!alreadyExists) {
+      if (!user.passkeys) user.passkeys = [];
       user.passkeys.push(passkey);
     }
 
-    user.currentChallenge = undefined;
     await user.save();
 
     const { accessToken, refreshToken } = await initializeUserSession({
@@ -157,13 +169,18 @@ export const verifyPasskeyRegistrationResponse = asyncHandler(
 
 export const getPasskeyAuthOptions = asyncHandler(async (req, res) => {
   const { email } = req.body;
-  const user = await User.findOne({ email: email?.toLowerCase().trim() });
+  const cleanEmail = email?.toLowerCase().trim();
+  const user = cleanEmail ? await User.findOne({ email: cleanEmail }) : null;
 
   const options = await createPasskeyAuthOptions(user);
 
-  if (user) {
-    user.currentChallenge = options.challenge;
-    await user.save();
+  if (cleanEmail) {
+    const challengeKey = `passkey:auth:${cleanEmail}`;
+    await cacheStore.setex(
+      challengeKey,
+      WEBAUTHN_CHALLENGE_TTL_SECONDS,
+      options.challenge,
+    );
   }
 
   return res.status(200).json({ success: true, options });
@@ -171,21 +188,38 @@ export const getPasskeyAuthOptions = asyncHandler(async (req, res) => {
 
 export const verifyPasskeyAuthResponse = asyncHandler(async (req, res) => {
   const { email, response } = req.body;
-  const user = await User.findOne({
-    email: email?.toLowerCase().trim(),
-  }).select("+currentChallenge");
+  const cleanEmail = email?.toLowerCase().trim();
 
-  if (!user || !user.currentChallenge) {
+  if (!cleanEmail) {
     return res.status(400).json({
       success: false,
-      message: "Passkey challenge expired or invalid.",
+      message: "Email address is required for authentication.",
+    });
+  }
+
+  const user = await User.findOne({ email: cleanEmail });
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: "Account not found for provided email.",
+    });
+  }
+
+  const challengeKey = `passkey:auth:${cleanEmail}`;
+  const expectedChallenge = await cacheStore.get(challengeKey);
+
+  if (!expectedChallenge) {
+    return res.status(400).json({
+      success: false,
+      message: "Passkey challenge expired or invalid. Please try again.",
     });
   }
 
   const { verified, error } = await verifyPasskeyAuth(
     user,
     response,
-    user.currentChallenge,
+    expectedChallenge,
   );
 
   if (!verified) {
@@ -195,8 +229,8 @@ export const verifyPasskeyAuthResponse = asyncHandler(async (req, res) => {
     });
   }
 
-  user.currentChallenge = undefined;
-  await user.save();
+  // Invalidate challenge upon verification
+  await cacheStore.del(challengeKey);
 
   const { accessToken, refreshToken } = await initializeUserSession({
     user,

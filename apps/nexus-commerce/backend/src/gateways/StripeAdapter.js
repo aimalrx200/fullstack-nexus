@@ -5,7 +5,6 @@ import currency from "currency.js";
 import { logger } from "#config/logger.js";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
-  apiVersion: "2026-08-26.dahlia",
   typescript: false,
 });
 
@@ -32,7 +31,7 @@ export class StripeAdapter extends PaymentGatewayInterface {
         metadata: {
           orderId: order._id.toString(),
           orderNumber: order.orderNumber,
-          customerPhone: order.customerPhone,
+          customerPhone: order.customerPhone || "",
         },
         automatic_payment_methods: { enabled: true },
       },
@@ -57,6 +56,10 @@ export class StripeAdapter extends PaymentGatewayInterface {
       throw new Error(
         "STRIPE_WEBHOOK_SECRET is not configured in server environment.",
       );
+    }
+
+    if (!signatureHeader) {
+      throw new Error("Missing stripe-signature header.");
     }
 
     return stripe.webhooks.constructEvent(

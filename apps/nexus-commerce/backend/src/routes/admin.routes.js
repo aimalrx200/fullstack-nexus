@@ -13,19 +13,30 @@ import {
   getAllOrders,
   updateFulfillmentStatus,
   assignCourierTracking,
+  simulateCourierDelivery,
 } from "#controllers/admin/orderFulfillment.controller.js";
+import {
+  getCoupons,
+  createCoupon,
+  updateCoupon,
+  deleteCoupon,
+} from "#controllers/admin/coupon.controller.js"; // 👈 Import coupon controllers
 import { UpdateStockOverrideSchema } from "#validations/product.validation.js";
+import {
+  CreateCouponSchema,
+  UpdateCouponSchema,
+} from "#validations/coupon.validation.js"; // 👈 Import coupon validations
 
 const router = Router();
 
 // Strict RBAC gate on all admin routes
 router.use(authMiddleware, adminMiddleware);
 
-// Analytics & Customers (Server-Side Paginated)
+// Analytics & Customers
 router.get("/analytics", getDashboardAnalytics);
 router.get("/customers", getCustomerDirectory);
 
-// Inventory Control (Server-Side Paginated)
+// Inventory Control
 router.get("/inventory", getInventoryMatrix);
 router.get("/inventory/low-stock", getLowStockAlerts);
 router.patch(
@@ -34,9 +45,16 @@ router.patch(
   updateStockOverride,
 );
 
-// Order Fulfillment (Server-Side Paginated Pipeline)
+// Order Fulfillment & Live Simulator
 router.get("/orders", getAllOrders);
 router.patch("/orders/:orderId/status", updateFulfillmentStatus);
 router.patch("/orders/:orderId/courier", assignCourierTracking);
+router.post("/orders/:orderId/simulate-delivery", simulateCourierDelivery);
+
+// Promotional Coupon Management
+router.get("/coupons", getCoupons);
+router.post("/coupons", validate(CreateCouponSchema), createCoupon);
+router.patch("/coupons/:couponId", validate(UpdateCouponSchema), updateCoupon);
+router.delete("/coupons/:couponId", deleteCoupon);
 
 export default router;

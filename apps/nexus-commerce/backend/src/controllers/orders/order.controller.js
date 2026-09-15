@@ -1,4 +1,4 @@
-import { Order, Cart } from "#models/index.js";
+import { Order, Cart, Coupon } from "#models/index.js";
 import { asyncHandler } from "#utils/asyncHandler.js";
 import { PaymentGatewayFactory } from "#gateways/PaymentGatewayFactory.js";
 import { calculateShippingQuote } from "#services/googleMapsService.js";
@@ -109,6 +109,25 @@ export const createOrder = asyncHandler(async (req, res) => {
       },
     ],
   });
+
+  // Atomically increment coupon usage and record user redemption
+  if (cart.appliedCoupon?.code) {
+    await Coupon.findOneAndUpdate(
+      { code: cart.appliedCoupon.code },
+      {
+        $inc: { currentUsageCount: 1 },
+        ...(req.user?.id && {
+          $push: {
+            usedBy: {
+              userId: req.user.id,
+              orderId: order._id,
+              usedAt: new Date(),
+            },
+          },
+        }),
+      },
+    );
+  }
 
   const gateway = PaymentGatewayFactory.getAdapter(paymentMethod);
   const paymentResult = await gateway.initiatePayment({

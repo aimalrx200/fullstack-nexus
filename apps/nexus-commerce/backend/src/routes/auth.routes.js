@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { validate } from "#middlewares/validate.js";
 import { authMiddleware } from "#middlewares/authMiddleware.js";
+import { createRateLimiter } from "#config/rateLimiter.js";
 import {
   getPasskeyRegistrationOptions,
   verifyPasskeyRegistrationResponse,
@@ -14,6 +15,14 @@ import {
   logout,
   getMe,
 } from "#controllers/auth/jwt.controller.js";
+import {
+  forgotPassword,
+  resetPassword,
+} from "#controllers/auth/passwordReset.controller.js";
+import {
+  verifyEmail,
+  resendVerificationEmail, // 👈 Added
+} from "#controllers/auth/emailVerification.controller.js";
 import { googleAuthCallback } from "#controllers/auth/google.controller.js";
 import { demoLogin } from "#controllers/auth/demo.controller.js";
 import {
@@ -28,14 +37,22 @@ import {
   LoginSchema,
   RegisterPasswordSchema,
   AddressSchema,
+  ForgotPasswordSchema,
+  ResetPasswordSchema,
 } from "#validations/auth.validation.js";
 
 const router = Router();
 
+const emailActionLimiter = createRateLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  prefix: "email_actions",
+  message: "Too many email requests. Please try again after 15 minutes.",
+});
+
 // =============================================================================
 // 1. WEBAUTHN / PASSKEY BIOMETRIC AUTHENTICATION
 // =============================================================================
-// Optional auth helper to allow both authenticated device additions and new user signups
 const optionalAuth = (req, res, next) => {
   if (req.signedCookies?.access_token || req.cookies?.access_token) {
     return authMiddleware(req, res, next);
@@ -62,13 +79,36 @@ router.post(
 );
 
 // =============================================================================
-// 2. STANDARD, OAUTH & DEMO AUTHENTICATION
+// 2. STANDARD, OAUTH, DEMO & PASSWORD RECOVERY
 // =============================================================================
 router.post("/register", validate(RegisterPasswordSchema), register);
 router.post("/login", validate(LoginSchema), login);
 router.post("/google", googleAuthCallback);
 router.post("/refresh", refreshTokens);
 router.post("/demo", demoLogin);
+
+// Email Verification
+router.post("/verify-email", emailActionLimiter, verifyEmail);
+router.post(
+  "/resend-verification",
+  emailActionLimiter,
+  optionalAuth,
+  resendVerificationEmail,
+);
+
+// Password Reset Pipeline
+router.post(
+  "/forgot-password",
+  emailActionLimiter,
+  validate(ForgotPasswordSchema),
+  forgotPassword,
+);
+router.post(
+  "/reset-password",
+  emailActionLimiter,
+  validate(ResetPasswordSchema),
+  resetPassword,
+);
 
 // =============================================================================
 // 3. PROTECTED USER PROFILE & ADDRESS BOOK

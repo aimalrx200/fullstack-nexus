@@ -88,6 +88,11 @@ const userSchema = new mongoose.Schema(
       enum: ["customer", "merchant_admin"],
       default: "customer",
     },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     passkeys: [passkeySchema],
     currentChallenge: {
       type: String,

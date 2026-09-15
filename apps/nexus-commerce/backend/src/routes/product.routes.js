@@ -6,6 +6,7 @@ import {
   createProduct,
   updateProduct,
   archiveProduct,
+  getExchangeRates, // 👈 Added
 } from "#controllers/products/product.controller.js";
 import {
   createVariant,
@@ -25,8 +26,9 @@ import {
 const router = Router();
 
 // =============================================================================
-// 1. PUBLIC STOREFRONT PRODUCT DISCOVERY
+// 1. PUBLIC STOREFRONT PRODUCT DISCOVERY & FX RATES
 // =============================================================================
+router.get("/rates", getExchangeRates); // 👈 Mount public rates endpoint
 router.get("/", getProducts);
 router.get("/id/:productId", getProductById);
 router.get("/:slug", getProductBySlug);

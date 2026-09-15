@@ -115,3 +115,81 @@ export const sendSupportTicketEmail = async (ticket) => {
 
   await transporter.sendMail(mailOptions);
 };
+
+export const sendPasswordResetEmail = async ({ email, name, resetUrl }) => {
+  if (!transporter) await initEmailService();
+
+  const mailOptions = {
+    from: `"Nexus Security" <security@nexuscommerce.io>`,
+    to: email,
+    subject: "Reset Your Nexus Commerce Password",
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 540px; margin: 0 auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 16px; background: #ffffff;">
+        <div style="margin-bottom: 20px;">
+          <h2 style="color: #0f172a; margin: 0 0 6px 0; font-size: 20px;">Password Reset Request</h2>
+          <p style="color: #64748b; font-size: 13px; margin: 0;">Hi ${name || "there"},</p>
+        </div>
+        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+          We received a request to reset your password. Click the button below to choose a new secure password. This link is valid for <strong>15 minutes</strong>.
+        </p>
+        <div style="margin: 28px 0; text-align: center;">
+          <a href="${resetUrl}" style="background: #2563eb; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; display: inline-block;">
+            Reset Password
+          </a>
+        </div>
+        <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+          If you didn't request a password reset, you can safely ignore this email. Your current password remains unchanged.
+        </p>
+      </div>
+    `,
+  };
+
+  const info = await transporter.sendMail(mailOptions);
+  if (env.NODE_ENV === "development") {
+    logger.info({
+      msg: "Password reset email dispatched",
+      previewUrl: nodemailer.getTestMessageUrl(info),
+    });
+  }
+};
+
+export const sendEmailVerificationEmail = async ({
+  email,
+  name,
+  verifyUrl,
+}) => {
+  if (!transporter) await initEmailService();
+
+  const mailOptions = {
+    from: `"Nexus Security" <security@nexuscommerce.io>`,
+    to: email,
+    subject: "Verify Your Email — Nexus Commerce",
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 540px; margin: 0 auto; padding: 28px; border: 1px solid #e2e8f0; border-radius: 16px; background: #ffffff;">
+        <div style="margin-bottom: 20px;">
+          <h2 style="color: #0f172a; margin: 0 0 6px 0; font-size: 20px;">Verify Your Email Address</h2>
+          <p style="color: #64748b; font-size: 13px; margin: 0;">Welcome to Nexus Commerce, ${name || "there"}!</p>
+        </div>
+        <p style="color: #334155; font-size: 14px; line-height: 1.6;">
+          Please confirm your email address to ensure you receive order invoices, real-time courier tracking updates, and delivery alerts. This link is valid for <strong>24 hours</strong>.
+        </p>
+        <div style="margin: 28px 0; text-align: center;">
+          <a href="${verifyUrl}" style="background: #0f172a; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; display: inline-block;">
+            Verify Email Address
+          </a>
+        </div>
+        <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 16px;">
+          If you did not create an account on Nexus Commerce, no further action is required.
+        </p>
+      </div>
+    `,
+  };
+
+  const info = await transporter.sendMail(mailOptions);
+  if (env.NODE_ENV === "development") {
+    logger.info({
+      msg: "Email verification link dispatched",
+      previewUrl: nodemailer.getTestMessageUrl(info),
+    });
+  }
+};

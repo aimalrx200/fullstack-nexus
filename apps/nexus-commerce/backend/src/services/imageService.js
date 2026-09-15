@@ -6,6 +6,8 @@ import cloudinary from "#config/cloudinary.js";
 import env from "#config/env.js";
 import { logger } from "#config/logger.js";
 
+const ALLOWED_IMAGE_FORMATS = new Set(["jpeg", "png", "webp", "avif"]);
+
 // Determine safe storage directory (uses /tmp on serverless / Linux, local /uploads in dev)
 const getSafeUploadsDir = () => {
   if (env.NODE_ENV === "production") {
@@ -15,13 +17,49 @@ const getSafeUploadsDir = () => {
 };
 
 /**
- * Optimizes an image buffer: auto-rotates EXIF orientation, resizes, and converts to WebP.
+ * Inspects real binary magic bytes of an uploaded file buffer.
+ * Defends against MIME-spoofing and polyglot executable injection.
+ */
+export const validateImageMagicBytes = async (buffer) => {
+  if (!buffer || !Buffer.isBuffer(buffer)) {
+    throw new Error("Invalid image buffer provided for analysis.");
+  }
+
+  try {
+    const metadata = await sharp(buffer).metadata();
+    if (!metadata.format || !ALLOWED_IMAGE_FORMATS.has(metadata.format)) {
+      throw new Error(
+        `Invalid file signature. Detected format: '${metadata.format || "unknown"}'. Only JPEG, PNG, WebP, and AVIF are allowed.`,
+      );
+    }
+    return metadata;
+  } catch (err) {
+    logger.warn({
+      msg: "Magic byte inspection failed: Rejected suspicious file payload",
+      error: err.message,
+    });
+    throw new Error(
+      "File content is corrupted or not a valid recognized image format.",
+      {
+        cause: err,
+      },
+    );
+  }
+};
+
+/**
+ * Optimizes an image buffer: validates magic bytes, auto-rotates EXIF orientation,
+ * resizes, and converts to WebP.
  */
 export const processImageToWebP = async (
   buffer,
   width = 1200,
   height = 1200,
 ) => {
+  // 1. Enforce strict binary inspection before processing
+  await validateImageMagicBytes(buffer);
+
+  // 2. Transcode safely with Sharp
   return sharp(buffer)
     .rotate()
     .resize(width, height, {
@@ -63,7 +101,9 @@ export const uploadImage = async (
               msg: "Cloudinary upload stream exception",
               error: error.message,
             });
-            return reject(new Error("Media storage upload failed."));
+            return reject(
+              new Error("Media storage upload failed.", { cause: error }),
+            );
           }
           resolve({
             url: result.secure_url,

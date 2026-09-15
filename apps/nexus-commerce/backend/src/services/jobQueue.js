@@ -3,11 +3,15 @@ import { logger } from "#config/logger.js";
 import {
   sendOrderReceiptEmail,
   sendSupportTicketEmail,
+  sendPasswordResetEmail,
+  sendEmailVerificationEmail,
 } from "./emailService.js";
 
 export const JOB_TYPES = {
   SEND_ORDER_RECEIPT: "SEND_ORDER_RECEIPT",
   SEND_TICKET_EMAIL: "SEND_TICKET_EMAIL",
+  SEND_PASSWORD_RESET: "SEND_PASSWORD_RESET",
+  SEND_EMAIL_VERIFICATION: "SEND_EMAIL_VERIFICATION",
 };
 
 const JOB_HANDLERS = {
@@ -16,6 +20,12 @@ const JOB_HANDLERS = {
   },
   [JOB_TYPES.SEND_TICKET_EMAIL]: async (payload) => {
     await sendSupportTicketEmail(payload);
+  },
+  [JOB_TYPES.SEND_PASSWORD_RESET]: async (payload) => {
+    await sendPasswordResetEmail(payload);
+  },
+  [JOB_TYPES.SEND_EMAIL_VERIFICATION]: async (payload) => {
+    await sendEmailVerificationEmail(payload);
   },
 };
 

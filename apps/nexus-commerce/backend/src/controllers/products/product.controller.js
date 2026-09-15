@@ -1,6 +1,7 @@
 import { Product, Variant } from "#models/index.js";
 import { asyncHandler } from "#utils/asyncHandler.js";
 import { uploadImage } from "#services/imageService.js";
+import { getLiveExchangeRates } from "#services/currencyService.js";
 
 export const getProducts = asyncHandler(async (req, res) => {
   const {
@@ -174,4 +175,16 @@ export const archiveProduct = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json({ success: true, message: "Product archived successfully." });
+});
+
+/**
+ * Public Exchange Rates Endpoint for Storefront Currency Switcher
+ * GET /api/v1/products/rates
+ */
+export const getExchangeRates = asyncHandler(async (req, res) => {
+  const ratesData = await getLiveExchangeRates();
+  return res.status(200).json({
+    success: true,
+    ...ratesData,
+  });
 });

@@ -107,3 +107,18 @@ export const cacheStore = {
     localCacheSize: localCache.size,
   }),
 };
+
+/**
+ * Gracefully disconnects the Redis client during process teardown.
+ */
+export const closeRedisConnection = async () => {
+  if (redisClient && redisClient.status !== "end") {
+    try {
+      await redisClient.quit();
+      logger.info({ msg: "Redis client disconnected cleanly" });
+    } catch (err) {
+      logger.warn({ msg: "Forced Redis disconnection", error: err.message });
+      redisClient.disconnect();
+    }
+  }
+};

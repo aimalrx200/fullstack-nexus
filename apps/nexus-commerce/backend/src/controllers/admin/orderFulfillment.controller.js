@@ -106,3 +106,116 @@ export const assignCourierTracking = asyncHandler(async (req, res) => {
 
   return res.status(200).json({ success: true, order });
 });
+
+/**
+ * Simulates real-time courier GPS movement from Warehouse Hub to Customer Destination.
+ * Dispatches interpolated coordinates at 2-second intervals.
+ * POST /api/v1/orders/:orderId/simulate-delivery
+ */
+export const simulateCourierDelivery = asyncHandler(async (req, res) => {
+  const { orderId } = req.params;
+
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res
+      .status(404)
+      .json({ success: false, message: "Order not found." });
+  }
+
+  // 1. Ensure order is in dispatched state
+  if (
+    order.fulfillmentStatus !== "dispatched" &&
+    order.fulfillmentStatus !== "delivered"
+  ) {
+    order.fulfillmentStatus = "dispatched";
+    order.courier = {
+      carrier: order.courier?.carrier || "TCS Express",
+      trackingNumber:
+        order.courier?.trackingNumber ||
+        `TRK-${Date.now().toString().slice(-6)}`,
+      dispatchDate: new Date(),
+    };
+    await order.save();
+  }
+
+  // Origin: Central Fulfillment Hub (Lahore, PK)
+  const origin = {
+    lat: 31.5204,
+    lng: 74.3587,
+    label: "Fulfillment Center (Gulberg III)",
+  };
+
+  // Destination: Customer delivery coordinates (defaulting to destination if unpinned)
+  const destination = order.shippingAddress?.coordinates?.lat
+    ? {
+        lat: order.shippingAddress.coordinates.lat,
+        lng: order.shippingAddress.coordinates.lng,
+        label: `${order.shippingAddress.street}, ${order.shippingAddress.city}`,
+      }
+    : { lat: 31.4697, lng: 74.2728, label: "Customer Residence (DHA Phase 5)" };
+
+  // Generate 8 geographical waypoints along the delivery vector
+  const waypoints = [];
+  const steps = 8;
+
+  for (let i = 0; i <= steps; i++) {
+    const fraction = i / steps;
+    // Add realistic courier road jitter
+    const jitterLat =
+      i === 0 || i === steps ? 0 : (Math.random() - 0.5) * 0.004;
+    const jitterLng =
+      i === 0 || i === steps ? 0 : (Math.random() - 0.5) * 0.004;
+
+    const lat =
+      origin.lat + (destination.lat - origin.lat) * fraction + jitterLat;
+    const lng =
+      origin.lng + (destination.lng - origin.lng) * fraction + jitterLng;
+
+    let statusLabel = "Out for Delivery";
+    if (i === 0) statusLabel = "Courier picked up parcel from hub";
+    else if (i === 1) statusLabel = "En route on Main Boulevard";
+    else if (i === 3) statusLabel = "Passing Transit Hub checkpoint";
+    else if (i === 5) statusLabel = "Entering delivery sector";
+    else if (i === 7) statusLabel = "Courier arriving at your doorstep";
+    else if (i === steps) statusLabel = "Package Delivered";
+
+    waypoints.push({
+      coordinates: {
+        lat: Math.round(lat * 10000) / 10000,
+        lng: Math.round(lng * 10000) / 10000,
+      },
+      statusLabel,
+      step: i + 1,
+      totalSteps: steps + 1,
+    });
+  }
+
+  // Asynchronously broadcast waypoints every 2.5 seconds (Non-blocking response)
+  waypoints.forEach((wp, index) => {
+    setTimeout(async () => {
+      broadcastCourierLocation(order._id, wp.coordinates, wp.statusLabel);
+
+      // Final step: update DB state to delivered
+      if (wp.step === waypoints.length) {
+        await Order.findByIdAndUpdate(order._id, {
+          $set: {
+            fulfillmentStatus: "delivered",
+            "courier.currentLocation": {
+              ...wp.coordinates,
+              label: wp.statusLabel,
+            },
+          },
+        });
+      }
+    }, index * 2500);
+  });
+
+  return res.status(200).json({
+    success: true,
+    message:
+      "Live courier delivery simulation started. Dispatched 8 GPS telemetry waypoints.",
+    waypointsCount: waypoints.length,
+    origin,
+    destination,
+  });
+});

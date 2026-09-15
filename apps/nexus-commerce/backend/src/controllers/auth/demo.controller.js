@@ -29,6 +29,7 @@ export const demoLogin = asyncHandler(async (req, res) => {
   if (!user) {
     user = await User.create({
       ...config,
+      isEmailVerified: true,
       password: `Demo_${crypto.randomBytes(8).toString("hex")}!`,
       addresses: [
         {

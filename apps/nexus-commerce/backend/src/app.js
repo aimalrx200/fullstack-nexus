@@ -16,26 +16,32 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 1. Production Trust Proxy
+// 1. Production Trust Proxy (Required for Vercel / Render reverse proxies)
 if (env.NODE_ENV === "production") {
   app.set("trust proxy", true);
 }
 
-// 2. Request Normalization & Parsing
+// 2. Request Normalization & Body Parsers
+// Bypass JSON and URL-encoded parsers for Stripe webhooks so express.raw can access the unparsed stream
 app.use((req, res, next) => {
-  if (req.originalUrl === "/api/v1/payments/stripe/webhook") {
-    next();
-  } else {
-    express.json({ limit: "10mb" })(req, res, next);
+  if (req.originalUrl.startsWith("/api/v1/payments/stripe/webhook")) {
+    return next();
   }
+  express.json({ limit: "10mb" })(req, res, next);
 });
 
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use((req, res, next) => {
+  if (req.originalUrl.startsWith("/api/v1/payments/stripe/webhook")) {
+    return next();
+  }
+  express.urlencoded({ extended: true, limit: "10mb" })(req, res, next);
+});
+
 app.use(cookieParser(env.COOKIE_SECRET));
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(hpp());
 
-// 3. Robust Cross-Origin Access (Vercel Frontend <-> Render Backend)
+// 3. Robust Cross-Origin Access (Vercel Frontend <-> Backend)
 const configuredClientUrl = env.CLIENT_URL
   ? env.CLIENT_URL.replace(/\/$/, "")
   : "";
@@ -106,6 +112,15 @@ const checkoutLimiter = createRateLimiter({
     "Checkout rate limit reached. Please wait a moment before submitting again.",
 });
 
+// Dedicated SSE Stream Connection Limiter (Allows auto-reconnects & multi-tab handshakes)
+const streamLimiter = createRateLimiter({
+  windowMs: 1 * 60 * 1000, // 1-minute window
+  max: 60, // Allows up to 60 stream connections/reconnects per minute
+  prefix: "stream",
+  message:
+    "Live stream connection rate limit exceeded. Reconnecting shortly...",
+});
+
 const globalLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 500,
@@ -118,6 +133,7 @@ app.use("/api/v1/auth/passkey", authLimiter);
 app.use("/api/v1/auth/google", authLimiter);
 app.use("/api/v1/checkout", checkoutLimiter);
 app.use("/api/v1/orders", checkoutLimiter);
+app.use("/api/v1/stream", streamLimiter);
 app.use("/api/v1", globalLimiter);
 
 // 6. Base Welcome Endpoint

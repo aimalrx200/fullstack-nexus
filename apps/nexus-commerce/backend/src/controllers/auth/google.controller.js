@@ -71,6 +71,7 @@ export const googleAuthCallback = asyncHandler(async (req, res) => {
       googleId,
       avatarUrl: picture,
       role: "customer",
+      isEmailVerified: true,
     });
   } else if (!user.googleId) {
     user.googleId = googleId;

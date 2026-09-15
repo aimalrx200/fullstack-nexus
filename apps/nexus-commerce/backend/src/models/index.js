@@ -10,3 +10,6 @@ export { default as WebhookEvent } from "./WebhookEvent.js";
 export { default as Conversation } from "./Conversation.js";
 export { default as Message } from "./Message.js";
 export { default as SupportTicket } from "./SupportTicket.js";
+export { default as Coupon } from "./Coupon.js";
+export { default as PasswordResetToken } from "./PasswordResetToken.js";
+export { default as EmailVerificationToken } from "./EmailVerificationToken.js";

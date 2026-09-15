@@ -18,6 +18,7 @@ import {
 } from "#utils/cookieUtils.js";
 import { logger } from "#config/logger.js";
 import { formatUserResponse } from "#utils/userSerializer.js";
+import { dispatchVerificationToken } from "./emailVerification.controller.js";
 
 /**
  * Creates and registers a new active session across MongoDB and Redis.
@@ -79,7 +80,11 @@ export const register = asyncHandler(async (req, res) => {
     email: cleanEmail,
     password,
     role: "customer",
+    isEmailVerified: false,
   });
+
+  // Non-blocking verification link dispatch in background queue
+  await dispatchVerificationToken(user);
 
   const { accessToken, refreshToken } = await initializeUserSession({
     user,

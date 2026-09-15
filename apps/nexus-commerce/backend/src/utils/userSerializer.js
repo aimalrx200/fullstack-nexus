@@ -1,6 +1,6 @@
 /**
  * Normalizes a user model/object into a consistent client response DTO.
- * Supports both standard auth responses and profile lookups.
+ * Supports standard auth responses, verification flags, and profile lookups.
  */
 export const formatUserResponse = (user, { includeAddresses = false } = {}) => {
   if (!user) return null;
@@ -9,10 +9,11 @@ export const formatUserResponse = (user, { includeAddresses = false } = {}) => {
 
   return {
     id,
-    _id: id, // Provides backward compatibility for both id and _id lookups
+    _id: id,
     name: user.name || "",
     email: user.email,
     role: user.role || "customer",
+    isEmailVerified: Boolean(user.isEmailVerified),
     avatarUrl: user.avatarUrl || null,
     ...(includeAddresses && { addresses: user.addresses || [] }),
   };
