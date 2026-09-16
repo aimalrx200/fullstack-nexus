@@ -36,9 +36,34 @@ let workerInterval = null;
 const QUEUE_KEY = "queue:nexus:tasks";
 
 /**
- * Enqueues a background job to be processed asynchronously.
+ * Serverless-compatible Job Enqueuer:
+ * If running on Vercel (Serverless / No active worker), it executes the handler directly.
  */
 export const enqueueJob = async (type, payload, { maxRetries = 3 } = {}) => {
+  const handler = JOB_HANDLERS[type];
+
+  if (!handler) {
+    logger.error({ msg: "No handler registered for job type", type });
+    return null;
+  }
+
+  // If in Serverless / Vercel: execute directly so it finishes before lambda exits
+  if (process.env.VERCEL || process.env.NODE_ENV === "production") {
+    try {
+      await handler(payload);
+      logger.info({ msg: "✅ Serverless task executed directly", type });
+      return "serverless_direct_ok";
+    } catch (err) {
+      logger.error({
+        msg: "❌ Direct task execution error",
+        type,
+        error: err.message,
+      });
+      return null;
+    }
+  }
+
+  // Local development / long-running mode (uses in-memory or Redis queue)
   const job = {
     id: `job_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     type,
@@ -48,21 +73,16 @@ export const enqueueJob = async (type, payload, { maxRetries = 3 } = {}) => {
     createdAt: new Date().toISOString(),
   };
 
-  if (isRedisAlive() && redisClient) {
-    try {
-      await redisClient.lpush(QUEUE_KEY, JSON.stringify(job));
-      logger.debug({ msg: "Job enqueued to Redis queue", jobId: job.id, type });
-      return job.id;
-    } catch (err) {
-      logger.warn({
-        msg: "Redis LPUSH failed, dropping to local memory queue",
-        error: err.message,
-      });
+  try {
+    if (isRedisAlive() && redisClient) {
+      await redisClient.lpush("queue:nexus:tasks", JSON.stringify(job));
     }
+    // Also trigger immediate processing
+    await handler(payload);
+  } catch (err) {
+    logger.error({ msg: "Task execution fallback error", error: err.message });
   }
 
-  localQueue.push(job);
-  logger.debug({ msg: "Job enqueued to in-memory queue", jobId: job.id, type });
   return job.id;
 };
 

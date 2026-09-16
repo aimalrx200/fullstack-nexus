@@ -11,6 +11,7 @@ import paymentRoutes from "./payment.routes.js";
 import adminRoutes from "./admin.routes.js";
 import supportRoutes from "./support.routes.js";
 import streamRoutes from "./stream.routes.js";
+import cronRoutes from "./cron.routes.js";
 
 const router = Router();
 
@@ -173,5 +174,6 @@ router.use("/payments", paymentRoutes);
 router.use("/admin", adminRoutes);
 router.use("/support", supportRoutes);
 router.use("/stream", streamRoutes);
+router.use("/cron", cronRoutes);
 
 export default router;

@@ -81,6 +81,9 @@ const envSchema = z.object({
     .transform((val) => val === "true"),
   SMTP_USER: z.string().optional().or(z.literal("")),
   SMTP_PASS: z.string().optional().or(z.literal("")),
+
+  // Cron Job
+  CRON_SECRET: z.string().default("nexus_cron_secure_key_123"),
 });
 
 let env;

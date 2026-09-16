@@ -1,0 +1,18 @@
+name: Inventory Reconciliation Cron
+
+on:
+  schedule:
+    # Runs every 10 minutes (100% free on GitHub Actions)
+    - cron: "*/10 * * * *"
+  workflow_dispatch: # Enables a manual "Run workflow" button in GitHub
+
+jobs:
+  ping-reconciliation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Nexus Commerce Reconcile Endpoint
+        run: |
+          curl -X POST "https://nexus-commerce-backend.vercel.app/api/v1/cron/reconcile" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --fail --silent --show-error
