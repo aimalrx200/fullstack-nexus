@@ -6,6 +6,9 @@ import { formatMoney } from "#utils/currencyConverter.js";
 let transporter = null;
 
 export const initEmailService = async () => {
+  // If already initialized during warm lambda life, return immediately
+  if (transporter) return transporter;
+
   if (env.SMTP_USER && env.SMTP_PASS) {
     transporter = nodemailer.createTransport({
       host: env.SMTP_HOST,
@@ -25,6 +28,8 @@ export const initEmailService = async () => {
       msg: "📧 Virtual Ethereal SMTP transporter initialized for commerce sandbox",
     });
   }
+
+  return transporter;
 };
 
 export const sendOrderReceiptEmail = async (order) => {

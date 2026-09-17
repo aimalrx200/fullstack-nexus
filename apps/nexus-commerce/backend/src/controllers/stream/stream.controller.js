@@ -4,31 +4,91 @@ import { Order, Conversation } from "#models/index.js";
 import { logger } from "#config/logger.js";
 
 /**
- * Utility helper to set SSE headers and start keep-alive heartbeat.
+ * Robust SSE Stream Initializer with safe write wrappers & idempotent cleanup
  */
-const initSSEStream = (res) => {
+const initSSEStream = (req, res, channelName, onCleanup) => {
+  let isCleanedUp = false;
+
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache, no-transform",
     Connection: "keep-alive",
-    "X-Accel-Buffering": "no", // Disables Nginx/Vercel buffering
+    "X-Accel-Buffering": "no", // Disables Nginx/Vercel response buffering
   });
 
+  // Safe write wrapper to prevent writing to severed sockets
+  const safeWrite = (payload) => {
+    if (isCleanedUp || res.writableEnded || res.destroyed) return false;
+    try {
+      res.write(payload);
+      return true;
+    } catch (err) {
+      logger.debug({
+        msg: "SSE safeWrite failed; triggering cleanup",
+        error: err.message,
+      });
+      cleanup();
+      return false;
+    }
+  };
+
   // Initial handshake packet
-  res.write(
-    `event: connected\ndata: ${JSON.stringify({ status: "connected", timestamp: new Date().toISOString() })}\n\n`,
+  safeWrite(
+    `event: connected\ndata: ${JSON.stringify({
+      status: "connected",
+      channel: channelName,
+      timestamp: new Date().toISOString(),
+    })}\n\n`,
   );
 
   // 15-second keep-alive heartbeat to prevent edge proxy disconnects
-  const heartbeat = setInterval(() => {
-    res.write(": keep-alive\n\n");
+  const heartbeatTimer = setInterval(() => {
+    const success = safeWrite(": keep-alive\n\n");
+    if (!success) {
+      clearInterval(heartbeatTimer);
+    }
   }, 15000);
 
+  // Idempotent Teardown Handler
   const cleanup = () => {
-    clearInterval(heartbeat);
+    if (isCleanedUp) return;
+    isCleanedUp = true;
+
+    clearInterval(heartbeatTimer);
+
+    if (onCleanup && typeof onCleanup === "function") {
+      try {
+        onCleanup();
+      } catch (err) {
+        logger.error({
+          msg: "Error executing SSE onCleanup hook",
+          error: err.message,
+        });
+      }
+    }
+
+    if (!res.writableEnded && !res.destroyed) {
+      try {
+        res.end();
+      } catch {
+        // Stream already closed
+      }
+    }
+
+    logger.debug({
+      msg: "SSE connection and resources cleanly evicted",
+      channel: channelName,
+    });
   };
 
-  return { cleanup };
+  // Listen to all possible client/transport termination events
+  req.on("close", cleanup);
+  req.on("end", cleanup);
+  res.on("close", cleanup);
+  res.on("finish", cleanup);
+  res.on("error", cleanup);
+
+  return { safeWrite, cleanup };
 };
 
 /**
@@ -36,21 +96,15 @@ const initSSEStream = (res) => {
  * GET /api/v1/stream/admin
  */
 export const streamAdminOrders = async (req, res) => {
-  const { cleanup } = initSSEStream(res);
+  const channel = WS_CHANNELS.ADMIN_ORDERS_ROOM;
+  let unsubscribe = null;
 
-  const unsubscribe = subscribeToChannel(
-    WS_CHANNELS.ADMIN_ORDERS_ROOM,
-    (event) => {
-      res.write(
-        `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`,
-      );
-    },
-  );
+  const { safeWrite } = initSSEStream(req, res, channel, () => {
+    if (unsubscribe) unsubscribe();
+  });
 
-  req.on("close", () => {
-    cleanup();
-    unsubscribe();
-    logger.debug({ msg: "Admin SSE stream connection closed by client" });
+  unsubscribe = subscribeToChannel(channel, (event) => {
+    safeWrite(`event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`);
   });
 };
 
@@ -92,16 +146,15 @@ export const streamOrderTracking = async (req, res) => {
     });
   }
 
-  const { cleanup } = initSSEStream(res);
   const channel = `${WS_CHANNELS.TRACKING_ROOM_PREFIX}${order._id}`;
+  let unsubscribe = null;
 
-  const unsubscribe = subscribeToChannel(channel, (event) => {
-    res.write(`event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`);
+  const { safeWrite } = initSSEStream(req, res, channel, () => {
+    if (unsubscribe) unsubscribe();
   });
 
-  req.on("close", () => {
-    cleanup();
-    unsubscribe();
+  unsubscribe = subscribeToChannel(channel, (event) => {
+    safeWrite(`event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`);
   });
 };
 
@@ -111,17 +164,15 @@ export const streamOrderTracking = async (req, res) => {
  */
 export const streamProductStock = async (req, res) => {
   const { productId } = req.params;
-  const { cleanup } = initSSEStream(res);
-
   const channel = `${WS_CHANNELS.STOCK_ROOM_PREFIX}${productId}`;
+  let unsubscribe = null;
 
-  const unsubscribe = subscribeToChannel(channel, (event) => {
-    res.write(`event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`);
+  const { safeWrite } = initSSEStream(req, res, channel, () => {
+    if (unsubscribe) unsubscribe();
   });
 
-  req.on("close", () => {
-    cleanup();
-    unsubscribe();
+  unsubscribe = subscribeToChannel(channel, (event) => {
+    safeWrite(`event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`);
   });
 };
 
@@ -154,15 +205,14 @@ export const streamChat = async (req, res) => {
       .json({ success: false, message: "Unauthorized access to chat stream." });
   }
 
-  const { cleanup } = initSSEStream(res);
   const channel = `${WS_CHANNELS.CHAT_ROOM_PREFIX}${conversationId}`;
+  let unsubscribe = null;
 
-  const unsubscribe = subscribeToChannel(channel, (event) => {
-    res.write(`event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`);
+  const { safeWrite } = initSSEStream(req, res, channel, () => {
+    if (unsubscribe) unsubscribe();
   });
 
-  req.on("close", () => {
-    cleanup();
-    unsubscribe();
+  unsubscribe = subscribeToChannel(channel, (event) => {
+    safeWrite(`event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`);
   });
 };

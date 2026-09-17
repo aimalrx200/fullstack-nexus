@@ -4,8 +4,8 @@ import { initEmailService } from "../src/services/emailService.js";
 
 export default async function handler(req, res) {
   try {
-    await connectDB();
-    await initEmailService();
+    // Parallel resolution on serverless entry
+    await Promise.all([connectDB(), initEmailService()]);
   } catch (err) {
     console.error("Commerce Serverless initialization error:", err);
   }
