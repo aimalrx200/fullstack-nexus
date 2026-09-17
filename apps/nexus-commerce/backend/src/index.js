@@ -82,16 +82,23 @@ const gracefulShutdown = async (signal) => {
     }
 
     // 3. Stop accepting new HTTP requests and drain active requests
-    await new Promise((resolve) => {
-      server.close((err) => {
-        if (err) {
-          logger.error({ msg: "HTTP server close error", error: err.message });
-        } else {
-          logger.info({ msg: "HTTP server closed and connections drained" });
-        }
-        resolve();
+    if (server.listening) {
+      await new Promise((resolve) => {
+        server.close((err) => {
+          if (err && err.code !== "ERR_SERVER_NOT_RUNNING") {
+            logger.error({
+              msg: "HTTP server close error",
+              error: err.message,
+            });
+          } else {
+            logger.info({ msg: "HTTP server closed and connections drained" });
+          }
+          resolve();
+        });
       });
-    });
+    } else {
+      logger.info({ msg: "HTTP server closed and connections drained" });
+    }
 
     // 4. Disconnect Redis client
     await closeRedisConnection();

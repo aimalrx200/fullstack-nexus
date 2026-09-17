@@ -1,4 +1,6 @@
-import { rateLimit } from "express-rate-limit";
+// apps/nexus-commerce/backend/src/config/rateLimiter.js
+
+import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import { RedisStore } from "rate-limit-redis";
 import env from "./env.js";
 import { redisClient } from "./redis.js";
@@ -16,16 +18,21 @@ export const createRateLimiter = ({ windowMs, max, message, prefix }) => {
     standardHeaders: true,
     legacyHeaders: false,
     passOnStoreError: true, // Guarantees requests proceed smoothly even if Redis reconnects
-    // Disable trustProxy warning for Vercel Serverless environment
-    validate: { trustProxy: false, xForwardedForHeader: false },
+    // Disable proxy and key-gen warnings for Vercel Serverless environment
+    validate: {
+      trustProxy: false,
+      xForwardedForHeader: false,
+      keyGeneratorIpFallback: false,
+    },
     // Custom keyGenerator to extract client IP reliably behind Vercel edge proxy
     keyGenerator: (req) => {
-      return (
+      const clientIp =
         req.headers["x-forwarded-for"]?.split(",")[0].trim() ||
         req.ip ||
         req.socket?.remoteAddress ||
-        "127.0.0.1"
-      );
+        "127.0.0.1";
+
+      return ipKeyGenerator(clientIp);
     },
     message: { success: false, message },
     skip: () => isTest,
