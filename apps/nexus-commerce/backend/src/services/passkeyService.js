@@ -92,9 +92,10 @@ export const verifyPasskeyAuth = async (user, response, expectedChallenge) => {
       expectedChallenge,
       expectedOrigin: env.ORIGIN,
       expectedRPID: env.RP_ID,
-      authenticator: {
-        credentialID: passkey.credentialID,
-        credentialPublicKey: new Uint8Array(passkey.credentialPublicKey),
+      // ⚠️ FIX: Renamed 'authenticator' to 'credential' and updated fields for v10+ compatibility
+      credential: {
+        id: passkey.credentialID,
+        publicKey: new Uint8Array(passkey.credentialPublicKey),
         counter: passkey.counter,
         transports: passkey.transports,
       },
