@@ -37,7 +37,7 @@ export const getPasskeyRegistrationOptions = asyncHandler(async (req, res) => {
     }
     challengeKey = `passkey:reg:uid:${user._id}`;
   } else {
-    // 2. Unauthenticated Signup Flow (Guards against Account Hijacking)
+    // 2. Unauthenticated Signup Flow
     const cleanEmail = email?.toLowerCase().trim();
     if (!cleanEmail) {
       return res.status(400).json({
@@ -56,7 +56,6 @@ export const getPasskeyRegistrationOptions = asyncHandler(async (req, res) => {
       });
     }
 
-    // Temporary unpersisted model for challenge generation
     user = new User({
       email: cleanEmail,
       name: name?.trim() || cleanEmail.split("@")[0],
@@ -66,7 +65,6 @@ export const getPasskeyRegistrationOptions = asyncHandler(async (req, res) => {
 
   const options = await createPasskeyRegistrationOptions(user);
 
-  // Store challenge in distributed cache with TTL (Works in stateless serverless lambdas)
   await cacheStore.setex(
     challengeKey,
     WEBAUTHN_CHALLENGE_TTL_SECONDS,
@@ -95,7 +93,6 @@ export const verifyPasskeyRegistrationResponse = asyncHandler(
       user = await User.findOne({ email: cleanEmail });
       challengeKey = `passkey:reg:email:${cleanEmail}`;
 
-      // If user was created fresh in registration step
       if (!user) {
         user = new User({
           email: cleanEmail,
@@ -103,7 +100,6 @@ export const verifyPasskeyRegistrationResponse = asyncHandler(
           role: "customer",
         });
       } else if (user.passkeys?.length > 0 || user.password) {
-        // Prevent unauthenticated overwrite of existing user
         return res.status(403).json({
           success: false,
           message: "Please sign in before adding passkeys to this account.",
@@ -111,7 +107,13 @@ export const verifyPasskeyRegistrationResponse = asyncHandler(
       }
     }
 
-    // Fetch challenge from distributed cache (Redis or LRU fallback)
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User account not found.",
+      });
+    }
+
     const expectedChallenge = await cacheStore.get(challengeKey);
 
     if (!expectedChallenge) {
@@ -134,10 +136,8 @@ export const verifyPasskeyRegistrationResponse = asyncHandler(
       });
     }
 
-    // Invalidate challenge immediately to prevent replay
     await cacheStore.del(challengeKey);
 
-    // Prevent duplicate passkey credential IDs
     const alreadyExists = user.passkeys?.some(
       (pk) => pk.credentialID === passkey.credentialID,
     );
@@ -149,13 +149,17 @@ export const verifyPasskeyRegistrationResponse = asyncHandler(
 
     await user.save();
 
-    const { accessToken, refreshToken } = await initializeUserSession({
-      user,
-      req,
-    });
+    // ⚡ FIX: Only create a new session document if user was unauthenticated
+    // If the user already has an active session from registration, reuse it!
+    if (!authenticatedUserId) {
+      const { accessToken, refreshToken } = await initializeUserSession({
+        user,
+        req,
+      });
 
-    res.cookie("access_token", accessToken, accessTokenCookieOptions);
-    res.cookie("refresh_token", refreshToken, refreshTokenCookieOptions);
+      res.cookie("access_token", accessToken, accessTokenCookieOptions);
+      res.cookie("refresh_token", refreshToken, refreshTokenCookieOptions);
+    }
 
     return res.status(200).json({
       success: true,
@@ -229,7 +233,6 @@ export const verifyPasskeyAuthResponse = asyncHandler(async (req, res) => {
     });
   }
 
-  // Invalidate challenge upon verification
   await cacheStore.del(challengeKey);
 
   const { accessToken, refreshToken } = await initializeUserSession({
