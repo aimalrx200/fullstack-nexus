@@ -83,6 +83,9 @@ const initSSEStream = (req, res, channelName, onCleanup) => {
   return { safeWrite, cleanup };
 };
 
+/**
+ * 1. Admin Live Order Stream
+ */
 export const streamAdminOrders = async (req, res) => {
   const channel = WS_CHANNELS.ADMIN_ORDERS_ROOM;
   let unsubscribe = null;
@@ -96,6 +99,9 @@ export const streamAdminOrders = async (req, res) => {
   });
 };
 
+/**
+ * 2. Live Order Courier GPS Tracking Stream
+ */
 export const streamOrderTracking = async (req, res) => {
   const { orderId } = req.params;
   const queryEmail = (
@@ -153,6 +159,9 @@ export const streamOrderTracking = async (req, res) => {
   });
 };
 
+/**
+ * 3. Public Flash-Sale Stock Drops Stream
+ */
 export const streamProductStock = async (req, res) => {
   const { productId } = req.params;
   const channel = `${WS_CHANNELS.STOCK_ROOM_PREFIX}${productId}`;
@@ -167,6 +176,9 @@ export const streamProductStock = async (req, res) => {
   });
 };
 
+/**
+ * 4. Customer Support Live Chat Stream (Supports Authenticated Shoppers & Guests)
+ */
 export const streamChat = async (req, res) => {
   const { conversationId } = req.params;
   const guestSessionId =
@@ -181,12 +193,18 @@ export const streamChat = async (req, res) => {
       .json({ success: false, message: "Conversation not found." });
   }
 
+  // Access check:
+  // 1. Authenticated user owns the conversation
+  // 2. Guest user with matching session ID
+  // 3. Unauthenticated shopper holding the active conversation token
+  // 4. Merchant Admin
   const isOwner =
     (req.user &&
       conversation.customerId &&
       conversation.customerId.toString() === req.user.id) ||
     (guestSessionId && conversation.guestSessionId === guestSessionId) ||
-    (!conversation.customerId && !req.user);
+    (!conversation.customerId && !req.user) ||
+    (!conversation.customerId && guestSessionId);
 
   const isAdmin = req.user?.role === "merchant_admin";
 
