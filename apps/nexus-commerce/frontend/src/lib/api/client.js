@@ -25,16 +25,13 @@ const getClientInstanceId = () => {
 
 export const apiClient = axios.create({
   baseURL: env.VITE_API_URL,
-  withCredentials: true, // Guarantees signed httpOnly cookies are sent
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
   timeout: 15000,
 });
 
-// =============================================================================
-// REQUEST INTERCEPTOR: Inject Tracing & Telemetry Headers
-// =============================================================================
 apiClient.interceptors.request.use(
   (config) => {
     config.headers["x-request-id"] =
@@ -47,13 +44,9 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// =============================================================================
-// RESPONSE INTERCEPTOR: Web Locks API Single-Flight Token Refresh
-// =============================================================================
 let refreshPromise = null;
 
 const executeSingleFlightRefresh = async () => {
-  // 1. Modern Web Locks API (Guarantees only ONE tab refreshes tokens at a time)
   if (typeof navigator !== "undefined" && navigator.locks) {
     return navigator.locks.request("nexus_token_refresh_lock", async () => {
       const response = await axios.post(
@@ -66,7 +59,6 @@ const executeSingleFlightRefresh = async () => {
     });
   }
 
-  // 2. In-Memory Promise Fallback for older browsers
   if (!refreshPromise) {
     refreshPromise = axios
       .post(`${env.VITE_API_URL}/auth/refresh`, {}, { withCredentials: true })
@@ -98,10 +90,12 @@ apiClient.interceptors.response.use(
 
       try {
         await executeSingleFlightRefresh();
-        // Retry original network request with fresh cookies
         return apiClient(originalRequest);
       } catch (refreshErr) {
-        AuthManager.notifySessionTerminated();
+        // Only terminate session if this was an authenticated call (not a guest 401 check on /auth/me)
+        if (!originalRequest.url?.includes("/auth/me")) {
+          AuthManager.notifySessionTerminated();
+        }
         return Promise.reject(refreshErr);
       }
     }

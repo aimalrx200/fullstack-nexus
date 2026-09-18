@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
@@ -11,8 +11,8 @@ export function VerifyEmailPage() {
   const navigate = useNavigate();
   const token = searchParams.get("token") || "";
   const { markVerified } = useAuth();
+  const hasMarkedVerified = useRef(false);
 
-  // Declarative query handles async verification state without cascading renders
   const { data, isLoading, isError, error, isSuccess } = useQuery({
     queryKey: ["verify-email", token],
     queryFn: () => authApi.verifyEmail(token),
@@ -21,9 +21,10 @@ export function VerifyEmailPage() {
     staleTime: Infinity,
   });
 
-  // Synchronize auth state once verified
+  // Guarded to execute markVerified only once
   useEffect(() => {
-    if (isSuccess) {
+    if (isSuccess && !hasMarkedVerified.current) {
+      hasMarkedVerified.current = true;
       markVerified();
     }
   }, [isSuccess, markVerified]);
@@ -35,7 +36,6 @@ export function VerifyEmailPage() {
 
   return (
     <div className="text-center py-8 space-y-4">
-      {/* 1. Loading State */}
       {isLoading && (
         <div className="flex flex-col items-center gap-2">
           <Loader2 className="w-8 h-8 animate-spin text-brand-primary" />
@@ -45,7 +45,6 @@ export function VerifyEmailPage() {
         </div>
       )}
 
-      {/* 2. Success State */}
       {isSuccess && (
         <div className="space-y-4 animate-in fade-in">
           <div className="w-14 h-14 mx-auto rounded-3xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
@@ -66,7 +65,6 @@ export function VerifyEmailPage() {
         </div>
       )}
 
-      {/* 3. Error State */}
       {(!token || isError) && (
         <div className="space-y-4 animate-in fade-in">
           <div className="w-14 h-14 mx-auto rounded-3xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center">

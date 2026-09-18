@@ -8,10 +8,10 @@ export function AuthLayout() {
   return (
     <div className="min-h-screen flex flex-col justify-center items-center p-4 bg-surface-app text-text-main relative selection:bg-brand-primary selection:text-white">
       {/* Top Header Control Bar */}
-      <div className="absolute top-4 right-4 flex items-center gap-2">
+      {/* <div className="absolute top-4 right-4 flex items-center gap-2">
         <CurrencySwitcher />
         <ThemeSelector />
-      </div>
+      </div> */}
 
       <div className="w-full max-w-md space-y-6">
         {/* Brand Logo Header */}

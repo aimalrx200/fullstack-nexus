@@ -7,7 +7,7 @@ export function CurrencySwitcher({ className = "" }) {
 
   return (
     <div
-      className={`inline-flex items-center p-0.5 rounded-xl bg-surface-elevated border border-border-main ${className}`}
+      className={`inline-flex items-center p-1 rounded-xl bg-surface-elevated border border-border-main shadow-inner ${className}`}
       role="radiogroup"
       aria-label="Select Currency"
     >
@@ -17,7 +17,7 @@ export function CurrencySwitcher({ className = "" }) {
           <button
             key={curr}
             onClick={() => setCurrency(curr)}
-            className={`min-h-8.5 px-2.5 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer ${
+            className={`min-h-8.5 px-3 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer ${
               isActive
                 ? "bg-brand-primary text-white shadow-xs shadow-brand-primary/20"
                 : "text-text-muted hover:text-text-main"

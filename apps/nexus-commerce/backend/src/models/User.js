@@ -7,7 +7,7 @@ const passkeySchema = new mongoose.Schema(
     credentialID: {
       type: String,
       required: true,
-      unique: true,
+      // Removed non-sparse unique: true from subdocument
     },
     credentialPublicKey: {
       type: Buffer,
@@ -93,7 +93,10 @@ const userSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
-    passkeys: [passkeySchema],
+    passkeys: {
+      type: [passkeySchema],
+      default: [],
+    },
     currentChallenge: {
       type: String,
       select: false,
@@ -105,8 +108,14 @@ const userSchema = new mongoose.Schema(
   },
 );
 
-// High-speed compound index for role filtering & customer directory pagination
+// High-speed compound indexes
 userSchema.index({ role: 1, createdAt: -1 });
+
+// Sparse unique index: Only indexes documents that actually contain a passkey credentialID
+userSchema.index(
+  { "passkeys.credentialID": 1 },
+  { unique: true, sparse: true },
+);
 
 userSchema.pre("save", async function () {
   if (!this.password || !this.isModified("password")) return;

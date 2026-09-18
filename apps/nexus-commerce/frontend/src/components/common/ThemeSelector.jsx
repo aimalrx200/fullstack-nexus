@@ -23,17 +23,19 @@ export function ThemeSelector({ className = "" }) {
           <button
             key={value}
             onClick={() => setTheme(value)}
-            className={`min-h-9 px-2.5 sm:px-3 rounded-lg flex items-center gap-1.5 text-xs font-medium transition-all cursor-pointer ${
+            className={`min-h-8.5 px-2 min-[962px]:px-3 rounded-lg flex items-center justify-center gap-1.5 text-xs font-medium transition-all cursor-pointer ${
               isActive
-                ? "bg-surface-card text-text-main shadow-xs border border-border-subtle"
+                ? "bg-surface-card text-text-main shadow-xs border border-border-subtle font-semibold"
                 : "text-text-muted hover:text-text-main"
             }`}
             role="radio"
             aria-checked={isActive}
             aria-label={`${label} Theme`}
+            title={`${label} Mode`}
           >
-            <Icon className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{label}</span>
+            <Icon className="w-3.5 h-3.5 shrink-0" />
+            {/* Hidden on < 962px, Visible on >= 962px */}
+            <span className="hidden min-[962px]:inline text-xs">{label}</span>
           </button>
         );
       })}

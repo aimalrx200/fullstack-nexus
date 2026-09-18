@@ -15,7 +15,7 @@ export function StorefrontLayout() {
   const [authModal, setAuthModal] = useState({ isOpen: false, view: "login" });
 
   return (
-    <div className="min-h-screen flex flex-col bg-surface-app text-text-main transition-colors selection:bg-brand-primary selection:text-white">
+    <div className="min-h-screen flex flex-col bg-surface-app text-text-main transition-colors selection:bg-brand-primary selection:text-white relative">
       <VerifyEmailBanner />
       <Navbar
         onOpenAuthModal={() => setAuthModal({ isOpen: true, view: "login" })}
@@ -36,7 +36,7 @@ export function StorefrontLayout() {
       {/* Global Floating Live Support Chat Widget */}
       <SupportChatWidget />
 
-      {/* Fast Global Authentication Modal */}
+      {/* Full-Height Global Authentication Modal */}
       <Modal
         isOpen={authModal.isOpen}
         onClose={() => setAuthModal({ isOpen: false, view: "login" })}

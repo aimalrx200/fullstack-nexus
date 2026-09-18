@@ -13,7 +13,8 @@ export const createPasskeyRegistrationOptions = async (user) => {
   return generateRegistrationOptions({
     rpName: env.RP_NAME,
     rpID: env.RP_ID,
-    userID: user._id.toString(),
+    // Convert string ID to Uint8Array required by SimpleWebAuthn v10+
+    userID: new TextEncoder().encode(user._id.toString()),
     userName: user.email,
     userDisplayName: user.name || user.email.split("@")[0],
     attestationType: "none",
@@ -51,7 +52,7 @@ export const verifyPasskeyRegistration = async (
         counter: credential.counter,
         deviceType: credentialDeviceType,
         backedUp: credentialBackedUp,
-        transports: response.response.transports || ["internal", "hybrid"],
+        transports: response.response?.transports || ["internal", "hybrid"],
       };
 
       return { verified: true, passkey: newPasskey };

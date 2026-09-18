@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -19,34 +19,51 @@ export function useAuth() {
     (state) => state.auth,
   );
 
-  // Query authenticated profile on initial mount
-  const { refetch: refetchUser } = useQuery({
+  // 1. Query authenticated profile on initial mount
+  const {
+    data: fetchedUser,
+    isSuccess,
+    isError,
+    isLoading,
+    refetch: refetchUser,
+  } = useQuery({
     queryKey: queryKeys.auth.me(),
     queryFn: async () => {
-      try {
-        const userData = await authApi.getMe();
-        dispatch(setCredentials(userData));
-        return userData;
-      } catch (err) {
-        dispatch(clearCredentials());
-        throw err;
-      } finally {
-        dispatch(setInitialized());
-      }
+      return await authApi.getMe();
     },
     retry: false,
     staleTime: 5 * 60 * 1000,
   });
 
-  // Cross-tab broadcast synchronization
+  // 2. Synchronize fetched user to Redux without triggering infinite query invalidation
+  useEffect(() => {
+    if (isSuccess && fetchedUser) {
+      if (
+        !user ||
+        user._id !== fetchedUser._id ||
+        user.isEmailVerified !== fetchedUser.isEmailVerified
+      ) {
+        dispatch(setCredentials(fetchedUser));
+      }
+    } else if (isError) {
+      if (user) {
+        dispatch(clearCredentials());
+      }
+      dispatch(setInitialized());
+    } else if (!isLoading) {
+      dispatch(setInitialized());
+    }
+  }, [isSuccess, isError, isLoading, fetchedUser, user, dispatch]);
+
+  // 3. Cross-tab broadcast synchronization (Uses setQueryData to prevent refetch storms)
   useEffect(() => {
     const unsubscribe = AuthManager.subscribe((type, payload) => {
       if (type === "AUTH_LOGIN") {
         dispatch(setCredentials(payload));
-        queryClient.invalidateQueries({ queryKey: queryKeys.auth.all });
+        queryClient.setQueryData(queryKeys.auth.me(), payload);
       } else if (type === "AUTH_LOGOUT") {
         dispatch(clearCredentials());
-        queryClient.clear();
+        queryClient.setQueryData(queryKeys.auth.me(), null);
       } else if (type === "AUTH_REFRESHED") {
         refetchUser();
       }
@@ -59,12 +76,12 @@ export function useAuth() {
     mutationFn: authApi.logout,
     onSuccess: () => {
       dispatch(clearCredentials());
-      queryClient.clear();
+      queryClient.setQueryData(queryKeys.auth.me(), null);
       toast.success("Signed out successfully");
     },
     onError: () => {
       dispatch(clearCredentials());
-      queryClient.clear();
+      queryClient.setQueryData(queryKeys.auth.me(), null);
     },
   });
 
@@ -72,10 +89,25 @@ export function useAuth() {
     mutationFn: (role) => authApi.demoLogin(role),
     onSuccess: (data) => {
       dispatch(setCredentials(data.user));
-      queryClient.invalidateQueries({ queryKey: queryKeys.auth.all });
+      queryClient.setQueryData(queryKeys.auth.me(), data.user);
       toast.success(data.message || `Signed in as Demo ${data.user.role}`);
     },
   });
+
+  const markVerified = useCallback(() => {
+    dispatch(setUserVerified());
+  }, [dispatch]);
+
+  const logout = useCallback(() => {
+    logoutMutation.mutate();
+  }, [logoutMutation]);
+
+  const demoLogin = useCallback(
+    (role) => {
+      demoLoginMutation.mutate(role);
+    },
+    [demoLoginMutation],
+  );
 
   const isAdmin = user?.role === "merchant_admin";
 
@@ -85,11 +117,11 @@ export function useAuth() {
     isInitialized,
     isAdmin,
     isEmailVerified: Boolean(user?.isEmailVerified),
-    logout: () => logoutMutation.mutate(),
-    demoLogin: (role) => demoLoginMutation.mutate(role),
+    logout,
+    demoLogin,
     isLoggingOut: logoutMutation.isPending,
     isDemoLoggingIn: demoLoginMutation.isPending,
-    markVerified: () => dispatch(setUserVerified()),
+    markVerified,
     refetchUser,
   };
 }

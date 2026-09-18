@@ -74,17 +74,30 @@ listenerMiddleware.startListening({
   },
 });
 
-// 4. Multi-Tab Session Synchronization
+// 4. Multi-Tab Session Synchronization (Deduplicated to prevent infinite loop loops)
 listenerMiddleware.startListening({
   actionCreator: setCredentials,
-  effect: (action) => {
-    AuthManager.notifyLoginSuccess(action.payload);
+  effect: (action, listenerApi) => {
+    const prevUser = listenerApi.getOriginalState().auth.user;
+    const currentUser = action.payload;
+
+    if (
+      currentUser &&
+      (!prevUser ||
+        prevUser._id !== currentUser._id ||
+        prevUser.isEmailVerified !== currentUser.isEmailVerified)
+    ) {
+      AuthManager.notifyLoginSuccess(currentUser);
+    }
   },
 });
 
 listenerMiddleware.startListening({
   actionCreator: clearCredentials,
-  effect: () => {
-    AuthManager.notifySessionTerminated();
+  effect: (_action, listenerApi) => {
+    const prevAuth = listenerApi.getOriginalState().auth.isAuthenticated;
+    if (prevAuth) {
+      AuthManager.notifySessionTerminated();
+    }
   },
 });

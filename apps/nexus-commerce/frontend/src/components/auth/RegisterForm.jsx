@@ -14,19 +14,24 @@ import { Button } from "../common/Button";
 import { PasskeyPromptModal } from "./PasskeyPromptModal";
 import { toast } from "sonner";
 
+// Synchronized with backend RegisterPasswordSchema
 const RegisterSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
+  name: z
+    .string()
+    .min(2, "Name must be at least 2 characters long.")
+    .max(60, "Name cannot exceed 60 characters."),
   email: z
     .string()
-    .email("Valid email address is required")
+    .email("Valid email address is required.")
     .toLowerCase()
     .trim(),
   password: z
     .string()
-    .min(8, "Password must be at least 8 characters long")
+    .min(8, "Password must be at least 8 characters long.")
+    .max(100, "Password cannot exceed 100 characters.")
     .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-      "Must include uppercase, lowercase, and a number",
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#^()_+\-=])/,
+      "Password must include uppercase, lowercase, a number, and a special character.",
     ),
 });
 
@@ -41,7 +46,7 @@ function PasswordEntropyMeter({ control }) {
     if (pwd.length >= 8) score++;
     if (/[A-Z]/.test(pwd)) score++;
     if (/\d/.test(pwd)) score++;
-    if (/[^A-Za-z0-9]/.test(pwd)) score++;
+    if (/[@$!%*?&#^()_+\-=]/.test(pwd)) score++;
     return score;
   };
 
@@ -76,7 +81,7 @@ function PasswordEntropyMeter({ control }) {
             ? "Exceptional Entropy"
             : strengthScore === 3
               ? "Strong"
-              : "Moderate"}
+              : "Weak (add symbols & mix case)"}
         </span>
       </p>
     </div>
@@ -96,6 +101,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }) {
     register,
     handleSubmit,
     control,
+    setError,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(RegisterSchema),
@@ -112,7 +118,50 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }) {
       setRegisteredUser(data.user);
       setIsOpenPasskeyModal(true);
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Registration failed");
+      const serverResponse = err?.response?.data;
+      const validationErrors = serverResponse?.errors;
+
+      // 1. Map field-specific Zod/zxcvbn errors from backend errorMiddleware
+      if (validationErrors && typeof validationErrors === "object") {
+        let firstErrorMessage = null;
+
+        Object.entries(validationErrors).forEach(([field, messages]) => {
+          const message = Array.isArray(messages) ? messages[0] : messages;
+          if (message) {
+            if (!firstErrorMessage) firstErrorMessage = message;
+            setError(field, {
+              type: "server",
+              message: String(message),
+            });
+          }
+        });
+
+        toast.error(
+          firstErrorMessage ||
+            serverResponse.message ||
+            "Please resolve the highlighted field errors.",
+        );
+      }
+      // 2. Handle Duplicate Account / 409 Conflicts
+      else if (err?.response?.status === 409) {
+        setError("email", {
+          type: "server",
+          message:
+            serverResponse?.message ||
+            "An account with this email address already exists.",
+        });
+        toast.error(
+          serverResponse?.message || "Email address is already in use.",
+        );
+      }
+      // 3. Fallback to Safe Operational Message (Never leaks stack traces or raw system internals)
+      else {
+        const safeMessage =
+          serverResponse?.message && typeof serverResponse.message === "string"
+            ? serverResponse.message
+            : "Registration could not be completed. Please check your details and try again.";
+        toast.error(safeMessage);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -126,6 +175,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }) {
   return (
     <>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
+        {/* Full Name */}
         <div className="space-y-1.5">
           <label className="block text-xs font-medium text-text-muted">
             Full Name
@@ -135,15 +185,22 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }) {
               type="text"
               placeholder="Aimal Khan"
               {...register("name")}
-              className="w-full min-h-11 px-3.5 pl-10 rounded-xl bg-surface-elevated border border-border-main text-text-main text-xs focus:outline-hidden focus:border-brand-primary transition-colors"
+              className={`w-full min-h-11 px-3.5 pl-10 rounded-xl bg-surface-elevated border text-text-main text-xs focus:outline-hidden transition-colors ${
+                errors.name
+                  ? "border-rose-500 focus:border-rose-500"
+                  : "border-border-main focus:border-brand-primary"
+              }`}
             />
             <User className="w-4 h-4 text-text-faint absolute left-3 top-1/2 -translate-y-1/2" />
           </div>
           {errors.name && (
-            <p className="text-[11px] text-rose-500">{errors.name.message}</p>
+            <p className="text-[11px] text-rose-500 font-medium animate-in fade-in">
+              {errors.name.message}
+            </p>
           )}
         </div>
 
+        {/* Email Address */}
         <div className="space-y-1.5">
           <label className="block text-xs font-medium text-text-muted">
             Email Address
@@ -153,15 +210,22 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }) {
               type="email"
               placeholder="you@domain.com"
               {...register("email")}
-              className="w-full min-h-11 px-3.5 pl-10 rounded-xl bg-surface-elevated border border-border-main text-text-main text-xs focus:outline-hidden focus:border-brand-primary transition-colors"
+              className={`w-full min-h-11 px-3.5 pl-10 rounded-xl bg-surface-elevated border text-text-main text-xs focus:outline-hidden transition-colors ${
+                errors.email
+                  ? "border-rose-500 focus:border-rose-500"
+                  : "border-border-main focus:border-brand-primary"
+              }`}
             />
             <Mail className="w-4 h-4 text-text-faint absolute left-3 top-1/2 -translate-y-1/2" />
           </div>
           {errors.email && (
-            <p className="text-[11px] text-rose-500">{errors.email.message}</p>
+            <p className="text-[11px] text-rose-500 font-medium animate-in fade-in">
+              {errors.email.message}
+            </p>
           )}
         </div>
 
+        {/* Password */}
         <div className="space-y-1.5">
           <label className="block text-xs font-medium text-text-muted">
             Password
@@ -171,7 +235,11 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }) {
               type={showPassword ? "text" : "password"}
               placeholder="Create strong password"
               {...register("password")}
-              className="w-full min-h-11 px-3.5 pl-10 pr-10 rounded-xl bg-surface-elevated border border-border-main text-text-main text-xs focus:outline-hidden focus:border-brand-primary transition-colors"
+              className={`w-full min-h-11 px-3.5 pl-10 pr-10 rounded-xl bg-surface-elevated border text-text-main text-xs focus:outline-hidden transition-colors ${
+                errors.password
+                  ? "border-rose-500 focus:border-rose-500"
+                  : "border-border-main focus:border-brand-primary"
+              }`}
             />
             <Lock className="w-4 h-4 text-text-faint absolute left-3 top-1/2 -translate-y-1/2" />
             <button
@@ -187,11 +255,11 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }) {
             </button>
           </div>
 
-          {/* Dedicated React Hook Form useWatch Sub-component */}
+          {/* Password Entropy Meter */}
           <PasswordEntropyMeter control={control} />
 
           {errors.password && (
-            <p className="text-[11px] text-rose-500">
+            <p className="text-[11px] text-rose-500 font-medium animate-in fade-in">
               {errors.password.message}
             </p>
           )}
@@ -222,7 +290,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }) {
         </div>
       </form>
 
-      {/* Post-Registration Biometric Passkey Enrollment Prompt */}
+      {/* Post-Registration Passkey Enrollment Modal */}
       {registeredUser && (
         <PasskeyPromptModal
           isOpen={isOpenPasskeyModal}
