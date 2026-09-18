@@ -37,11 +37,23 @@ app.use((req, res, next) => {
   express.urlencoded({ extended: true, limit: "10mb" })(req, res, next);
 });
 
+// 3. Vercel Serverless Cookie Fix:
+// Reset pre-attached req.cookies from @vercel/node so cookie-parser processes signed cookies with env.COOKIE_SECRET
+app.use((req, res, next) => {
+  if (req.cookies && !req.secret) {
+    delete req.cookies;
+  }
+  req.secret = env.COOKIE_SECRET;
+  next();
+});
+
+// 4. Initialize Cookie Parser with genuine environment secret
 app.use(cookieParser(env.COOKIE_SECRET));
+
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(hpp());
 
-// 3. Robust Cross-Origin Access (Vercel Frontend <-> Backend)
+// 5. Robust Cross-Origin Access (Vercel Frontend <-> Backend)
 const configuredClientUrl = env.CLIENT_URL
   ? env.CLIENT_URL.replace(/\/$/, "")
   : "";
@@ -91,13 +103,13 @@ app.use(
   }),
 );
 
-// 4. Telemetry Logger
+// 6. Telemetry Logger
 app.use(requestLogger);
 
 // Serve local media uploads publicly
 app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
 
-// 5. Distributed Rate Limiters
+// 7. Distributed Rate Limiters
 const authLimiter = createRateLimiter({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -114,10 +126,9 @@ const checkoutLimiter = createRateLimiter({
     "Checkout rate limit reached. Please wait a moment before submitting again.",
 });
 
-// Dedicated SSE Stream Connection Limiter (Allows auto-reconnects & multi-tab handshakes)
 const streamLimiter = createRateLimiter({
-  windowMs: 1 * 60 * 1000, // 1-minute window
-  max: 60, // Allows up to 60 stream connections/reconnects per minute
+  windowMs: 1 * 60 * 1000,
+  max: 60,
   prefix: "stream",
   message:
     "Live stream connection rate limit exceeded. Reconnecting shortly...",
@@ -138,7 +149,7 @@ app.use("/api/v1/orders", checkoutLimiter);
 app.use("/api/v1/stream", streamLimiter);
 app.use("/api/v1", globalLimiter);
 
-// 6. Base Welcome Endpoint
+// 8. Base Welcome Endpoint
 app.get("/", (req, res) => {
   return res.status(200).json({
     success: true,
@@ -149,10 +160,10 @@ app.get("/", (req, res) => {
   });
 });
 
-// 7. Master Routing
+// 9. Master Routing
 app.use("/api/v1", masterRouter);
 
-// 8. Error Handling
+// 10. Error Handling
 app.use((req, res, next) => {
   const error = new Error(`Route ${req.originalUrl} not found`);
   error.status = 404;
