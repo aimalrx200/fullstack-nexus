@@ -8,14 +8,8 @@ const IS_PROD =
 
 /**
  * Adaptive Real-Time Hook:
- * - In Development: Uses Socket.io
- * - In Production: Uses Server-Sent Events (EventSource)
- *
- * @param {Object} config
- * @param {'admin' | 'order' | 'product' | 'chat'} config.channelType
- * @param {string} [config.id] - Order ID, Product ID, or Conversation ID
- * @param {Object.<string, Function>} config.events - Map of event names to handler functions
- * @param {boolean} [config.enabled=true]
+ * - Development: Socket.io
+ * - Production: Server-Sent Events (EventSource)
  */
 export function useRealTimeStream({
   channelType,
@@ -26,32 +20,43 @@ export function useRealTimeStream({
   const [isConnected, setIsConnected] = useState(false);
   const [lastEvent, setLastEvent] = useState(null);
 
-  // 1. Synchronize events ref safely inside an effect (React 19 compliant)
   const eventsRef = useRef(events);
   useEffect(() => {
     eventsRef.current = events;
   }, [events]);
 
-  // 2. Track connection state with a ref to avoid reconnect loops in visibilitychange
   const isConnectedRef = useRef(false);
 
-  // Helper to set both state (for UI) and ref (for stable effect callbacks)
   const updateConnectionState = useCallback((status) => {
     isConnectedRef.current = status;
     setIsConnected(status);
   }, []);
 
-  // Resolve SSE endpoint path
+  // Resolve SSE endpoint path with guestSessionId query parameter for EventSource
   const getStreamUrl = useCallback(() => {
+    let guestSessionId = "";
+    if (typeof window !== "undefined") {
+      guestSessionId =
+        localStorage.getItem("nexus_guest_session_id") ||
+        sessionStorage.getItem("nexus_client_instance_id") ||
+        "";
+    }
+
+    const queryParams = new URLSearchParams();
+    if (guestSessionId) {
+      queryParams.set("guestSessionId", guestSessionId);
+    }
+    const queryStr = queryParams.toString() ? `?${queryParams.toString()}` : "";
+
     switch (channelType) {
       case "admin":
         return `${API_BASE_URL}/stream/admin`;
       case "order":
-        return `${API_BASE_URL}/stream/orders/${id}`;
+        return `${API_BASE_URL}/stream/orders/${id}${queryStr}`;
       case "product":
         return `${API_BASE_URL}/stream/products/${id}`;
       case "chat":
-        return `${API_BASE_URL}/stream/chat/${id}`;
+        return `${API_BASE_URL}/stream/chat/${id}${queryStr}`;
       default:
         return null;
     }
@@ -60,9 +65,7 @@ export function useRealTimeStream({
   useEffect(() => {
     if (!enabled) return;
 
-    // =========================================================================
     // 1. PRODUCTION MODE: Server-Sent Events (SSE)
-    // =========================================================================
     if (IS_PROD) {
       const streamUrl = getStreamUrl();
       if (!streamUrl) return;
@@ -82,7 +85,6 @@ export function useRealTimeStream({
             updateConnectionState(true);
           });
 
-          // Bind registered event listeners dynamically from ref
           Object.keys(eventsRef.current).forEach((eventName) => {
             eventSource.addEventListener(eventName, (e) => {
               try {
@@ -108,7 +110,6 @@ export function useRealTimeStream({
             updateConnectionState(false);
             if (eventSource) eventSource.close();
 
-            // Exponential backoff reconnect
             reconnectTimer = setTimeout(() => {
               if (document.visibilityState === "visible") {
                 connectSSE();
@@ -122,7 +123,6 @@ export function useRealTimeStream({
 
       connectSSE();
 
-      // Catch-up sync when tab returns to foreground
       const handleVisibilityChange = () => {
         if (document.visibilityState === "visible" && !isConnectedRef.current) {
           connectSSE();
@@ -142,16 +142,13 @@ export function useRealTimeStream({
       };
     }
 
-    // =========================================================================
     // 2. LOCALHOST DEV MODE: Socket.io
-    // =========================================================================
     const socket = getSocket();
     if (!socket.connected) socket.connect();
 
     const onConnect = () => {
       updateConnectionState(true);
 
-      // Join corresponding Socket.io room
       if (channelType === "admin") socket.emit("admin:join_order_stream");
       if (channelType === "order" && id)
         socket.emit("order:subscribe_tracking", { orderId: id });
@@ -167,7 +164,6 @@ export function useRealTimeStream({
     socket.on("disconnect", onDisconnect);
     if (socket.connected) onConnect();
 
-    // Attach listeners
     Object.keys(eventsRef.current).forEach((eventName) => {
       socket.on(eventName, (data) => {
         setLastEvent({ type: eventName, data, timestamp: Date.now() });
