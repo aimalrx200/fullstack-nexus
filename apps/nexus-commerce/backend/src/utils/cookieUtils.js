@@ -6,26 +6,25 @@ import {
 
 const isProd = env.NODE_ENV === "production";
 const shouldSign = true;
-const baseApiPath = "/api/v1";
 
-// In production cross-subdomain setups (Vercel), SameSite is 'None' with Secure: true
+// In production cross-domain setups (Vercel), SameSite is 'None' with Secure: true
 const sameSitePolicy = isProd ? "None" : "Lax";
 
 export const accessTokenCookieOptions = {
   httpOnly: true,
   secure: isProd,
   sameSite: sameSitePolicy,
-  path: baseApiPath,
+  path: "/", // ✅ Changed from "/api/v1" to "/" to ensure universal browser attachment
   signed: shouldSign,
   maxAge: ACCESS_TOKEN_TTL_MS,
-  partitioned: isProd, // 🟢 CHIPS partitioning for cross-subdomain cookies
+  partitioned: isProd, // CHIPS cookie partitioning for cross-site domains
 };
 
 export const refreshTokenCookieOptions = {
   httpOnly: true,
   secure: isProd,
   sameSite: sameSitePolicy,
-  path: baseApiPath,
+  path: "/", // ✅ Changed from "/api/v1" to "/"
   signed: shouldSign,
   maxAge: REFRESH_TOKEN_TTL_MS,
   partitioned: isProd,
@@ -35,7 +34,7 @@ export const accessTokenClearCookieOptions = {
   httpOnly: true,
   secure: isProd,
   sameSite: sameSitePolicy,
-  path: baseApiPath,
+  path: "/",
   signed: shouldSign,
   maxAge: 0,
   expires: new Date(0),
@@ -46,7 +45,7 @@ export const refreshTokenClearCookieOptions = {
   httpOnly: true,
   secure: isProd,
   sameSite: sameSitePolicy,
-  path: baseApiPath,
+  path: "/",
   signed: shouldSign,
   maxAge: 0,
   expires: new Date(0),
