@@ -32,7 +32,7 @@ export function useSupportChat() {
 
   const typingTimeoutRef = useRef(null);
 
-  // 1. Query or Create Active Conversation
+  // 1. Query or Create Active Conversation (with 3s background polling fallback)
   const { isLoading: isConversationLoading, refetch: refetchConversation } =
     useQuery({
       queryKey: queryKeys.support.conversation(user?.id || "guest"),
@@ -47,7 +47,8 @@ export function useSupportChat() {
         }
         return data;
       },
-      staleTime: 5 * 60 * 1000,
+      staleTime: 3000,
+      refetchInterval: isWidgetOpen ? 2500 : 8000, // 👈 2.5s polling when open
     });
 
   // 2. Bind Real-Time Stream (SSE in Prod / Socket.io in Dev)
@@ -57,9 +58,6 @@ export function useSupportChat() {
     },
     onTyping: (typingData) => {
       dispatch(setTypingIndicator(typingData));
-    },
-    onRead: () => {
-      // Handled automatically
     },
   });
 
@@ -75,7 +73,7 @@ export function useSupportChat() {
     },
   });
 
-  // 4. Emit Typing Indicator (with auto-reset)
+  // 4. Typing indicator with auto-timeout
   const emitTyping = useCallback(
     (typingState) => {
       if (!activeConversationId) return;
@@ -106,7 +104,6 @@ export function useSupportChat() {
     [activeConversationId],
   );
 
-  // 5. Open/Close Widget Handlers
   const openWidget = useCallback(() => {
     dispatch(setWidgetOpen(true));
     dispatch(resetUnreadCount());
@@ -124,7 +121,6 @@ export function useSupportChat() {
     }
   }, [isWidgetOpen, openWidget, closeWidget]);
 
-  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);

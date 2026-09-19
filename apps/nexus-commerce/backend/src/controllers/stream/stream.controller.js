@@ -84,17 +84,27 @@ const initSSEStream = (req, res, channelName, onCleanup) => {
 };
 
 /**
- * 1. Admin Live Order Stream
+ * 1. Admin Master Stream (Broadcasts Orders + Support Inquiries to Merchant Dashboard)
  */
 export const streamAdminOrders = async (req, res) => {
-  const channel = WS_CHANNELS.ADMIN_ORDERS_ROOM;
-  let unsubscribe = null;
+  const orderChannel = WS_CHANNELS.ADMIN_ORDERS_ROOM;
+  const supportChannel = "admin:support_desk";
 
-  const { safeWrite } = initSSEStream(req, res, channel, () => {
-    if (unsubscribe) unsubscribe();
+  let unsubOrders = null;
+  let unsubSupport = null;
+
+  const { safeWrite } = initSSEStream(req, res, "admin:master_feed", () => {
+    if (unsubOrders) unsubOrders();
+    if (unsubSupport) unsubSupport();
   });
 
-  unsubscribe = subscribeToChannel(channel, (event) => {
+  // Subscribe to order events
+  unsubOrders = subscribeToChannel(orderChannel, (event) => {
+    safeWrite(`event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`);
+  });
+
+  // Subscribe to live customer support messages & new conversations
+  unsubSupport = subscribeToChannel(supportChannel, (event) => {
     safeWrite(`event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`);
   });
 };
@@ -177,7 +187,7 @@ export const streamProductStock = async (req, res) => {
 };
 
 /**
- * 4. Customer Support Live Chat Stream (Supports Authenticated Shoppers & Guests)
+ * 4. Customer Support Live Chat Stream
  */
 export const streamChat = async (req, res) => {
   const { conversationId } = req.params;
@@ -193,11 +203,6 @@ export const streamChat = async (req, res) => {
       .json({ success: false, message: "Conversation not found." });
   }
 
-  // Access check:
-  // 1. Authenticated user owns the conversation
-  // 2. Guest user with matching session ID
-  // 3. Unauthenticated shopper holding the active conversation token
-  // 4. Merchant Admin
   const isOwner =
     (req.user &&
       conversation.customerId &&
