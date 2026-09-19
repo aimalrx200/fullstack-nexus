@@ -63,48 +63,36 @@ export const getOrCreateConversation = asyncHandler(async (req, res) => {
 });
 
 /**
- * Fetch messages for a specific conversation (Admin & Owner access).
+ * Load all message history for a specific conversation
  * GET /api/v1/support/conversations/:conversationId/messages
  */
 export const getConversationMessages = asyncHandler(async (req, res) => {
   const { conversationId } = req.params;
-  const userId = req.user?.id;
-  const isAdmin = req.user?.role === "merchant_admin";
-  const guestSessionId = req.headers["x-guest-session-id"];
 
-  const conversation = await Conversation.findById(conversationId);
+  const conversation = await Conversation.findById(conversationId).populate(
+    "customerId",
+    "name email avatarUrl",
+  );
+
   if (!conversation) {
     return res
       .status(404)
       .json({ success: false, message: "Conversation not found." });
   }
 
-  const isOwner =
-    (userId &&
-      conversation.customerId &&
-      conversation.customerId.toString() === userId) ||
-    (guestSessionId && conversation.guestSessionId === guestSessionId);
-
-  if (!isAdmin && !isOwner) {
-    return res.status(403).json({
-      success: false,
-      message: "Unauthorized access to conversation messages.",
-    });
-  }
-
-  // If admin views this, mark unread messages as read
-  if (isAdmin && conversation.unreadCountAdmin > 0) {
-    conversation.unreadCountAdmin = 0;
-    await conversation.save();
-  } else if (isOwner && conversation.unreadCountCustomer > 0) {
-    conversation.unreadCountCustomer = 0;
-    await conversation.save();
-  }
-
+  // Fetch all messages belonging to this conversation in chronological order
   const messages = await Message.find({ conversationId })
     .sort({ createdAt: 1 })
-    .limit(100)
     .lean();
+
+  // Reset admin unread counter when admin opens thread
+  if (
+    req.user?.role === "merchant_admin" &&
+    conversation.unreadCountAdmin > 0
+  ) {
+    conversation.unreadCountAdmin = 0;
+    await conversation.save();
+  }
 
   return res.status(200).json({
     success: true,

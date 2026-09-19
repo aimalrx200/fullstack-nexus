@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
   getOrCreateConversation,
-  getConversationMessages,
+  getConversationMessages, // 👈 Import new controller
   sendMessage,
   getAllConversations,
 } from "#controllers/support/chat.controller.js";
@@ -23,7 +23,6 @@ const router = Router();
 
 // Customer Support Chat & Offline Ticket Submissions
 router.post("/conversation", getOrCreateConversation);
-router.get("/conversations/:conversationId/messages", getConversationMessages);
 router.post("/message", validate(SendMessageSchema), sendMessage);
 router.post("/ticket", validate(CreateTicketSchema), createSupportTicket);
 
@@ -34,6 +33,15 @@ router.get(
   adminMiddleware,
   getAllConversations,
 );
+
+// 👈 Add route to fetch messages for selected conversation
+router.get(
+  "/conversations/:conversationId/messages",
+  authMiddleware,
+  adminMiddleware,
+  getConversationMessages,
+);
+
 router.get("/tickets", authMiddleware, adminMiddleware, getTickets);
 router.patch(
   "/tickets/:ticketId",

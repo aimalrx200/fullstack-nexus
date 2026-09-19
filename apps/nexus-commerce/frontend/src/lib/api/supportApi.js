@@ -6,6 +6,7 @@ export const supportApi = {
     return data;
   },
 
+  // 👈 Add method to retrieve messages for a conversation
   getConversationMessages: async (conversationId) => {
     const { data } = await apiClient.get(
       `/support/conversations/${conversationId}/messages`,
@@ -27,7 +28,6 @@ export const supportApi = {
     return data;
   },
 
-  // Merchant Admin Operations
   getAllConversations: async (params = {}) => {
     const { data } = await apiClient.get("/support/conversations", { params });
     return data;
