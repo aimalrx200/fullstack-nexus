@@ -1,3 +1,5 @@
+// apps/nexus-commerce/frontend/src/lib/api/queryKeys.js
+
 /**
  * Centralized TanStack Query Key Factory
  * Eliminates magic strings and provides type-safe query cache invalidation.
@@ -9,6 +11,7 @@ export const queryKeys = {
     all: ["auth"],
     me: () => [...queryKeys.auth.all, "me"],
     addresses: () => [...queryKeys.auth.all, "addresses"],
+    verifyEmail: (token) => [...queryKeys.auth.all, "verify-email", token],
   },
 
   // 2. Product Catalog & Variants
@@ -65,6 +68,11 @@ export const queryKeys = {
       "conversation",
       guestSessionId,
     ],
+    thread: (conversationId) => [
+      ...queryKeys.support.all,
+      "thread",
+      conversationId,
+    ],
     adminConversations: (params = {}) => [
       ...queryKeys.support.all,
       "admin",
@@ -77,5 +85,11 @@ export const queryKeys = {
       "tickets",
       params,
     ],
+  },
+
+  // 7. Staff & Team RBAC Management
+  staff: {
+    all: ["staff"],
+    list: (params = {}) => [...queryKeys.staff.all, "list", params],
   },
 };

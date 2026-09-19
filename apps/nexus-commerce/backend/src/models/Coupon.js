@@ -1,3 +1,4 @@
+// apps/nexus-commerce/backend/src/models/Coupon.js
 import mongoose from "mongoose";
 
 const couponUsageSchema = new mongoose.Schema(
@@ -70,7 +71,7 @@ const couponSchema = new mongoose.Schema(
     },
     maxDiscountUSD: {
       type: Number,
-      default: null, // null = no cap
+      default: null,
     },
     maxDiscountPKR: {
       type: Number,
@@ -78,7 +79,7 @@ const couponSchema = new mongoose.Schema(
     },
     maxUsageTotal: {
       type: Number,
-      default: null, // null = unlimited redemptions
+      default: null,
     },
     currentUsageCount: {
       type: Number,
@@ -97,12 +98,16 @@ const couponSchema = new mongoose.Schema(
     },
     validUntil: {
       type: Date,
-      default: null, // null = never expires
+      default: null,
     },
     isActive: {
       type: Boolean,
       default: true,
       index: true,
+    },
+    isProtected: {
+      type: Boolean,
+      default: false,
     },
   },
   {
@@ -110,7 +115,6 @@ const couponSchema = new mongoose.Schema(
   },
 );
 
-// High-speed compound indexes for fast validation and admin tables
 couponSchema.index({ code: 1, isActive: 1 });
 couponSchema.index({ isActive: 1, validUntil: 1, createdAt: -1 });
 

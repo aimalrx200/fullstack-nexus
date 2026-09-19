@@ -1,3 +1,4 @@
+// apps/nexus-commerce/frontend/src/hooks/useAuth.js
 import { useEffect, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -19,7 +20,6 @@ export function useAuth() {
     (state) => state.auth,
   );
 
-  // 1. Query authenticated profile on initial mount
   const {
     data: fetchedUser,
     isSuccess,
@@ -35,13 +35,13 @@ export function useAuth() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // 2. Synchronize fetched user to Redux without triggering infinite query invalidation
   useEffect(() => {
     if (isSuccess && fetchedUser) {
       if (
         !user ||
         user._id !== fetchedUser._id ||
-        user.isEmailVerified !== fetchedUser.isEmailVerified
+        user.isEmailVerified !== fetchedUser.isEmailVerified ||
+        user.role !== fetchedUser.role
       ) {
         dispatch(setCredentials(fetchedUser));
       }
@@ -55,7 +55,6 @@ export function useAuth() {
     }
   }, [isSuccess, isError, isLoading, fetchedUser, user, dispatch]);
 
-  // 3. Cross-tab broadcast synchronization (Uses setQueryData to prevent refetch storms)
   useEffect(() => {
     const unsubscribe = AuthManager.subscribe((type, payload) => {
       if (type === "AUTH_LOGIN") {
@@ -94,34 +93,30 @@ export function useAuth() {
     },
   });
 
-  const markVerified = useCallback(() => {
-    dispatch(setUserVerified());
-  }, [dispatch]);
-
-  const logout = useCallback(() => {
-    logoutMutation.mutate();
-  }, [logoutMutation]);
-
-  const demoLogin = useCallback(
-    (role) => {
-      demoLoginMutation.mutate(role);
-    },
-    [demoLoginMutation],
-  );
-
-  const isAdmin = user?.role === "merchant_admin";
+  const role = user?.role || "customer";
+  const isSuperAdmin = role === "super_admin";
+  const isMerchantAdmin = role === "merchant_admin" || isSuperAdmin;
+  const isSupportAgent = role === "support_agent" || isMerchantAdmin;
+  const isStaff = isSupportAgent || isMerchantAdmin || isSuperAdmin;
 
   return {
     user,
     isAuthenticated,
     isInitialized,
-    isAdmin,
+    role,
+    isSuperAdmin,
+    isMerchantAdmin,
+    isSupportAgent,
+    isStaff,
     isEmailVerified: Boolean(user?.isEmailVerified),
-    logout,
-    demoLogin,
+    logout: useCallback(() => logoutMutation.mutate(), [logoutMutation]),
+    demoLogin: useCallback(
+      (r) => demoLoginMutation.mutate(r),
+      [demoLoginMutation],
+    ),
     isLoggingOut: logoutMutation.isPending,
     isDemoLoggingIn: demoLoginMutation.isPending,
-    markVerified,
+    markVerified: useCallback(() => dispatch(setUserVerified()), [dispatch]),
     refetchUser,
   };
 }

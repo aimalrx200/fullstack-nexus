@@ -1,3 +1,4 @@
+// apps/nexus-commerce/backend/src/controllers/auth/demo.controller.js
 import crypto from "crypto";
 import { User } from "#models/index.js";
 import { asyncHandler } from "#utils/asyncHandler.js";
@@ -8,29 +9,35 @@ import {
 } from "#utils/cookieUtils.js";
 import { formatUserResponse } from "#utils/userSerializer.js";
 
-const DEMO_ACCOUNTS = {
+const DEMO_PERSONAS = {
   customer: {
-    email: "customer@nexuscommerce.io",
-    name: "Aimal (VIP Shopper)",
+    email: "customer.demo@nexuscommerce.io",
+    name: "VIP Shopper (Demo)",
     role: "customer",
   },
+  agent: {
+    email: "agent.demo@nexuscommerce.io",
+    name: "Support Specialist (Demo)",
+    role: "support_agent",
+  },
   admin: {
-    email: "admin@nexuscommerce.io",
-    name: "Lead Commerce Merchant",
+    email: "admin.demo@nexuscommerce.io",
+    name: "Operations Lead (Demo)",
     role: "merchant_admin",
   },
 };
 
 export const demoLogin = asyncHandler(async (req, res) => {
-  const roleType = req.body.role === "admin" ? "admin" : "customer";
-  const config = DEMO_ACCOUNTS[roleType];
+  const requestedRole = req.body.role || "customer";
+  const config = DEMO_PERSONAS[requestedRole] || DEMO_PERSONAS.customer;
 
   let user = await User.findOne({ email: config.email });
   if (!user) {
     user = await User.create({
       ...config,
       isEmailVerified: true,
-      password: `Demo_${crypto.randomBytes(8).toString("hex")}!`,
+      isDemoAccount: true,
+      password: `DemoPass_${crypto.randomBytes(6).toString("hex")}!1`,
       addresses: [
         {
           label: "Primary Residence",
@@ -47,6 +54,9 @@ export const demoLogin = asyncHandler(async (req, res) => {
         },
       ],
     });
+  } else if (user.role !== config.role) {
+    user.role = config.role;
+    await user.save();
   }
 
   const { accessToken, refreshToken } = await initializeUserSession({
@@ -59,7 +69,7 @@ export const demoLogin = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     success: true,
-    message: `Logged in with 1-Click ${roleType.toUpperCase()} Evaluator Pass.`,
+    message: `Logged in with 1-Click ${config.name} pass.`,
     user: formatUserResponse(user),
   });
 });

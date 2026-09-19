@@ -1,4 +1,7 @@
+// apps/nexus-commerce/frontend/src/routes/routes.js
+
 export const ROUTES = {
+  // Storefront Routes
   HOME: "/",
   CATALOG: "/catalog",
   PRODUCT_DETAIL: "/product/:slugOrId",
@@ -13,7 +16,7 @@ export const ROUTES = {
   RESET_PASSWORD: "/reset-password",
   VERIFY_EMAIL: "/verify-email",
 
-  // Admin Operations Routes
+  // Admin & Staff Operations Routes
   ADMIN_DASHBOARD: "/admin",
   ADMIN_ANALYTICS: "/admin/analytics",
   ADMIN_ORDERS: "/admin/orders",
@@ -21,4 +24,5 @@ export const ROUTES = {
   ADMIN_COUPONS: "/admin/coupons",
   ADMIN_CUSTOMERS: "/admin/customers",
   ADMIN_SUPPORT: "/admin/support",
+  ADMIN_STAFF: "/admin/staff", // 👈 Added for 4-Role Team Management
 };

@@ -1,7 +1,12 @@
+// apps/nexus-commerce/backend/src/routes/admin.routes.js
 import { Router } from "express";
 import { authMiddleware } from "#middlewares/authMiddleware.js";
-import { adminMiddleware } from "#middlewares/adminMiddleware.js";
+import {
+  requireRoles,
+  protectMasterRecord,
+} from "#middlewares/rbacMiddleware.js";
 import { validate } from "#middlewares/validate.js";
+import { Coupon } from "#models/index.js";
 import { getDashboardAnalytics } from "#controllers/admin/analytics.controller.js";
 import { getCustomerDirectory } from "#controllers/admin/customer.controller.js";
 import {
@@ -20,41 +25,94 @@ import {
   createCoupon,
   updateCoupon,
   deleteCoupon,
-} from "#controllers/admin/coupon.controller.js"; // 👈 Import coupon controllers
+} from "#controllers/admin/coupon.controller.js";
 import { UpdateStockOverrideSchema } from "#validations/product.validation.js";
 import {
   CreateCouponSchema,
   UpdateCouponSchema,
-} from "#validations/coupon.validation.js"; // 👈 Import coupon validations
+} from "#validations/coupon.validation.js";
 
 const router = Router();
+router.use(authMiddleware);
 
-// Strict RBAC gate on all admin routes
-router.use(authMiddleware, adminMiddleware);
+// 1. Customer Directory: Accessible by Support, Merchant Admin & Super Admin
+router.get(
+  "/customers",
+  requireRoles("support_agent", "merchant_admin", "super_admin"),
+  getCustomerDirectory,
+);
 
-// Analytics & Customers
-router.get("/analytics", getDashboardAnalytics);
-router.get("/customers", getCustomerDirectory);
+// 2. Financial Analytics & GMV: Accessible ONLY by Merchant Admin & Super Admin
+router.get(
+  "/analytics",
+  requireRoles("merchant_admin", "super_admin"),
+  getDashboardAnalytics,
+);
 
-// Inventory Control
-router.get("/inventory", getInventoryMatrix);
-router.get("/inventory/low-stock", getLowStockAlerts);
+// 3. Inventory Controls: Restricted to Merchant Admin & Super Admin
+router.get(
+  "/inventory",
+  requireRoles("merchant_admin", "super_admin"),
+  getInventoryMatrix,
+);
+router.get(
+  "/inventory/low-stock",
+  requireRoles("merchant_admin", "super_admin"),
+  getLowStockAlerts,
+);
 router.patch(
   "/inventory/:variantId/stock",
+  requireRoles("merchant_admin", "super_admin"),
   validate(UpdateStockOverrideSchema),
   updateStockOverride,
 );
 
-// Order Fulfillment & Live Simulator
-router.get("/orders", getAllOrders);
-router.patch("/orders/:orderId/status", updateFulfillmentStatus);
-router.patch("/orders/:orderId/courier", assignCourierTracking);
-router.post("/orders/:orderId/simulate-delivery", simulateCourierDelivery);
+// 4. Order Fulfillment Pipeline: Restricted to Merchant Admin & Super Admin
+router.get(
+  "/orders",
+  requireRoles("merchant_admin", "super_admin"),
+  getAllOrders,
+);
+router.patch(
+  "/orders/:orderId/status",
+  requireRoles("merchant_admin", "super_admin"),
+  updateFulfillmentStatus,
+);
+router.patch(
+  "/orders/:orderId/courier",
+  requireRoles("merchant_admin", "super_admin"),
+  assignCourierTracking,
+);
+router.post(
+  "/orders/:orderId/simulate-delivery",
+  requireRoles("merchant_admin", "super_admin"),
+  simulateCourierDelivery,
+);
 
-// Promotional Coupon Management
-router.get("/coupons", getCoupons);
-router.post("/coupons", validate(CreateCouponSchema), createCoupon);
-router.patch("/coupons/:couponId", validate(UpdateCouponSchema), updateCoupon);
-router.delete("/coupons/:couponId", deleteCoupon);
+// 5. Promotional Coupons: Restricted to Merchant Admin & Super Admin with Protected Record Shield
+router.get(
+  "/coupons",
+  requireRoles("merchant_admin", "super_admin"),
+  getCoupons,
+);
+router.post(
+  "/coupons",
+  requireRoles("merchant_admin", "super_admin"),
+  validate(CreateCouponSchema),
+  createCoupon,
+);
+router.patch(
+  "/coupons/:couponId",
+  requireRoles("merchant_admin", "super_admin"),
+  protectMasterRecord(Coupon, "couponId"),
+  validate(UpdateCouponSchema),
+  updateCoupon,
+);
+router.delete(
+  "/coupons/:couponId",
+  requireRoles("merchant_admin", "super_admin"),
+  protectMasterRecord(Coupon, "couponId"),
+  deleteCoupon,
+);
 
 export default router;

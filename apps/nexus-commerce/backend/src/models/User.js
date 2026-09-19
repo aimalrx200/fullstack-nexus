@@ -1,3 +1,4 @@
+// apps/nexus-commerce/backend/src/models/User.js
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import validator from "validator";
@@ -7,7 +8,6 @@ const passkeySchema = new mongoose.Schema(
     credentialID: {
       type: String,
       required: true,
-      // Removed non-sparse unique: true from subdocument
     },
     credentialPublicKey: {
       type: Buffer,
@@ -85,8 +85,23 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["customer", "merchant_admin"],
+      enum: ["customer", "support_agent", "merchant_admin", "super_admin"],
       default: "customer",
+      index: true,
+    },
+    isProtected: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    isDemoAccount: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    invitedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
     isEmailVerified: {
       type: Boolean,
@@ -108,10 +123,7 @@ const userSchema = new mongoose.Schema(
   },
 );
 
-// High-speed compound indexes
 userSchema.index({ role: 1, createdAt: -1 });
-
-// Sparse unique index: Only indexes documents that actually contain a passkey credentialID
 userSchema.index(
   { "passkeys.credentialID": 1 },
   { unique: true, sparse: true },

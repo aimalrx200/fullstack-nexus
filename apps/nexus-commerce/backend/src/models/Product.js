@@ -1,8 +1,9 @@
+// apps/nexus-commerce/backend/src/models/Product.js
 import mongoose from "mongoose";
 
 const productImageSchema = new mongoose.Schema({
   url: { type: String, required: true },
-  publicId: { type: String }, // Cloudinary asset identifier
+  publicId: { type: String },
   alt: { type: String, default: "Product Image" },
   isPrimary: { type: Boolean, default: false },
 });
@@ -63,13 +64,17 @@ const productSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    isProtected: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   {
     timestamps: true,
   },
 );
 
-// High-relevance weighted compound text search index
 productSchema.index(
   { title: "text", tags: "text", description: "text" },
   {

@@ -12,6 +12,7 @@ import adminRoutes from "./admin.routes.js";
 import supportRoutes from "./support.routes.js";
 import streamRoutes from "./stream.routes.js";
 import cronRoutes from "./cron.routes.js";
+import staffRoutes from "./staff.routes.js";
 
 const router = Router();
 
@@ -172,6 +173,7 @@ router.use("/checkout", checkoutRoutes);
 router.use("/orders", orderRoutes);
 router.use("/payments", paymentRoutes);
 router.use("/admin", adminRoutes);
+router.use("/admin/staff", staffRoutes);
 router.use("/support", supportRoutes);
 router.use("/stream", streamRoutes);
 router.use("/cron", cronRoutes);

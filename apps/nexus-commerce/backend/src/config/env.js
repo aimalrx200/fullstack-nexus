@@ -1,3 +1,4 @@
+// apps/nexus-commerce/backend/src/config/env.js
 import { z } from "zod";
 import dotenv from "dotenv";
 import { logger } from "./logger.js";
@@ -16,6 +17,14 @@ const envSchema = z.object({
     .default("development"),
   CLIENT_URL: cleanUrl.default("http://localhost:5175"),
   MONGO_URI: z.string().url("MONGO_URI must be a valid MongoDB protocol URL."),
+
+  // Root Owner Identity & Sovereign Administration
+  MASTER_OWNER_EMAIL: z
+    .string()
+    .email()
+    .toLowerCase()
+    .trim()
+    .default("owner@nexuscommerce.io"),
 
   // Cryptographic Signatures (Min 32 characters)
   JWT_SECRET: z

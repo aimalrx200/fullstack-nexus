@@ -1,5 +1,12 @@
+// apps/nexus-commerce/frontend/src/components/auth/DemoEvaluatorBar.jsx
 import React from "react";
-import { ShieldCheck, UserCheck, Sparkles, Loader2 } from "lucide-react";
+import {
+  ShieldCheck,
+  UserCheck,
+  Sparkles,
+  Loader2,
+  Headphones,
+} from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 
 export function DemoEvaluatorBar({ onAuthenticated, className = "" }) {
@@ -20,39 +27,51 @@ export function DemoEvaluatorBar({ onAuthenticated, className = "" }) {
           <span>1-Click Evaluator Sandbox</span>
         </div>
         <span className="text-[10px] font-mono text-text-muted">
-          Instant Zero-Password Pass
+          Master records protected
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        {/* Customer Demo Button */}
+      <div className="grid grid-cols-3 gap-2">
         <button
           type="button"
           disabled={isDemoLoggingIn}
           onClick={() => handleDemo("customer")}
-          className="min-h-11 px-3 py-2 rounded-xl bg-surface-card hover:bg-surface-elevated text-text-main border border-border-main text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-[0.98] shadow-xs"
+          className="min-h-11 px-2 py-2 rounded-xl bg-surface-card hover:bg-surface-elevated text-text-main border border-border-main text-xs font-medium flex flex-col items-center justify-center gap-1 transition-all cursor-pointer disabled:opacity-50 active:scale-[0.98] shadow-xs"
         >
           {isDemoLoggingIn ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin text-brand-primary" />
           ) : (
             <UserCheck className="w-3.5 h-3.5 text-blue-400" />
           )}
-          <span>VIP Shopper</span>
+          <span className="text-[11px] font-semibold">VIP Shopper</span>
         </button>
 
-        {/* Merchant Admin Demo Button */}
+        <button
+          type="button"
+          disabled={isDemoLoggingIn}
+          onClick={() => handleDemo("agent")}
+          className="min-h-11 px-2 py-2 rounded-xl bg-surface-card hover:bg-surface-elevated text-text-main border border-border-main text-xs font-medium flex flex-col items-center justify-center gap-1 transition-all cursor-pointer disabled:opacity-50 active:scale-[0.98] shadow-xs"
+        >
+          {isDemoLoggingIn ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+          ) : (
+            <Headphones className="w-3.5 h-3.5 text-emerald-400" />
+          )}
+          <span className="text-[11px] font-semibold">Support Care</span>
+        </button>
+
         <button
           type="button"
           disabled={isDemoLoggingIn}
           onClick={() => handleDemo("admin")}
-          className="min-h-11 px-3 py-2 rounded-xl bg-surface-card hover:bg-surface-elevated text-text-main border border-border-main text-xs font-medium flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-[0.98] shadow-xs"
+          className="min-h-11 px-2 py-2 rounded-xl bg-surface-card hover:bg-surface-elevated text-text-main border border-border-main text-xs font-medium flex flex-col items-center justify-center gap-1 transition-all cursor-pointer disabled:opacity-50 active:scale-[0.98] shadow-xs"
         >
           {isDemoLoggingIn ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-400" />
           ) : (
             <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
           )}
-          <span>Merchant Admin</span>
+          <span className="text-[11px] font-semibold">Merchant Ops</span>
         </button>
       </div>
     </div>
