@@ -8,6 +8,7 @@ import {
   LogOut,
   ChevronDown,
   Sparkles,
+  Headphones,
 } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useCart } from "../../hooks/useCart";
@@ -15,7 +16,7 @@ import { ThemeSelector } from "./ThemeSelector";
 import { CurrencySwitcher } from "./CurrencySwitcher";
 
 export function Navbar({ onOpenAuthModal }) {
-  const { user, isAuthenticated, isAdmin, logout } = useAuth();
+  const { user, isAuthenticated, isStaff, isMerchantAdmin, logout } = useAuth();
   const { itemCount, openCart } = useCart();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
@@ -32,6 +33,10 @@ export function Navbar({ onOpenAuthModal }) {
       };
     }
   }, [isMobileMenuOpen]);
+
+  // Determine appropriate staff navigation label and path
+  const staffLinkPath = isMerchantAdmin ? "/admin" : "/admin/support";
+  const staffLinkLabel = isMerchantAdmin ? "Merchant Hub" : "Support Desk";
 
   return (
     <header
@@ -58,7 +63,7 @@ export function Navbar({ onOpenAuthModal }) {
             </div>
           </a>
 
-          {/* Desktop Navigation Links: Visible only on >= 962px */}
+          {/* Desktop Navigation Links: Visible on >= 962px */}
           <nav className="hidden min-[962px]:flex items-center gap-5 lg:gap-6 text-sm font-medium text-text-muted">
             <a
               href="/catalog"
@@ -78,13 +83,19 @@ export function Navbar({ onOpenAuthModal }) {
             >
               Apparel
             </a>
-            {isAdmin && (
+
+            {/* Dynamic Staff Button: Visible for Support Agent, Merchant Admin & Super Admin */}
+            {isStaff && (
               <a
-                href="/admin"
-                className="flex items-center gap-1.5 text-brand-primary hover:text-brand-primary/80 font-semibold"
+                href={staffLinkPath}
+                className="flex items-center gap-1.5 text-brand-primary hover:text-brand-primary/80 font-semibold transition-colors"
               >
-                <ShieldCheck className="w-4 h-4" />
-                <span>Merchant Hub</span>
+                {isMerchantAdmin ? (
+                  <ShieldCheck className="w-4 h-4" />
+                ) : (
+                  <Headphones className="w-4 h-4" />
+                )}
+                <span>{staffLinkLabel}</span>
               </a>
             )}
           </nav>
@@ -92,7 +103,7 @@ export function Navbar({ onOpenAuthModal }) {
 
         {/* Right: Actions Tray */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-          {/* Top Bar Switchers: Hidden when < 962px, Visible on >= 962px */}
+          {/* Currency & Theme Switchers: Hidden on small mobile screens, visible on >= 962px */}
           <div className="hidden min-[962px]:flex items-center gap-2">
             <CurrencySwitcher />
             <ThemeSelector />
@@ -112,7 +123,7 @@ export function Navbar({ onOpenAuthModal }) {
             )}
           </button>
 
-          {/* User Account / Auth Actions */}
+          {/* User Account / Auth Dropdown */}
           {isAuthenticated ? (
             <div className="relative">
               <button
@@ -124,25 +135,30 @@ export function Navbar({ onOpenAuthModal }) {
                 <div className="w-6 h-6 rounded-full bg-brand-primary/10 border border-brand-primary/30 flex items-center justify-center text-brand-primary font-mono text-[11px] shrink-0">
                   {user?.name ? user.name[0].toUpperCase() : "U"}
                 </div>
-                <span className="hidden min-[962px]:inline max-w-24 truncate">
+                <span className="hidden min-[962px]:inline max-w-28 truncate">
                   {user?.name || "Account"}
                 </span>
                 <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
               </button>
 
-              {/* User Dropdown */}
+              {/* User Dropdown Card */}
               {isUserDropdownOpen && (
                 <>
                   <div
                     className="fixed inset-0 z-30"
                     onClick={() => setIsUserDropdownOpen(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-56 p-1.5 rounded-2xl bg-surface-card border border-border-main shadow-2xl z-40 animate-in fade-in zoom-in-95">
-                    <div className="px-3 py-2 border-b border-border-subtle">
-                      <p className="text-xs font-semibold text-text-main truncate">
-                        {user?.name}
-                      </p>
-                      <p className="text-[11px] text-text-muted truncate">
+                  <div className="absolute right-0 mt-2 w-60 p-1.5 rounded-2xl bg-surface-card border border-border-main shadow-2xl z-40 animate-in fade-in zoom-in-95">
+                    <div className="px-3 py-2.5 border-b border-border-subtle">
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="text-xs font-semibold text-text-main truncate">
+                          {user?.name}
+                        </p>
+                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-md bg-brand-primary/10 text-brand-primary border border-brand-primary/20 font-bold uppercase shrink-0">
+                          {user?.role?.replace("_", " ") || "CUSTOMER"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-text-muted truncate mt-0.5">
                         {user?.email}
                       </p>
                     </div>
@@ -156,14 +172,24 @@ export function Navbar({ onOpenAuthModal }) {
                         <User className="w-4 h-4 text-text-muted" />
                         <span>Order History & Addresses</span>
                       </a>
-                      {isAdmin && (
+
+                      {/* Staff Hub Option in Dropdown */}
+                      {isStaff && (
                         <a
-                          href="/admin"
+                          href={staffLinkPath}
                           onClick={() => setIsUserDropdownOpen(false)}
                           className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-brand-primary font-medium hover:bg-brand-primary/10 transition-colors"
                         >
-                          <ShieldCheck className="w-4 h-4" />
-                          <span>Merchant Dashboard</span>
+                          {isMerchantAdmin ? (
+                            <ShieldCheck className="w-4 h-4" />
+                          ) : (
+                            <Headphones className="w-4 h-4" />
+                          )}
+                          <span>
+                            {isMerchantAdmin
+                              ? "Merchant Dashboard"
+                              : "Support Control Desk"}
+                          </span>
                         </a>
                       )}
                     </div>
@@ -209,7 +235,7 @@ export function Navbar({ onOpenAuthModal }) {
         </div>
       </div>
 
-      {/* Full-Height Scrollable Mobile Drawer: z-[60] overlays over all floating elements */}
+      {/* Full-Height Mobile Drawer */}
       {isMobileMenuOpen && (
         <div className="min-[962px]:hidden fixed inset-x-0 top-16 bottom-0 h-[calc(100dvh-4rem)] bg-surface-app/98 backdrop-blur-2xl border-t border-border-subtle overflow-y-auto custom-scrollbar z-60 flex flex-col justify-between p-5 pb-8 animate-in fade-in slide-in-from-top-2 duration-200">
           {/* Navigation Links */}
@@ -235,19 +261,29 @@ export function Navbar({ onOpenAuthModal }) {
             >
               <span>Apparel</span>
             </a>
-            {isAdmin && (
+
+            {/* Mobile Drawer Staff Link */}
+            {isStaff && (
               <a
-                href="/admin"
+                href={staffLinkPath}
                 onClick={closeMobileMenu}
                 className="px-4 py-3 rounded-xl text-brand-primary font-semibold flex items-center gap-2 hover:bg-brand-primary/10 transition-colors"
               >
-                <ShieldCheck className="w-4 h-4" />
-                <span>Merchant Control Center</span>
+                {isMerchantAdmin ? (
+                  <ShieldCheck className="w-4 h-4" />
+                ) : (
+                  <Headphones className="w-4 h-4" />
+                )}
+                <span>
+                  {isMerchantAdmin
+                    ? "Merchant Control Center"
+                    : "Support Control Desk"}
+                </span>
               </a>
             )}
           </nav>
 
-          {/* Preferences Inside Mobile Menu Drawer */}
+          {/* Preferences inside Drawer */}
           <div className="pt-4 mt-6 border-t border-border-subtle space-y-3.5">
             <div className="flex items-center justify-between gap-3 px-2">
               <span className="text-xs font-medium text-text-muted">

@@ -4,6 +4,7 @@ import React, { useState, useRef, useCallback } from "react";
 import { Loader2 } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
 import { authApi } from "../../lib/api/authApi";
 import { setCredentials } from "../../redux/slices/authSlice";
 import { queryKeys } from "../../lib/api/queryKeys";
@@ -12,6 +13,7 @@ import { toast } from "sonner";
 export function GoogleLoginBtn({ onAuthenticated, className = "" }) {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const [isLoading, setIsLoading] = useState(false);
   const isProcessingAuth = useRef(false);
@@ -50,7 +52,18 @@ export function GoogleLoginBtn({ onAuthenticated, className = "" }) {
               dispatch(setCredentials(data.user));
               queryClient.invalidateQueries({ queryKey: queryKeys.auth.all });
               toast.success("Welcome! Signed in with Google Workspace.");
+
               onAuthenticated?.();
+
+              // Smart Post-Login Routing based on Role
+              const role = data.user?.role;
+              if (role === "super_admin" || role === "merchant_admin") {
+                navigate("/admin");
+              } else if (role === "support_agent") {
+                navigate("/admin/support");
+              } else {
+                navigate("/");
+              }
             } catch (err) {
               console.error("Google OAuth token exchange failed:", err);
               toast.error(
@@ -76,7 +89,6 @@ export function GoogleLoginBtn({ onAuthenticated, className = "" }) {
         },
       });
 
-      // Opens native Google Auth Code popup
       client.requestCode();
     } catch (err) {
       console.error("Google client initialization error:", err);

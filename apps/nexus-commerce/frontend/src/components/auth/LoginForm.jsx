@@ -15,6 +15,7 @@ import { Button } from "../common/Button";
 import { DemoEvaluatorBar } from "./DemoEvaluatorBar";
 import { GoogleLoginBtn } from "./GoogleLoginBtn";
 import { toast } from "sonner";
+import { useNavigate } from "react-router";
 
 const LoginSchema = z.object({
   email: z
@@ -27,6 +28,8 @@ const LoginSchema = z.object({
 
 export function LoginForm({ onSuccess, onSwitchToRegister, onSwitchToForgot }) {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+
   const queryClient = useQueryClient();
   const {
     authenticatePasskey,
@@ -50,6 +53,17 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onSwitchToForgot }) {
     defaultValues: { email: "", password: "" },
   });
 
+  const handleSmartRedirect = (user) => {
+    const role = user?.role;
+    if (role === "super_admin" || role === "merchant_admin") {
+      navigate("/admin");
+    } else if (role === "support_agent") {
+      navigate("/admin/support");
+    } else {
+      navigate("/");
+    }
+  };
+
   // 1. Password-based login handler
   const onPasswordSubmit = async (formData) => {
     setIsSubmitting(true);
@@ -59,6 +73,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onSwitchToForgot }) {
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.all });
       toast.success(data.message || "Signed in successfully");
       onSuccess?.();
+      handleSmartRedirect(data.user);
     } catch (err) {
       toast.error(err?.response?.data?.message || "Invalid email or password");
     } finally {
@@ -68,10 +83,11 @@ export function LoginForm({ onSuccess, onSwitchToRegister, onSwitchToForgot }) {
 
   // 2. Biometric Passkey login handler
   const handlePasskeyLogin = async () => {
-    const email = getValues("email"); // 👈 Evaluated on click without re-render tracking
+    const email = getValues("email");
     const result = await authenticatePasskey(email);
-    if (result.success) {
+    if (result.success && result.data?.user) {
       onSuccess?.();
+      handleSmartRedirect(result.data.user);
     }
   };
 

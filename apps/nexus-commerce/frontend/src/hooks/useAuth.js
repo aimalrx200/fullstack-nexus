@@ -108,6 +108,7 @@ export function useAuth() {
     isMerchantAdmin,
     isSupportAgent,
     isStaff,
+    isAdmin: isMerchantAdmin, // 👈 Ensures both merchant_admin & super_admin show admin options
     isEmailVerified: Boolean(user?.isEmailVerified),
     logout: useCallback(() => logoutMutation.mutate(), [logoutMutation]),
     demoLogin: useCallback(
