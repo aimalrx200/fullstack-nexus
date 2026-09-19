@@ -12,7 +12,7 @@ export function useAdminSupportDesk() {
   const [conversationStatusFilter, setConversationStatusFilter] =
     useState("ALL");
 
-  // 1. Fetch conversations list
+  // 1. Fetch conversation list
   const { data, isLoading: isListLoading } = useQuery({
     queryKey: queryKeys.support.adminConversations({
       status: conversationStatusFilter,
@@ -22,13 +22,10 @@ export function useAdminSupportDesk() {
     staleTime: 10 * 1000,
   });
 
-  // Stable reference to conversations array
   const conversations = useMemo(
     () => data?.conversations ?? [],
     [data?.conversations],
   );
-
-  // Derived state: Use explicit user selection, or fallback to the first conversation
   const activeId = selectedConversationId ?? conversations[0]?._id ?? null;
 
   // 2. Fetch messages for the ACTIVE conversation
@@ -49,11 +46,32 @@ export function useAdminSupportDesk() {
     return conversations.find((c) => c._id === activeId) ?? null;
   }, [activeThreadData, conversations, activeId]);
 
-  // 3. Bind real-time stream to the active conversation
+  // Click handler that switches conversation AND immediately clears the red unread badge
+  const handleSelectConversation = useCallback(
+    (convId) => {
+      setSelectedConversationId(convId);
+
+      // Optimistically clear the unread badge in the conversation list
+      queryClient.setQueriesData(
+        { queryKey: ["admin", "conversations"] },
+        (oldData) => {
+          if (!oldData?.conversations) return oldData;
+          return {
+            ...oldData,
+            conversations: oldData.conversations.map((c) =>
+              c._id === convId ? { ...c, unreadCountAdmin: 0 } : c,
+            ),
+          };
+        },
+      );
+    },
+    [queryClient],
+  );
+
+  // 3. Real-time stream for active conversation
   useChatStream(activeId, {
     onMessage: (newMsg) => {
       playMessageAlert();
-      // Optimistically push message into the active thread query cache
       queryClient.setQueryData(["support", "conversation", activeId], (old) => {
         if (!old) return old;
         const exists = old.messages?.some((m) => m._id === newMsg._id);
@@ -63,7 +81,6 @@ export function useAdminSupportDesk() {
           messages: [...(old.messages ?? []), newMsg],
         };
       });
-      // Invalidate list to update lastMessageAt timestamp & unread counters
       queryClient.invalidateQueries({ queryKey: queryKeys.support.all });
     },
   });
@@ -102,7 +119,7 @@ export function useAdminSupportDesk() {
     conversations,
     activeConversation,
     selectedConversationId: activeId,
-    setSelectedConversationId,
+    setSelectedConversationId: handleSelectConversation,
     conversationStatusFilter,
     setConversationStatusFilter,
     isLoading: isListLoading || isThreadLoading,

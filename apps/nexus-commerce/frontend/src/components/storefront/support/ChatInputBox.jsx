@@ -1,12 +1,22 @@
 import React, { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { Send, Paperclip, X, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Send, Paperclip, X, Loader2 } from "lucide-react";
 
-export function ChatInputBox({ onSendMessage, onTyping, isSending }) {
-  const [text, setText] = useState("");
+export function ChatInputBox({
+  value,
+  onValueChange,
+  onSendMessage,
+  onTyping,
+  isSending,
+}) {
+  // Only used if the component is used in uncontrolled mode (no `value` prop provided)
+  const [uncontrolledText, setUncontrolledText] = useState("");
   const [attachments, setAttachments] = useState([]);
 
-  // File drop handler with react-dropzone
+  // Derive current text value: controlled prop takes precedence over internal state
+  const isControlled = value !== undefined;
+  const currentText = isControlled ? value : uncontrolledText;
+
   const onDrop = useCallback((acceptedFiles) => {
     acceptedFiles.forEach((file) => {
       const reader = new FileReader();
@@ -29,23 +39,31 @@ export function ChatInputBox({ onSendMessage, onTyping, isSending }) {
     onDrop,
     noClick: true,
     noKeyboard: true,
-    maxSize: 5 * 1024 * 1024, // 5MB
+    maxSize: 5 * 1024 * 1024,
     accept: {
       "image/*": [".jpeg", ".png", ".webp", ".avif"],
     },
   });
 
   const handleInputChange = (e) => {
-    setText(e.target.value);
+    const nextVal = e.target.value;
+    if (!isControlled) {
+      setUncontrolledText(nextVal);
+    }
+    onValueChange?.(nextVal);
     onTyping?.(true);
   };
 
   const handleSend = (e) => {
     e?.preventDefault();
-    if (!text.trim() && attachments.length === 0) return;
+    if (!currentText.trim() && attachments.length === 0) return;
 
-    onSendMessage(text.trim(), attachments);
-    setText("");
+    onSendMessage(currentText.trim(), attachments);
+
+    if (!isControlled) {
+      setUncontrolledText("");
+    }
+    onValueChange?.("");
     setAttachments([]);
     onTyping?.(false);
   };
@@ -70,14 +88,12 @@ export function ChatInputBox({ onSendMessage, onTyping, isSending }) {
     >
       <input {...getInputProps()} />
 
-      {/* Dragging Overlay Notice */}
       {isDragActive && (
         <div className="p-2 mb-2 rounded-xl bg-brand-primary/20 text-brand-primary text-xs text-center font-mono font-semibold animate-pulse">
           Drop screenshot or receipt to attach
         </div>
       )}
 
-      {/* Attachment Preview Tray */}
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2 p-1.5 rounded-xl bg-surface-elevated border border-border-subtle">
           {attachments.map((att, idx) => (
@@ -102,9 +118,7 @@ export function ChatInputBox({ onSendMessage, onTyping, isSending }) {
         </div>
       )}
 
-      {/* Input Field Form */}
       <form onSubmit={handleSend} className="flex items-end gap-2">
-        {/* Attachment Upload Button */}
         <button
           type="button"
           onClick={open}
@@ -114,20 +128,20 @@ export function ChatInputBox({ onSendMessage, onTyping, isSending }) {
           <Paperclip className="w-4 h-4" />
         </button>
 
-        {/* Text Input Area */}
         <textarea
           rows={1}
-          value={text}
+          value={currentText}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           placeholder="Write your message..."
           className="flex-1 min-h-10 max-h-24 px-3.5 py-2 rounded-xl bg-surface-elevated border border-border-main text-text-main text-xs resize-none focus:outline-hidden focus:border-brand-primary transition-colors custom-scrollbar"
         />
 
-        {/* Send Button */}
         <button
           type="submit"
-          disabled={isSending || (!text.trim() && attachments.length === 0)}
+          disabled={
+            isSending || (!currentText.trim() && attachments.length === 0)
+          }
           className="min-h-10 min-w-10 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0 active:scale-95 shadow-xs shadow-brand-primary/25"
           aria-label="Send message"
         >
