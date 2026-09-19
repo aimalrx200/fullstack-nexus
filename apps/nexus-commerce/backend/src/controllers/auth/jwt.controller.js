@@ -66,6 +66,8 @@ export const initializeUserSession = async ({ user, req }) => {
 export const register = asyncHandler(async (req, res) => {
   const { name, email, password } = req.body;
   const cleanEmail = email.toLowerCase().trim();
+  const isMasterOwner =
+    cleanEmail === env.MASTER_OWNER_EMAIL?.toLowerCase().trim();
 
   const existing = await User.findOne({ email: cleanEmail });
   if (existing) {
@@ -79,12 +81,14 @@ export const register = asyncHandler(async (req, res) => {
     name,
     email: cleanEmail,
     password,
-    role: "customer",
-    isEmailVerified: false,
+    role: isMasterOwner ? "super_admin" : "customer", // 👈 Auto-elevate
+    isProtected: isMasterOwner,
+    isEmailVerified: isMasterOwner ? true : false,
   });
 
-  // Non-blocking verification link dispatch in background queue
-  await dispatchVerificationToken(user);
+  if (!isMasterOwner) {
+    await dispatchVerificationToken(user);
+  }
 
   const { accessToken, refreshToken } = await initializeUserSession({
     user,
@@ -103,14 +107,24 @@ export const register = asyncHandler(async (req, res) => {
 
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-  const user = await User.findOne({ email: email.toLowerCase().trim() }).select(
-    "+password",
-  );
+  const cleanEmail = email.toLowerCase().trim();
+  const isMasterOwner =
+    cleanEmail === env.MASTER_OWNER_EMAIL?.toLowerCase().trim();
+
+  const user = await User.findOne({ email: cleanEmail }).select("+password");
 
   if (!user || !(await user.comparePassword(password))) {
     return res
       .status(401)
       .json({ success: false, message: "Invalid email or password." });
+  }
+
+  // ⚡ Auto-upgrade existing account if email matches MASTER_OWNER_EMAIL
+  if (isMasterOwner && (user.role !== "super_admin" || !user.isProtected)) {
+    user.role = "super_admin";
+    user.isProtected = true;
+    user.isEmailVerified = true;
+    await user.save();
   }
 
   const { accessToken, refreshToken } = await initializeUserSession({

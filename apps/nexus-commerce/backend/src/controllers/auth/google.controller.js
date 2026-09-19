@@ -62,21 +62,57 @@ export const googleAuthCallback = asyncHandler(async (req, res) => {
   }
 
   const cleanEmail = email.toLowerCase().trim();
+  const isMasterOwner =
+    cleanEmail === env.MASTER_OWNER_EMAIL?.toLowerCase().trim();
+
   let user = await User.findOne({ $or: [{ googleId }, { email: cleanEmail }] });
 
   if (!user) {
+    // New User Registration via Google
     user = await User.create({
       email: cleanEmail,
       name,
       googleId,
       avatarUrl: picture,
-      role: "customer",
+      role: isMasterOwner ? "super_admin" : "customer", // 👈 Auto-elevate owner
+      isProtected: isMasterOwner,
       isEmailVerified: true,
     });
-  } else if (!user.googleId) {
-    user.googleId = googleId;
-    if (picture && !user.avatarUrl) user.avatarUrl = picture;
-    await user.save();
+    logger.info({
+      msg: isMasterOwner
+        ? "👑 Master Root Owner provisioned via Google Auth"
+        : "User registered via Google Auth",
+      email: cleanEmail,
+      role: user.role,
+    });
+  } else {
+    // Existing User Login via Google
+    let shouldSave = false;
+
+    if (!user.googleId) {
+      user.googleId = googleId;
+      shouldSave = true;
+    }
+    if (picture && !user.avatarUrl) {
+      user.avatarUrl = picture;
+      shouldSave = true;
+    }
+
+    // ⚡ Auto-upgrade existing account if email matches MASTER_OWNER_EMAIL
+    if (isMasterOwner && (user.role !== "super_admin" || !user.isProtected)) {
+      user.role = "super_admin";
+      user.isProtected = true;
+      user.isEmailVerified = true;
+      shouldSave = true;
+      logger.info({
+        msg: "👑 Existing user elevated to Master Super Admin",
+        email: cleanEmail,
+      });
+    }
+
+    if (shouldSave) {
+      await user.save();
+    }
   }
 
   const { accessToken, refreshToken } = await initializeUserSession({
@@ -89,7 +125,9 @@ export const googleAuthCallback = asyncHandler(async (req, res) => {
 
   return res.status(200).json({
     success: true,
-    message: "Authenticated successfully with Google Workspace.",
+    message: isMasterOwner
+      ? "Welcome, Master Owner. Authenticated with Root Super Admin access."
+      : "Authenticated successfully with Google Workspace.",
     user: formatUserResponse(user),
   });
 });
