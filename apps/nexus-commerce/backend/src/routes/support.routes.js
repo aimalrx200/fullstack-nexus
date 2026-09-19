@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   getOrCreateConversation,
+  getConversationMessages,
   sendMessage,
   getAllConversations,
 } from "#controllers/support/chat.controller.js";
@@ -22,6 +23,7 @@ const router = Router();
 
 // Customer Support Chat & Offline Ticket Submissions
 router.post("/conversation", getOrCreateConversation);
+router.get("/conversations/:conversationId/messages", getConversationMessages);
 router.post("/message", validate(SendMessageSchema), sendMessage);
 router.post("/ticket", validate(CreateTicketSchema), createSupportTicket);
 

@@ -6,6 +6,13 @@ export const supportApi = {
     return data;
   },
 
+  getConversationMessages: async (conversationId) => {
+    const { data } = await apiClient.get(
+      `/support/conversations/${conversationId}/messages`,
+    );
+    return data;
+  },
+
   sendMessage: async ({ conversationId, text, attachments = [] }) => {
     const { data } = await apiClient.post("/support/message", {
       conversationId,

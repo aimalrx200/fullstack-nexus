@@ -20,6 +20,10 @@ export function SupportDeskPage() {
     setSelectedConversationId,
     conversationStatusFilter,
     setConversationStatusFilter,
+    customerTypeFilter,
+    setCustomerTypeFilter,
+    searchQuery,
+    setSearchQuery,
     sendAgentMessage,
     isSending,
   } = useAdminSupportDesk();
@@ -41,18 +45,22 @@ export function SupportDeskPage() {
           3-Pane Live Support Control Desk
         </h1>
         <p className="text-xs text-text-muted">
-          Real-time customer messaging, active bag inspection, and canned
-          responses.
+          Real-time customer messaging, active bag inspection, and segmented
+          guest/customer routing.
         </p>
       </div>
 
-      <div className="h-[75vh] rounded-3xl bg-surface-card border border-border-main overflow-hidden flex shadow-2xl">
+      <div className="h-[78vh] rounded-3xl bg-surface-card border border-border-main overflow-hidden flex shadow-2xl">
         <ConversationList
           conversations={conversations}
           selectedId={selectedConversationId}
           onSelect={setSelectedConversationId}
           statusFilter={conversationStatusFilter}
           onStatusFilterChange={setConversationStatusFilter}
+          customerTypeFilter={customerTypeFilter}
+          onCustomerTypeFilterChange={setCustomerTypeFilter}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
         />
 
         <ActiveChatWindow
