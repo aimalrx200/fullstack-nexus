@@ -1,10 +1,10 @@
+// apps/nexus-commerce/frontend/src/hooks/useRealTimeStream.js
 import { useEffect, useRef, useState, useCallback } from "react";
 import { getSocket } from "../services/socketClient";
+import { env } from "../config/env";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:4000/api/v1";
-const IS_PROD =
-  import.meta.env.PROD || import.meta.env.VITE_APP_ENV === "production";
+const API_BASE_URL = env.VITE_API_URL || "/api/v1";
+const IS_PROD = import.meta.env.PROD || env.VITE_APP_ENV === "production";
 
 /**
  * Adaptive Real-Time Hook:
@@ -32,7 +32,6 @@ export function useRealTimeStream({
     setIsConnected(status);
   }, []);
 
-  // Resolve SSE endpoint path with guestSessionId query parameter for EventSource
   const getStreamUrl = useCallback(() => {
     let guestSessionId = "";
     if (typeof window !== "undefined") {
@@ -80,6 +79,11 @@ export function useRealTimeStream({
           }
 
           eventSource = new EventSource(streamUrl, { withCredentials: true });
+
+          // Mark online immediately on connection open
+          eventSource.onopen = () => {
+            updateConnectionState(true);
+          };
 
           eventSource.addEventListener("connected", () => {
             updateConnectionState(true);

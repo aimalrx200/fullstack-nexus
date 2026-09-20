@@ -2,9 +2,23 @@ import { WS_CHANNELS } from "../wsChannels.js";
 import { Message, Conversation } from "#models/index.js";
 import { sanitizeInput } from "#utils/sanitize.js";
 import { logger } from "#config/logger.js";
+import env from "#config/env.js";
 
 export const registerChatHandlers = (io, socket) => {
-  // 1. Join Conversation Room with Ownership Check
+  // Helper to evaluate staff privilege across all admin/support tiers
+  const checkIsStaff = (user) => {
+    if (!user) return false;
+    const isMasterOwner =
+      user.email?.toLowerCase().trim() ===
+      env.MASTER_OWNER_EMAIL?.toLowerCase().trim();
+
+    return (
+      isMasterOwner ||
+      ["support_agent", "merchant_admin", "super_admin"].includes(user.role)
+    );
+  };
+
+  // 1. Join Conversation Room with Ownership / Staff Check
   socket.on("chat:join", async ({ conversationId }) => {
     if (!conversationId) return;
 
@@ -16,29 +30,30 @@ export const registerChatHandlers = (io, socket) => {
         });
       }
 
-      // Check if user is the conversation owner OR a merchant admin
       const isOwner =
         (socket.user &&
           conversation.customerId &&
           conversation.customerId.toString() === socket.user.id) ||
         (socket.guestSessionId &&
-          conversation.guestSessionId === socket.guestSessionId);
+          conversation.guestSessionId === socket.guestSessionId) ||
+        (!conversation.customerId && !socket.user);
 
-      const isAdmin = socket.user?.role === "merchant_admin";
+      const isStaff = checkIsStaff(socket.user);
 
-      if (!isOwner && !isAdmin) {
+      if (!isOwner && !isStaff) {
         return socket.emit(WS_CHANNELS.EVENT_ERROR, {
-          message: "Access denied to conversation.",
+          message: "Access denied to conversation thread.",
         });
       }
 
       const room = `${WS_CHANNELS.CHAT_ROOM_PREFIX}${conversationId}`;
       socket.join(room);
+
       logger.debug({
         msg: "Socket joined chat room",
         socketId: socket.id,
         conversationId,
-        role: isAdmin ? "admin" : "customer",
+        role: isStaff ? socket.user.role : "customer",
       });
     } catch (err) {
       logger.error({ msg: "chat:join error", error: err.message });
@@ -49,9 +64,10 @@ export const registerChatHandlers = (io, socket) => {
   socket.on("chat:typing", ({ conversationId, isTyping }) => {
     if (!conversationId) return;
     const room = `${WS_CHANNELS.CHAT_ROOM_PREFIX}${conversationId}`;
+    const isStaff = checkIsStaff(socket.user);
+
     const senderName =
-      socket.user?.name ||
-      (socket.user?.role === "merchant_admin" ? "Support Agent" : "Customer");
+      socket.user?.name || (isStaff ? "Support Specialist" : "Customer");
 
     socket.to(room).emit(WS_CHANNELS.EVENT_CHAT_TYPING, {
       conversationId,
@@ -72,11 +88,11 @@ export const registerChatHandlers = (io, socket) => {
         });
       }
 
-      const isAdmin = socket.user?.role === "merchant_admin";
-      const senderType = isAdmin ? "admin" : "customer";
+      const isStaff = checkIsStaff(socket.user);
+      const senderType = isStaff ? "admin" : "customer";
       const senderName =
         socket.user?.name ||
-        (isAdmin
+        (isStaff
           ? "Support Specialist"
           : conversation.customerName || "Customer");
       const cleanText = sanitizeInput(text);
@@ -84,7 +100,7 @@ export const registerChatHandlers = (io, socket) => {
       const messageDoc = await Message.create({
         conversationId,
         senderType,
-        senderId: socket.user?.id,
+        senderId: socket.user?.id || null,
         senderName,
         text: cleanText,
         attachments: Array.isArray(attachments) ? attachments : [],
@@ -92,7 +108,8 @@ export const registerChatHandlers = (io, socket) => {
 
       await Conversation.findByIdAndUpdate(conversationId, {
         lastMessageAt: new Date(),
-        ...(isAdmin
+        status: conversation.status === "closed" ? "open" : conversation.status,
+        ...(isStaff
           ? { $inc: { unreadCountCustomer: 1 } }
           : { $inc: { unreadCountAdmin: 1 } }),
       });
@@ -112,15 +129,15 @@ export const registerChatHandlers = (io, socket) => {
     if (!conversationId) return;
 
     try {
-      const isAdmin = socket.user?.role === "merchant_admin";
+      const isStaff = checkIsStaff(socket.user);
       await Conversation.findByIdAndUpdate(conversationId, {
-        $set: isAdmin ? { unreadCountAdmin: 0 } : { unreadCountCustomer: 0 },
+        $set: isStaff ? { unreadCountAdmin: 0 } : { unreadCountCustomer: 0 },
       });
 
       const room = `${WS_CHANNELS.CHAT_ROOM_PREFIX}${conversationId}`;
       socket.to(room).emit(WS_CHANNELS.EVENT_CHAT_READ, {
         conversationId,
-        readBy: isAdmin ? "admin" : "customer",
+        readBy: isStaff ? "admin" : "customer",
       });
     } catch (err) {
       logger.error({ msg: "chat:mark_read exception", error: err.message });

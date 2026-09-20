@@ -1,3 +1,4 @@
+// apps/nexus-commerce/backend/src/controllers/stream/stream.controller.js
 import { WS_CHANNELS } from "#websockets/wsChannels.js";
 import { subscribeToChannel } from "#services/pubSubService.js";
 import { Order, Conversation } from "#models/index.js";
@@ -8,15 +9,23 @@ const initSSEStream = (req, res, channelName, onCleanup) => {
 
   res.writeHead(200, {
     "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache, no-transform",
+    "Cache-Control": "no-cache, no-transform, no-buffer",
     Connection: "keep-alive",
     "X-Accel-Buffering": "no",
+    "Content-Encoding": "none",
   });
+
+  if (typeof res.flushHeaders === "function") {
+    res.flushHeaders();
+  }
 
   const safeWrite = (payload) => {
     if (isCleanedUp || res.writableEnded || res.destroyed) return false;
     try {
       res.write(payload);
+      if (typeof res.flush === "function") {
+        res.flush();
+      }
       return true;
     } catch (err) {
       logger.debug({
@@ -28,6 +37,7 @@ const initSSEStream = (req, res, channelName, onCleanup) => {
     }
   };
 
+  // Immediate connection confirmation
   safeWrite(
     `event: connected\ndata: ${JSON.stringify({
       status: "connected",
@@ -64,7 +74,7 @@ const initSSEStream = (req, res, channelName, onCleanup) => {
       try {
         res.end();
       } catch {
-        // Stream already closed
+        // Already closed
       }
     }
 
@@ -83,9 +93,6 @@ const initSSEStream = (req, res, channelName, onCleanup) => {
   return { safeWrite, cleanup };
 };
 
-/**
- * 1. Admin Master Stream (Broadcasts Orders + Support Inquiries to Merchant Dashboard)
- */
 export const streamAdminOrders = async (req, res) => {
   const orderChannel = WS_CHANNELS.ADMIN_ORDERS_ROOM;
   const supportChannel = "admin:support_desk";
@@ -98,20 +105,15 @@ export const streamAdminOrders = async (req, res) => {
     if (unsubSupport) unsubSupport();
   });
 
-  // Subscribe to order events
   unsubOrders = subscribeToChannel(orderChannel, (event) => {
     safeWrite(`event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`);
   });
 
-  // Subscribe to live customer support messages & new conversations
   unsubSupport = subscribeToChannel(supportChannel, (event) => {
     safeWrite(`event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`);
   });
 };
 
-/**
- * 2. Live Order Courier GPS Tracking Stream
- */
 export const streamOrderTracking = async (req, res) => {
   const { orderId } = req.params;
   const queryEmail = (
@@ -136,7 +138,9 @@ export const streamOrderTracking = async (req, res) => {
       .json({ success: false, message: "Order not found." });
   }
 
-  const isAdmin = req.user?.role === "merchant_admin";
+  const isStaff = ["support_agent", "merchant_admin", "super_admin"].includes(
+    req.user?.role,
+  );
   const isRegisteredOwner =
     req.user && order.userId && req.user.id === order.userId.toString();
   const isGuestVerified =
@@ -146,7 +150,7 @@ export const streamOrderTracking = async (req, res) => {
   const isGuestDirectLookup = !order.userId;
 
   if (
-    !isAdmin &&
+    !isStaff &&
     !isRegisteredOwner &&
     !isGuestVerified &&
     !isGuestDirectLookup
@@ -169,9 +173,6 @@ export const streamOrderTracking = async (req, res) => {
   });
 };
 
-/**
- * 3. Public Flash-Sale Stock Drops Stream
- */
 export const streamProductStock = async (req, res) => {
   const { productId } = req.params;
   const channel = `${WS_CHANNELS.STOCK_ROOM_PREFIX}${productId}`;
@@ -186,9 +187,6 @@ export const streamProductStock = async (req, res) => {
   });
 };
 
-/**
- * 4. Customer Support Live Chat Stream
- */
 export const streamChat = async (req, res) => {
   const { conversationId } = req.params;
   const guestSessionId =
@@ -211,9 +209,11 @@ export const streamChat = async (req, res) => {
     (!conversation.customerId && !req.user) ||
     (!conversation.customerId && guestSessionId);
 
-  const isAdmin = req.user?.role === "merchant_admin";
+  const isStaff = ["support_agent", "merchant_admin", "super_admin"].includes(
+    req.user?.role,
+  );
 
-  if (!isOwner && !isAdmin) {
+  if (!isOwner && !isStaff) {
     return res
       .status(403)
       .json({ success: false, message: "Unauthorized access to chat stream." });

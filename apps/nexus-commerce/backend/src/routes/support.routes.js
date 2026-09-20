@@ -1,7 +1,8 @@
+// apps/nexus-commerce/backend/src/routes/support.routes.js
 import { Router } from "express";
 import {
   getOrCreateConversation,
-  getConversationMessages, // 👈 Import new controller
+  getConversationMessages,
   sendMessage,
   getAllConversations,
 } from "#controllers/support/chat.controller.js";
@@ -11,7 +12,7 @@ import {
   updateTicketStatus,
 } from "#controllers/support/ticket.controller.js";
 import { authMiddleware } from "#middlewares/authMiddleware.js";
-import { adminMiddleware } from "#middlewares/adminMiddleware.js";
+import { requireRoles } from "#middlewares/rbacMiddleware.js";
 import { validate } from "#middlewares/validate.js";
 import {
   SendMessageSchema,
@@ -21,32 +22,30 @@ import {
 
 const router = Router();
 
-// Customer Support Chat & Offline Ticket Submissions
+// Storefront live chat & ticket generation
 router.post("/conversation", getOrCreateConversation);
 router.post("/message", validate(SendMessageSchema), sendMessage);
 router.post("/ticket", validate(CreateTicketSchema), createSupportTicket);
 
-// Merchant Helpdesk Administration
-router.get(
-  "/conversations",
-  authMiddleware,
-  adminMiddleware,
-  getAllConversations,
+// Staff Desk: Accessible to support agents, merchant admins & super admins
+const staffRoles = requireRoles(
+  "support_agent",
+  "merchant_admin",
+  "super_admin",
 );
 
-// 👈 Add route to fetch messages for selected conversation
+router.get("/conversations", authMiddleware, staffRoles, getAllConversations);
 router.get(
   "/conversations/:conversationId/messages",
   authMiddleware,
-  adminMiddleware,
+  staffRoles,
   getConversationMessages,
 );
-
-router.get("/tickets", authMiddleware, adminMiddleware, getTickets);
+router.get("/tickets", authMiddleware, staffRoles, getTickets);
 router.patch(
   "/tickets/:ticketId",
   authMiddleware,
-  adminMiddleware,
+  staffRoles,
   validate(UpdateTicketStatusSchema),
   updateTicketStatus,
 );

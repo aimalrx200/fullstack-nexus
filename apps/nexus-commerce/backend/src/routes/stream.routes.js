@@ -1,8 +1,9 @@
+// apps/nexus-commerce/backend/src/routes/stream.routes.js
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import env from "#config/env.js";
 import { authMiddleware } from "#middlewares/authMiddleware.js";
-import { adminMiddleware } from "#middlewares/adminMiddleware.js";
+import { requireRoles } from "#middlewares/rbacMiddleware.js";
 import {
   streamAdminOrders,
   streamOrderTracking,
@@ -12,7 +13,6 @@ import {
 
 const router = Router();
 
-// Non-blocking optional authentication for public/guest streams
 const optionalAuth = (req, res, next) => {
   const token = req.signedCookies?.access_token || req.cookies?.access_token;
   if (!token) {
@@ -29,14 +29,18 @@ const optionalAuth = (req, res, next) => {
       role: decoded.role,
     };
   } catch {
-    // If token is invalid or expired, continue as guest without throwing 401/403
     req.user = null;
   }
   next();
 };
 
-// 1. Merchant Admin Order Stream (Requires full Admin RBAC)
-router.get("/admin", authMiddleware, adminMiddleware, streamAdminOrders);
+// 1. Merchant & Support Live Stream (Support Agent, Merchant Admin, Super Admin)
+router.get(
+  "/admin",
+  authMiddleware,
+  requireRoles("support_agent", "merchant_admin", "super_admin"),
+  streamAdminOrders,
+);
 
 // 2. Live Order Courier GPS Tracking Stream (Supports Guest + Auth)
 router.get("/orders/:orderId", optionalAuth, streamOrderTracking);
