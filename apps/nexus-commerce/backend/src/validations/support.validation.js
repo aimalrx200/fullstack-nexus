@@ -1,19 +1,29 @@
+// apps/nexus-commerce/backend/src/validations/support.validation.js
 import { z } from "zod";
 import { isPhoneValid, normalizePhoneNumber } from "#utils/phoneUtils.js";
 
 // 1. Live Chat Message Payload Schema
 export const SendMessageSchema = z.object({
   body: z.object({
-    conversationId: z.string().min(1, "Conversation ID is required."),
+    // Optional/nullable to support first-message on-demand conversation creation
+    conversationId: z.string().nullable().optional(),
     text: z
       .string()
       .min(1, "Message text cannot be empty.")
       .max(2000, "Message cannot exceed 2000 characters.")
       .trim(),
+    customerName: z.string().max(60).optional(),
+    customerEmail: z
+      .string()
+      .email("Please provide a valid email address.")
+      .optional()
+      .nullable()
+      .or(z.literal("")),
     attachments: z
       .array(
         z.object({
-          url: z.string().url("Attachment must have a valid URL."),
+          // Accepts both HTTP(S) URLs and Base64 Data URIs from file drops
+          url: z.string().min(1, "Attachment data is required."),
           fileName: z.string().optional(),
           fileType: z.string().optional(),
           fileSize: z.number().optional(),
