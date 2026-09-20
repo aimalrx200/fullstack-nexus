@@ -31,13 +31,16 @@ export function SupportChatWidget() {
 
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
 
-  // When no conversation exists yet, the desk is online and ready for the first message
   const isOnline = isConnected || !activeConversationId;
-  const statusLabel = isConnected
-    ? "Live Stream Connected"
-    : !activeConversationId
-      ? "Live Support Online"
-      : "Connecting...";
+
+  // Header subtitle switches to "Aimal is typing..." if admin is typing
+  const statusLabel = isTyping
+    ? `${typingUserName || "Agent"} is typing...`
+    : isConnected
+      ? "Live Stream Connected"
+      : !activeConversationId
+        ? "Live Support Online"
+        : "Reconnecting to live channel...";
 
   if (typeof document === "undefined") return null;
 
@@ -95,20 +98,27 @@ export function SupportChatWidget() {
                     <span>Live Customer Desk</span>
                     <span
                       className={`w-2 h-2 rounded-full ${
-                        isOnline
-                          ? "bg-emerald-400 animate-pulse"
-                          : "bg-amber-400"
+                        isTyping
+                          ? "bg-brand-primary animate-ping"
+                          : isOnline
+                            ? "bg-emerald-400 animate-pulse"
+                            : "bg-amber-400"
                       }`}
                     />
                   </h3>
-                  <span className="text-[10px] font-mono text-text-muted">
+                  <span
+                    className={`text-[10px] font-mono transition-colors ${
+                      isTyping
+                        ? "text-brand-primary font-bold animate-pulse"
+                        : "text-text-muted"
+                    }`}
+                  >
                     {statusLabel}
                   </span>
                 </div>
               </div>
 
               <div className="flex items-center gap-1">
-                {/* Offline Ticket Trigger */}
                 <button
                   type="button"
                   onClick={() => setIsTicketModalOpen(true)}
@@ -119,7 +129,6 @@ export function SupportChatWidget() {
                   <span className="hidden sm:inline">Ticket</span>
                 </button>
 
-                {/* Close Window */}
                 <button
                   type="button"
                   onClick={closeWidget}

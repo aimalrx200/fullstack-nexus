@@ -33,6 +33,7 @@ export function useSupportChat() {
   } = useSelector((state) => state.supportChat);
 
   const typingTimeoutRef = useRef(null);
+  const receiveTypingTimerRef = useRef(null);
 
   // 1. Fetch active conversation only when widget is open
   const { isLoading: isConversationLoading, refetch: refetchConversation } =
@@ -53,24 +54,31 @@ export function useSupportChat() {
       staleTime: 5000,
     });
 
-  // 2. Real-Time Chat Stream
+  // 2. Real-Time Chat Stream (Receives Messages, Typing, and Read Receipts)
   const { isConnected } = useChatStream(activeConversationId, {
     onMessage: (msg) => {
       dispatch(appendChatMessage(msg));
 
-      // If customer has chat widget open when admin replies, immediately acknowledge as read
       if (isWidgetOpen && msg.senderType === "admin") {
         supportApi.markConversationAsRead(activeConversationId);
       }
     },
     onTyping: (typingData) => {
-      // ONLY display typing indicator if the OTHER party (admin) is typing!
+      // ONLY show typing if the OTHER party (admin) is typing
       if (typingData.senderType === "admin") {
         dispatch(setTypingIndicator(typingData));
+
+        if (receiveTypingTimerRef.current)
+          clearTimeout(receiveTypingTimerRef.current);
+        if (typingData.isTyping) {
+          // Auto-clear indicator after 3.5s of no updates
+          receiveTypingTimerRef.current = setTimeout(() => {
+            dispatch(setTypingIndicator({ isTyping: false, senderName: "" }));
+          }, 3500);
+        }
       }
     },
     onRead: () => {
-      // Admin read customer's message -> Turn customer's single tick to double cyan tick
       dispatch(markAllOwnMessagesRead({ senderType: "customer" }));
     },
   });
@@ -99,7 +107,7 @@ export function useSupportChat() {
     },
   });
 
-  // 4. Typing Indicator
+  // 4. Typing Indicator (With automatic 2.5s stop-typing debounce)
   const emitTyping = useCallback(
     (typingState) => {
       if (!activeConversationId) return;
@@ -133,7 +141,7 @@ export function useSupportChat() {
             conversationId: activeConversationId,
             isTyping: false,
           });
-        }, 3000);
+        }, 2500);
       }
     },
     [activeConversationId],
@@ -162,6 +170,8 @@ export function useSupportChat() {
   useEffect(() => {
     return () => {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (receiveTypingTimerRef.current)
+        clearTimeout(receiveTypingTimerRef.current);
     };
   }, []);
 

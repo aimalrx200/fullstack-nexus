@@ -7,9 +7,9 @@ const API_BASE_URL = env.VITE_API_URL || "/api/v1";
 const IS_PROD = import.meta.env.PROD || env.VITE_APP_ENV === "production";
 
 /**
- * Adaptive Real-Time Hook:
+ * Adaptive Real-Time Hook with Rate-Limit Backoff:
  * - Development: Socket.io
- * - Production: Server-Sent Events (EventSource)
+ * - Production: Server-Sent Events (EventSource) with exponential backoff
  */
 export function useRealTimeStream({
   channelType,
@@ -26,6 +26,7 @@ export function useRealTimeStream({
   }, [events]);
 
   const isConnectedRef = useRef(false);
+  const retryCountRef = useRef(0);
 
   const updateConnectionState = useCallback((status) => {
     isConnectedRef.current = status;
@@ -80,12 +81,13 @@ export function useRealTimeStream({
 
           eventSource = new EventSource(streamUrl, { withCredentials: true });
 
-          // Mark online immediately on connection open
           eventSource.onopen = () => {
+            retryCountRef.current = 0;
             updateConnectionState(true);
           };
 
           eventSource.addEventListener("connected", () => {
+            retryCountRef.current = 0;
             updateConnectionState(true);
           });
 
@@ -114,11 +116,19 @@ export function useRealTimeStream({
             updateConnectionState(false);
             if (eventSource) eventSource.close();
 
+            // Exponential backoff with jitter to recover smoothly from 429 rate limit cooldowns
+            retryCountRef.current += 1;
+            const backoffMs = Math.min(
+              15000,
+              Math.pow(2, Math.min(retryCountRef.current, 4)) * 1000 +
+                Math.random() * 1000,
+            );
+
             reconnectTimer = setTimeout(() => {
               if (document.visibilityState === "visible") {
                 connectSSE();
               }
-            }, 3000);
+            }, backoffMs);
           };
         } catch (err) {
           console.error("SSE connection creation failed:", err);

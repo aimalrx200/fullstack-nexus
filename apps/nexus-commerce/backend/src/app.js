@@ -128,7 +128,7 @@ const checkoutLimiter = createRateLimiter({
 
 const streamLimiter = createRateLimiter({
   windowMs: 1 * 60 * 1000,
-  max: 60,
+  max: 120,
   prefix: "stream",
   message:
     "Live stream connection rate limit exceeded. Reconnecting shortly...",

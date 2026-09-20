@@ -1,5 +1,5 @@
 // apps/nexus-commerce/frontend/src/hooks/useAdminSupportDesk.js
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supportApi } from "../lib/api/supportApi";
 import { queryKeys } from "../lib/api/queryKeys";
@@ -18,7 +18,8 @@ export function useAdminSupportDesk() {
 
   const [isTyping, setIsTyping] = useState(false);
   const [typingUserName, setTypingUserName] = useState("");
-  const typingTimerRef = useRef(null);
+  const typingReceiveTimerRef = useRef(null);
+  const typingSendTimerRef = useRef(null);
 
   // 1. Fetch conversations list
   const { data, isLoading: isListLoading } = useQuery({
@@ -63,13 +64,12 @@ export function useAdminSupportDesk() {
     return conversations.find((c) => c._id === activeId) ?? null;
   }, [activeThreadData, conversations, activeId]);
 
-  // SELECT CONVERSATION: Clears unread badge and triggers mark-as-read acknowledgement
+  // SELECT CONVERSATION
   const handleSelectConversation = useCallback(
     (convId) => {
       setSelectedConversationId(convId);
       setIsTyping(false);
 
-      // Instantly acknowledge read status on backend
       supportApi.markConversationAsRead(convId);
 
       queryClient.setQueriesData(
@@ -105,27 +105,26 @@ export function useAdminSupportDesk() {
         };
       });
 
-      // If admin has this chat open when customer sends message, immediately acknowledge as read
       if (newMsg.senderType === "customer") {
         supportApi.markConversationAsRead(activeId);
       }
     },
     onTyping: (typingData) => {
-      // ONLY display typing indicator if the OTHER party (customer) is typing!
+      // ONLY display typing indicator if the OTHER party (customer) is typing
       if (typingData.senderType === "customer") {
         setIsTyping(Boolean(typingData.isTyping));
         setTypingUserName(typingData.senderName || "Customer");
 
-        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+        if (typingReceiveTimerRef.current)
+          clearTimeout(typingReceiveTimerRef.current);
         if (typingData.isTyping) {
-          typingTimerRef.current = setTimeout(() => {
+          typingReceiveTimerRef.current = setTimeout(() => {
             setIsTyping(false);
           }, 3500);
         }
       }
     },
     onRead: () => {
-      // Customer read admin's message -> Turn admin's single tick to double cyan tick
       queryClient.setQueryData(["support", "conversation", activeId], (old) => {
         if (!old?.messages) return old;
         return {
@@ -263,16 +262,37 @@ export function useAdminSupportDesk() {
     [activeId, sendMessageMutation],
   );
 
+  // 6. Admin Typing with automatic 2.5s stop-typing debounce
   const emitAgentTyping = useCallback(
     (typingState) => {
       if (!activeId) return;
+
       supportApi.emitTyping({
         conversationId: activeId,
         isTyping: typingState,
       });
+
+      if (typingSendTimerRef.current) clearTimeout(typingSendTimerRef.current);
+
+      if (typingState) {
+        typingSendTimerRef.current = setTimeout(() => {
+          supportApi.emitTyping({
+            conversationId: activeId,
+            isTyping: false,
+          });
+        }, 2500);
+      }
     },
     [activeId],
   );
+
+  useEffect(() => {
+    return () => {
+      if (typingReceiveTimerRef.current)
+        clearTimeout(typingReceiveTimerRef.current);
+      if (typingSendTimerRef.current) clearTimeout(typingSendTimerRef.current);
+    };
+  }, []);
 
   return {
     conversations,
