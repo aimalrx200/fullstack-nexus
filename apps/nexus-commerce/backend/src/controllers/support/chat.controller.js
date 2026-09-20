@@ -2,8 +2,12 @@
 import { Conversation, Message } from "#models/index.js";
 import { asyncHandler } from "#utils/asyncHandler.js";
 import { sanitizeInput } from "#utils/sanitize.js";
-import { broadcastChatMessage } from "#websockets/wsBroadcaster.js";
+import {
+  broadcastChatMessage,
+  getSocketIOInstance,
+} from "#websockets/wsBroadcaster.js";
 import { publishEvent } from "#services/pubSubService.js";
+import { WS_CHANNELS } from "#websockets/wsChannels.js";
 import env from "#config/env.js";
 
 const checkIsStaff = (user) => {
@@ -18,8 +22,110 @@ const checkIsStaff = (user) => {
 };
 
 /**
- * Get active support thread if it ALREADY exists.
- * DOES NOT create empty ghost conversations in MongoDB.
+ * Load all message history and mark opposing messages as read (isRead = true)
+ * GET /api/v1/support/conversations/:conversationId/messages
+ */
+export const getConversationMessages = asyncHandler(async (req, res) => {
+  const { conversationId } = req.params;
+
+  const conversation = await Conversation.findById(conversationId).populate(
+    "customerId",
+    "name email avatarUrl",
+  );
+
+  if (!conversation) {
+    return res
+      .status(404)
+      .json({ success: false, message: "Conversation not found." });
+  }
+
+  const isStaff = checkIsStaff(req.user);
+
+  // 1. Reset counters and mark opposite messages as read
+  if (isStaff) {
+    if (conversation.unreadCountAdmin > 0) {
+      conversation.unreadCountAdmin = 0;
+      await conversation.save();
+    }
+    // Mark customer messages as read
+    await Message.updateMany(
+      { conversationId, senderType: "customer", isRead: false },
+      { $set: { isRead: true } },
+    );
+  } else {
+    if (conversation.unreadCountCustomer > 0) {
+      conversation.unreadCountCustomer = 0;
+      await conversation.save();
+    }
+    // Mark admin messages as read
+    await Message.updateMany(
+      { conversationId, senderType: "admin", isRead: false },
+      { $set: { isRead: true } },
+    );
+  }
+
+  // 2. Broadcast read receipt to room
+  const chatRoom = `${WS_CHANNELS.CHAT_ROOM_PREFIX}${conversationId}`;
+  publishEvent(chatRoom, {
+    type: WS_CHANNELS.EVENT_CHAT_READ,
+    data: {
+      conversationId,
+      readBy: isStaff ? "admin" : "customer",
+    },
+  });
+
+  const messages = await Message.find({ conversationId })
+    .sort({ createdAt: 1 })
+    .lean();
+
+  return res.status(200).json({
+    success: true,
+    conversation,
+    messages,
+  });
+});
+
+/**
+ * Broadcast typing indicator across both Sockets and SSE/Redis PubSub
+ * POST /api/v1/support/typing
+ */
+export const broadcastTypingStatus = asyncHandler(async (req, res) => {
+  const { conversationId, isTyping } = req.body;
+  if (!conversationId) {
+    return res
+      .status(400)
+      .json({ success: false, message: "conversationId is required" });
+  }
+
+  const isStaff = checkIsStaff(req.user);
+  const senderName = isStaff
+    ? req.user?.name || "Support Specialist"
+    : "Customer";
+  const chatRoom = `${WS_CHANNELS.CHAT_ROOM_PREFIX}${conversationId}`;
+
+  const payload = {
+    conversationId,
+    senderName,
+    isTyping: Boolean(isTyping),
+  };
+
+  // Socket broadcast (Localhost)
+  const io = getSocketIOInstance();
+  if (io) {
+    io.to(chatRoom).emit(WS_CHANNELS.EVENT_CHAT_TYPING, payload);
+  }
+
+  // SSE / Redis PubSub broadcast (Production Serverless)
+  publishEvent(chatRoom, {
+    type: WS_CHANNELS.EVENT_CHAT_TYPING,
+    data: payload,
+  });
+
+  return res.status(200).json({ success: true });
+});
+
+/**
+ * Get active support thread if it exists
  * POST /api/v1/support/conversation
  */
 export const getOrCreateConversation = asyncHandler(async (req, res) => {
@@ -41,7 +147,6 @@ export const getOrCreateConversation = asyncHandler(async (req, res) => {
     });
   }
 
-  // If no conversation exists yet, return empty state without writing to DB
   if (!conversation) {
     return res.status(200).json({
       success: true,
@@ -59,48 +164,7 @@ export const getOrCreateConversation = asyncHandler(async (req, res) => {
 });
 
 /**
- * Load all message history for a specific conversation and reset unread counters
- * GET /api/v1/support/conversations/:conversationId/messages
- */
-export const getConversationMessages = asyncHandler(async (req, res) => {
-  const { conversationId } = req.params;
-
-  const conversation = await Conversation.findById(conversationId).populate(
-    "customerId",
-    "name email avatarUrl",
-  );
-
-  if (!conversation) {
-    return res
-      .status(404)
-      .json({ success: false, message: "Conversation not found." });
-  }
-
-  const isStaff = checkIsStaff(req.user);
-
-  // Reset admin unread counter when staff opens thread
-  if (isStaff && conversation.unreadCountAdmin > 0) {
-    conversation.unreadCountAdmin = 0;
-    await conversation.save();
-  } else if (!isStaff && conversation.unreadCountCustomer > 0) {
-    conversation.unreadCountCustomer = 0;
-    await conversation.save();
-  }
-
-  const messages = await Message.find({ conversationId })
-    .sort({ createdAt: 1 })
-    .lean();
-
-  return res.status(200).json({
-    success: true,
-    conversation,
-    messages,
-  });
-});
-
-/**
- * Send message to conversation.
- * Creates the conversation row in DB on demand if this is the first message.
+ * Send message to conversation
  * POST /api/v1/support/message
  */
 export const sendMessage = asyncHandler(async (req, res) => {
@@ -119,7 +183,6 @@ export const sendMessage = asyncHandler(async (req, res) => {
     conversation = await Conversation.findById(conversationId);
   }
 
-  // If conversation doesn't exist yet, create it on first message
   if (!conversation) {
     if (userId) {
       conversation = await Conversation.findOne({
@@ -169,6 +232,7 @@ export const sendMessage = asyncHandler(async (req, res) => {
     senderName,
     text: sanitizeInput(text),
     attachments: attachments || [],
+    isRead: false,
   });
 
   const updatedConversation = await Conversation.findByIdAndUpdate(

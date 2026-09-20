@@ -31,6 +31,19 @@ export const supportApi = {
     return data;
   },
 
+  emitTyping: async ({ conversationId, isTyping }) => {
+    try {
+      const { data } = await apiClient.post("/support/typing", {
+        conversationId,
+        isTyping,
+      });
+      return data;
+    } catch {
+      // Non-blocking telemetry
+      return null;
+    }
+  },
+
   createTicket: async (ticketPayload) => {
     const { data } = await apiClient.post("/support/ticket", ticketPayload);
     return data;

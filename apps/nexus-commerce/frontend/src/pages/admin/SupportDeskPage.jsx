@@ -1,3 +1,4 @@
+// apps/nexus-commerce/frontend/src/pages/admin/SupportDeskPage.jsx
 import React, { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAdminSupportDesk } from "../../hooks/useAdminSupportDesk";
@@ -25,6 +26,7 @@ export function SupportDeskPage() {
     searchQuery,
     setSearchQuery,
     sendAgentMessage,
+    emitAgentTyping,
     isSending,
     isTyping,
     typingUserName,
@@ -68,6 +70,7 @@ export function SupportDeskPage() {
         <ActiveChatWindow
           conversation={activeConversation}
           onSendMessage={sendAgentMessage}
+          onTyping={emitAgentTyping}
           isSending={isSending}
           isTyping={isTyping}
           typingUserName={typingUserName}

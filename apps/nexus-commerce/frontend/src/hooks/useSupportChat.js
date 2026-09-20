@@ -33,7 +33,7 @@ export function useSupportChat() {
 
   const typingTimeoutRef = useRef(null);
 
-  // 1. Fetch active conversation ONLY if already open (DO NOT auto-create empty DB records)
+  // 1. Fetch active conversation only when widget is open
   const { isLoading: isConversationLoading, refetch: refetchConversation } =
     useQuery({
       queryKey: queryKeys.support.conversation(user?.id || "guest"),
@@ -48,11 +48,11 @@ export function useSupportChat() {
         }
         return data;
       },
-      enabled: isWidgetOpen && !isStaff, // Only query when chat widget is actually opened by a shopper
+      enabled: isWidgetOpen && !isStaff,
       staleTime: 5000,
     });
 
-  // 2. Bind Real-Time Stream
+  // 2. Real-Time Chat Stream (Receives Messages, Typing, and Read Receipts)
   const { isConnected } = useChatStream(activeConversationId, {
     onMessage: (msg) => {
       dispatch(appendChatMessage(msg));
@@ -60,9 +60,24 @@ export function useSupportChat() {
     onTyping: (typingData) => {
       dispatch(setTypingIndicator(typingData));
     },
+    onRead: () => {
+      // Mark all own messages as read
+      queryClient.setQueryData(
+        queryKeys.support.conversation(user?.id || "guest"),
+        (old) => {
+          if (!old?.messages) return old;
+          return {
+            ...old,
+            messages: old.messages.map((m) =>
+              m.senderType === "customer" ? { ...m, isRead: true } : m,
+            ),
+          };
+        },
+      );
+    },
   });
 
-  // 3. Send Message Mutation (Creates thread on first message)
+  // 3. Send Message Mutation
   const sendMessageMutation = useMutation({
     mutationFn: (payload) =>
       supportApi.sendMessage({
@@ -86,11 +101,12 @@ export function useSupportChat() {
     },
   });
 
-  // 4. Typing indicator with auto-timeout
+  // 4. Typing Indicator (Works over Sockets in Dev + SSE/HTTP in Prod)
   const emitTyping = useCallback(
     (typingState) => {
       if (!activeConversationId) return;
 
+      // Sockets (dev)
       const socket = getSocket();
       if (socket && socket.connected) {
         socket.emit("chat:typing", {
@@ -98,6 +114,12 @@ export function useSupportChat() {
           isTyping: typingState,
         });
       }
+
+      // HTTP endpoint (production serverless SSE)
+      supportApi.emitTyping({
+        conversationId: activeConversationId,
+        isTyping: typingState,
+      });
 
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
@@ -111,6 +133,10 @@ export function useSupportChat() {
               isTyping: false,
             });
           }
+          supportApi.emitTyping({
+            conversationId: activeConversationId,
+            isTyping: false,
+          });
         }, 3000);
       }
     },

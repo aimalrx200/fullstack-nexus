@@ -1,3 +1,4 @@
+// apps/nexus-commerce/frontend/src/components/admin/support/ActiveChatWindow.jsx
 import React, { useState } from "react";
 import { ChatMessageList } from "../../storefront/support/ChatMessageList";
 import { ChatInputBox } from "../../storefront/support/ChatInputBox";
@@ -7,6 +8,7 @@ import { ShieldCheck, Smartphone, User } from "lucide-react";
 export function ActiveChatWindow({
   conversation,
   onSendMessage,
+  onTyping,
   isSending,
   isTyping = false,
   typingUserName = "",
@@ -75,7 +77,7 @@ export function ActiveChatWindow({
         </div>
       </div>
 
-      {/* Messenger Feed: Agent messages aligned Right, Customer messages aligned Left */}
+      {/* Messenger Feed */}
       <ChatMessageList
         messages={conversation.messages || []}
         isAgentView={true}
@@ -100,6 +102,7 @@ export function ActiveChatWindow({
           onSendMessage(text, attachments);
           setDraftText("");
         }}
+        onTyping={onTyping}
         isSending={isSending}
       />
     </div>

@@ -41,11 +41,9 @@ export function useAdminSupportDesk() {
     () => data?.conversations ?? [],
     [data?.conversations],
   );
-
-  // STABLE SELECTION: Strictly locked to manual user selection. Never auto-switches to conversations[0].
   const activeId = selectedConversationId;
 
-  // 2. Fetch messages for the ACTIVE conversation (only if one is manually selected)
+  // 2. Fetch messages for ACTIVE conversation
   const { data: activeThreadData, isLoading: isThreadLoading } = useQuery({
     queryKey: ["support", "conversation", activeId],
     queryFn: () => supportApi.getConversationMessages(activeId),
@@ -65,13 +63,12 @@ export function useAdminSupportDesk() {
     return conversations.find((c) => c._id === activeId) ?? null;
   }, [activeThreadData, conversations, activeId]);
 
-  // SELECT CONVERSATION: Manual click switches the thread and clears unread badges
+  // SELECT CONVERSATION
   const handleSelectConversation = useCallback(
     (convId) => {
       setSelectedConversationId(convId);
       setIsTyping(false);
 
-      // Optimistically zero out unread counter for the clicked conversation in cache
       queryClient.setQueriesData(
         { queryKey: queryKeys.support.all },
         (oldData) => {
@@ -116,9 +113,21 @@ export function useAdminSupportDesk() {
         }, 3500);
       }
     },
+    onRead: () => {
+      // Mark all admin messages as read in active thread
+      queryClient.setQueryData(["support", "conversation", activeId], (old) => {
+        if (!old?.messages) return old;
+        return {
+          ...old,
+          messages: old.messages.map((m) =>
+            m.senderType === "admin" ? { ...m, isRead: true } : m,
+          ),
+        };
+      });
+    },
   });
 
-  // 4. Push Listener: Global Merchant Stream (Background chats update badges only)
+  // 4. Push Listener: Global Merchant Stream
   useRealTimeStream({
     channelType: "admin",
     events: {
@@ -126,7 +135,6 @@ export function useAdminSupportDesk() {
         const convId = payload?.conversation?._id;
         const lastMsg = payload?.lastMessage;
 
-        // If message belongs to current active thread, append it
         if (convId && convId === activeId && lastMsg) {
           queryClient.setQueryData(
             ["support", "conversation", activeId],
@@ -142,7 +150,6 @@ export function useAdminSupportDesk() {
           );
         }
 
-        // If message is for a background conversation, play sound & update unread badge in sidebar
         if (
           convId &&
           convId !== activeId &&
@@ -151,7 +158,6 @@ export function useAdminSupportDesk() {
           playMessageAlert();
         }
 
-        // Update sidebar metadata smoothly without re-rendering active chat
         queryClient.setQueriesData(
           { queryKey: queryKeys.support.all },
           (oldData) => {
@@ -184,7 +190,6 @@ export function useAdminSupportDesk() {
           `💬 New inquiry from ${newConv?.customerName || "a customer"}`,
         );
 
-        // Add new conversation to sidebar list with unread badge without hijacking the view
         queryClient.setQueriesData(
           { queryKey: queryKeys.support.all },
           (oldData) => {
@@ -243,6 +248,17 @@ export function useAdminSupportDesk() {
     [activeId, sendMessageMutation],
   );
 
+  const emitAgentTyping = useCallback(
+    (typingState) => {
+      if (!activeId) return;
+      supportApi.emitTyping({
+        conversationId: activeId,
+        isTyping: typingState,
+      });
+    },
+    [activeId],
+  );
+
   return {
     conversations,
     activeConversation,
@@ -256,6 +272,7 @@ export function useAdminSupportDesk() {
     setSearchQuery,
     isLoading: isListLoading || isThreadLoading,
     sendAgentMessage,
+    emitAgentTyping,
     isSending: sendMessageMutation.isPending,
     isTyping,
     typingUserName,

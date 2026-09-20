@@ -125,7 +125,7 @@ export function ChatMessageList({
                     <div
                       className={`p-3.5 rounded-2xl text-xs shadow-md space-y-1.5 ${
                         isMe
-                          ? "bg-brand-primary text-white rounded-br-xs border border-brand-primary/30"
+                          ? "bg-linear-to-r from-blue-600 to-indigo-600 text-white rounded-br-xs border border-blue-500/30"
                           : "bg-surface-elevated text-text-main border border-border-main rounded-bl-xs"
                       }`}
                     >
@@ -156,11 +156,11 @@ export function ChatMessageList({
                         </div>
                       )}
 
-                      {/* Timestamp & Delivery Receipt */}
+                      {/* Timestamp & High-Contrast Read Receipts */}
                       <div
                         className={`flex items-center gap-1 text-[9px] font-mono pt-0.5 ${
                           isMe
-                            ? "justify-end text-white/80"
+                            ? "justify-end text-white/90"
                             : "justify-start text-text-faint"
                         }`}
                       >
@@ -169,11 +169,22 @@ export function ChatMessageList({
                             ? format(new Date(msg.createdAt), "HH:mm")
                             : ""}
                         </span>
+
                         {isMe &&
                           (msg.isRead ? (
-                            <CheckCheck className="w-3.5 h-3.5 text-emerald-300" />
+                            <span
+                              title="Read by recipient"
+                              className="inline-flex items-center"
+                            >
+                              <CheckCheck className="w-3.5 h-3.5 text-sky-300 shrink-0 font-bold" />
+                            </span>
                           ) : (
-                            <Check className="w-3.5 h-3.5 text-white/70" />
+                            <span
+                              title="Sent"
+                              className="inline-flex items-center"
+                            >
+                              <Check className="w-3.5 h-3.5 text-slate-300 opacity-85 shrink-0" />
+                            </span>
                           ))}
                       </div>
                     </div>
@@ -196,15 +207,21 @@ export function ChatMessageList({
         </div>
       ))}
 
-      {/* Typing Indicator */}
+      {/* Real-Time Animated Typing Indicator */}
       {isTyping && (
-        <div className="flex items-center gap-2 text-left animate-in fade-in">
-          <div className="w-8 h-8 rounded-xl bg-surface-elevated border border-border-main flex items-center justify-center text-text-muted shrink-0 text-xs">
-            <User className="w-4 h-4 text-amber-400" />
+        <div className="flex items-center gap-2.5 text-left animate-in fade-in slide-in-from-bottom-2 duration-200 my-2">
+          <div className="w-8 h-8 rounded-xl bg-surface-elevated border border-border-main flex items-center justify-center text-text-muted shrink-0 shadow-xs">
+            {isAgentView ? (
+              <User className="w-4 h-4 text-amber-400" />
+            ) : (
+              <ShieldCheck className="w-4 h-4 text-brand-primary" />
+            )}
           </div>
-          <div className="px-3.5 py-2 rounded-2xl bg-surface-elevated border border-border-main text-text-muted text-xs flex items-center gap-2 shadow-xs">
-            <span className="text-[11px] font-mono text-text-muted">
-              {typingUserName || "Customer"} is typing
+          <div className="px-4 py-2.5 rounded-2xl bg-surface-elevated border border-border-main text-text-muted text-xs flex items-center gap-2.5 shadow-md">
+            <span className="text-[11px] font-mono text-text-muted font-medium">
+              {typingUserName ||
+                (isAgentView ? "Customer" : "Support Specialist")}{" "}
+              is typing
             </span>
             <span className="flex gap-1 items-center">
               <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-bounce [animation-delay:-0.3s]" />

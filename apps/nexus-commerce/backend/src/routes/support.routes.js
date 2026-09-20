@@ -6,6 +6,7 @@ import {
   getOrCreateConversation,
   getConversationMessages,
   sendMessage,
+  broadcastTypingStatus,
   getAllConversations,
 } from "#controllers/support/chat.controller.js";
 import {
@@ -24,7 +25,6 @@ import {
 
 const router = Router();
 
-// Non-blocking auth extractor: Populates req.user if signed cookie is present
 const optionalAuth = (req, res, next) => {
   const token = req.signedCookies?.access_token || req.cookies?.access_token;
   if (!token) {
@@ -46,12 +46,13 @@ const optionalAuth = (req, res, next) => {
   next();
 };
 
-// Storefront live chat & ticket generation
+// Storefront live chat, typing & ticket generation
 router.post("/conversation", optionalAuth, getOrCreateConversation);
 router.post("/message", optionalAuth, validate(SendMessageSchema), sendMessage);
+router.post("/typing", optionalAuth, broadcastTypingStatus);
 router.post("/ticket", validate(CreateTicketSchema), createSupportTicket);
 
-// Staff Desk: Accessible to support agents, merchant admins & super admins
+// Staff Helpdesk Administration
 const staffRoles = requireRoles(
   "support_agent",
   "merchant_admin",
