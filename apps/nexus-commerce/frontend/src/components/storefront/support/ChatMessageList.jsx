@@ -1,7 +1,16 @@
 // apps/nexus-commerce/frontend/src/components/storefront/support/ChatMessageList.jsx
-import React, { useEffect, useRef, useMemo } from "react";
+import React, { useEffect, useRef, useMemo, useState } from "react";
 import { format, isToday, isYesterday } from "date-fns";
-import { ShieldCheck, User, Paperclip, Check, CheckCheck } from "lucide-react";
+import {
+  ShieldCheck,
+  User,
+  Paperclip,
+  Check,
+  CheckCheck,
+  Eye,
+  Download,
+  X,
+} from "lucide-react";
 
 function formatDateDivider(dateString) {
   if (!dateString) return "Recent";
@@ -19,6 +28,7 @@ export function ChatMessageList({
   isAgentView = false,
 }) {
   const scrollBottomRef = useRef(null);
+  const [previewAttachment, setPreviewAttachment] = useState(null);
 
   const groupedMessages = useMemo(() => {
     const groups = [];
@@ -41,7 +51,7 @@ export function ChatMessageList({
   }, [messages, isTyping]);
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 custom-scrollbar bg-surface-app/40">
+    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 custom-scrollbar bg-surface-app/40 relative">
       {/* Intro Empty State */}
       {messages.length === 0 && (
         <div className="text-center py-10 space-y-2">
@@ -109,7 +119,7 @@ export function ChatMessageList({
 
                   {/* Message Bubble Container */}
                   <div
-                    className={`max-w-[80%] sm:max-w-[65%] space-y-1 ${isMe ? "items-end text-right" : "items-start text-left"}`}
+                    className={`max-w-[85%] sm:max-w-[70%] space-y-1 ${isMe ? "items-end text-right" : "items-start text-left"}`}
                   >
                     <span className="text-[10px] font-mono text-text-faint px-1 block">
                       {isMe
@@ -123,40 +133,72 @@ export function ChatMessageList({
                     </span>
 
                     <div
-                      className={`p-3.5 rounded-2xl text-xs shadow-md space-y-1.5 ${
+                      className={`p-3 sm:p-3.5 rounded-2xl text-xs shadow-md space-y-2 ${
                         isMe
                           ? "bg-linear-to-r from-blue-600 to-indigo-600 text-white rounded-br-xs border border-blue-500/30"
                           : "bg-surface-elevated text-text-main border border-border-main rounded-bl-xs"
                       }`}
                     >
-                      {/* Text Paragraph (Only rendered if text exists) */}
+                      {/* Text Paragraph */}
                       {hasText && (
                         <p className="leading-relaxed whitespace-pre-wrap wrap-break-word text-xs text-left">
                           {msg.text}
                         </p>
                       )}
 
-                      {/* Attachments */}
+                      {/* Visual Attachments Previews */}
                       {msg.attachments && msg.attachments.length > 0 && (
-                        <div className="space-y-1 pt-1">
-                          {msg.attachments.map((att, i) => (
-                            <a
-                              key={i}
-                              href={att.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className={`flex items-center gap-1.5 p-1.5 rounded-lg text-[11px] font-mono transition-opacity hover:opacity-80 ${
-                                isMe
-                                  ? "bg-white/15 text-white"
-                                  : "bg-surface-card text-text-main border border-border-subtle"
-                              }`}
-                            >
-                              <Paperclip className="w-3 h-3 shrink-0" />
-                              <span className="truncate max-w-40">
-                                {att.fileName || "Attachment"}
-                              </span>
-                            </a>
-                          ))}
+                        <div className="space-y-1.5 pt-0.5">
+                          {msg.attachments.map((att, i) => {
+                            const isImg =
+                              att.url?.startsWith("data:image") ||
+                              att.fileType?.startsWith("image/") ||
+                              /\.(jpg|jpeg|png|webp|avif|gif)$/i.test(
+                                att.fileName || "",
+                              ) ||
+                              att.url?.includes("cloudinary.com");
+
+                            if (isImg) {
+                              return (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  onClick={() => setPreviewAttachment(att)}
+                                  className="block relative rounded-xl overflow-hidden border border-white/20 bg-black/40 group cursor-pointer text-left transition-all hover:scale-[1.01] w-full"
+                                >
+                                  <img
+                                    src={att.url}
+                                    alt={att.fileName || "Attachment thumbnail"}
+                                    className="max-h-56 w-full object-cover rounded-xl"
+                                    loading="lazy"
+                                  />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 text-white text-xs font-mono font-semibold">
+                                    <Eye className="w-4 h-4" />
+                                    <span>View Photo</span>
+                                  </div>
+                                </button>
+                              );
+                            }
+
+                            return (
+                              <a
+                                key={i}
+                                href={att.url}
+                                download={att.fileName || "attachment"}
+                                className={`flex items-center gap-2 p-2 rounded-xl text-xs font-mono transition-opacity hover:opacity-85 ${
+                                  isMe
+                                    ? "bg-white/15 text-white"
+                                    : "bg-surface-card text-text-main border border-border-subtle"
+                                }`}
+                              >
+                                <Paperclip className="w-3.5 h-3.5 shrink-0" />
+                                <span className="truncate max-w-44">
+                                  {att.fileName || "Attachment"}
+                                </span>
+                                <Download className="w-3.5 h-3.5 ml-auto opacity-70 shrink-0" />
+                              </a>
+                            );
+                          })}
                         </div>
                       )}
 
@@ -230,6 +272,56 @@ export function ChatMessageList({
               <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-bounce [animation-delay:-0.15s]" />
               <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-bounce" />
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen Attachment Lightbox Modal */}
+      {previewAttachment && (
+        <div
+          className="fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setPreviewAttachment(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[92vh] flex flex-col items-center gap-3 w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Top Action Bar */}
+            <div className="w-full flex items-center justify-between text-white px-1">
+              <span className="text-xs font-mono truncate max-w-xs sm:max-w-md">
+                {previewAttachment.fileName || "Attachment Preview"}
+              </span>
+              <div className="flex items-center gap-2">
+                <a
+                  href={previewAttachment.url}
+                  download={
+                    previewAttachment.fileName || "nexus_attachment.jpg"
+                  }
+                  className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Download File"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Download</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewAttachment(null)}
+                  className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                  title="Close Preview"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Lightbox Image Viewport */}
+            <div className="rounded-2xl overflow-hidden border border-white/10 bg-slate-950 flex items-center justify-center max-h-[82vh] w-full shadow-2xl">
+              <img
+                src={previewAttachment.url}
+                alt={previewAttachment.fileName || "Attachment preview"}
+                className="max-h-[82vh] w-auto max-w-full object-contain select-none"
+              />
+            </div>
           </div>
         </div>
       )}
