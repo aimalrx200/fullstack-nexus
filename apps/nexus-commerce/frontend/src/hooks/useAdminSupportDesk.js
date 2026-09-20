@@ -33,7 +33,7 @@ export function useAdminSupportDesk() {
         type: customerTypeFilter,
         search: searchQuery,
       }),
-    staleTime: 5000,
+    staleTime: 10000,
     refetchOnWindowFocus: false,
   });
 
@@ -42,10 +42,10 @@ export function useAdminSupportDesk() {
     [data?.conversations],
   );
 
-  // Derived active ID: Explicit selection takes precedence, otherwise defaults to the first available thread
-  const activeId = selectedConversationId || (conversations[0]?._id ?? null);
+  // STABLE SELECTION: Strictly locked to manual user selection. Never auto-switches to conversations[0].
+  const activeId = selectedConversationId;
 
-  // 2. Fetch messages for the ACTIVE conversation
+  // 2. Fetch messages for the ACTIVE conversation (only if one is manually selected)
   const { data: activeThreadData, isLoading: isThreadLoading } = useQuery({
     queryKey: ["support", "conversation", activeId],
     queryFn: () => supportApi.getConversationMessages(activeId),
@@ -55,6 +55,7 @@ export function useAdminSupportDesk() {
   });
 
   const activeConversation = useMemo(() => {
+    if (!activeId) return null;
     if (activeThreadData?.conversation) {
       return {
         ...activeThreadData.conversation,
@@ -64,12 +65,13 @@ export function useAdminSupportDesk() {
     return conversations.find((c) => c._id === activeId) ?? null;
   }, [activeThreadData, conversations, activeId]);
 
-  // SELECT CONVERSATION: Locks the conversation and clears unread badges
+  // SELECT CONVERSATION: Manual click switches the thread and clears unread badges
   const handleSelectConversation = useCallback(
     (convId) => {
       setSelectedConversationId(convId);
       setIsTyping(false);
 
+      // Optimistically zero out unread counter for the clicked conversation in cache
       queryClient.setQueriesData(
         { queryKey: queryKeys.support.all },
         (oldData) => {
@@ -102,14 +104,6 @@ export function useAdminSupportDesk() {
           messages: [...(old.messages ?? []), newMsg],
         };
       });
-
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.support.adminConversations({
-          status: conversationStatusFilter,
-          type: customerTypeFilter,
-          search: searchQuery,
-        }),
-      });
     },
     onTyping: (typingData) => {
       setIsTyping(Boolean(typingData.isTyping));
@@ -124,53 +118,94 @@ export function useAdminSupportDesk() {
     },
   });
 
-  // 4. Push Listener: Global Merchant Stream
+  // 4. Push Listener: Global Merchant Stream (Background chats update badges only)
   useRealTimeStream({
     channelType: "admin",
     events: {
       "chat:conversation_updated": (payload) => {
         const convId = payload?.conversation?._id;
+        const lastMsg = payload?.lastMessage;
 
-        // If message belongs to the current thread, append it
-        if (convId === activeId && payload?.lastMessage) {
+        // If message belongs to current active thread, append it
+        if (convId && convId === activeId && lastMsg) {
           queryClient.setQueryData(
             ["support", "conversation", activeId],
             (old) => {
               if (!old) return old;
-              const exists = old.messages?.some(
-                (m) => m._id === payload.lastMessage._id,
-              );
+              const exists = old.messages?.some((m) => m._id === lastMsg._id);
               if (exists) return old;
               return {
                 ...old,
-                messages: [...(old.messages ?? []), payload.lastMessage],
+                messages: [...(old.messages ?? []), lastMsg],
               };
             },
           );
         }
 
-        // If message is for a background thread, play chime & update unread badge
+        // If message is for a background conversation, play sound & update unread badge in sidebar
         if (
+          convId &&
           convId !== activeId &&
-          payload?.lastMessage?.senderType === "customer"
+          lastMsg?.senderType === "customer"
         ) {
           playMessageAlert();
         }
 
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.support.adminConversations({
-            status: conversationStatusFilter,
-            type: customerTypeFilter,
-            search: searchQuery,
-          }),
-        });
+        // Update sidebar metadata smoothly without re-rendering active chat
+        queryClient.setQueriesData(
+          { queryKey: queryKeys.support.all },
+          (oldData) => {
+            if (!oldData?.conversations) return oldData;
+            return {
+              ...oldData,
+              conversations: oldData.conversations.map((c) => {
+                if (c._id === convId) {
+                  return {
+                    ...c,
+                    lastMessageAt:
+                      payload.conversation?.lastMessageAt ||
+                      new Date().toISOString(),
+                    unreadCountAdmin:
+                      convId === activeId
+                        ? 0
+                        : (c.unreadCountAdmin || 0) +
+                          (lastMsg?.senderType === "customer" ? 1 : 0),
+                  };
+                }
+                return c;
+              }),
+            };
+          },
+        );
       },
       "chat:new_conversation": (newConv) => {
         playMessageAlert();
         toast.info(
-          `💬 New message from ${newConv?.customerName || "a customer"}`,
+          `💬 New inquiry from ${newConv?.customerName || "a customer"}`,
         );
-        queryClient.invalidateQueries({ queryKey: queryKeys.support.all });
+
+        // Add new conversation to sidebar list with unread badge without hijacking the view
+        queryClient.setQueriesData(
+          { queryKey: queryKeys.support.all },
+          (oldData) => {
+            if (!oldData?.conversations) return oldData;
+            const exists = oldData.conversations.some(
+              (c) => c._id === newConv?._id,
+            );
+            if (exists) return oldData;
+            return {
+              ...oldData,
+              conversations: [
+                {
+                  ...newConv,
+                  unreadCountAdmin: newConv._id === activeId ? 0 : 1,
+                },
+                ...oldData.conversations,
+              ],
+              total: (oldData.total || 0) + 1,
+            };
+          },
+        );
       },
     },
   });
@@ -189,14 +224,6 @@ export function useAdminSupportDesk() {
           ...old,
           messages: [...(old.messages ?? []), newMsg],
         };
-      });
-
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.support.adminConversations({
-          status: conversationStatusFilter,
-          type: customerTypeFilter,
-          search: searchQuery,
-        }),
       });
     },
     onError: (err) => {

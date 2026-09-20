@@ -1,3 +1,4 @@
+// apps/nexus-commerce/frontend/src/components/admin/support/ConversationList.jsx
 import React from "react";
 import { format } from "date-fns";
 import {
@@ -97,15 +98,16 @@ export function ConversationList({
           <div className="py-12 text-center text-xs text-text-muted font-mono space-y-1">
             <p>No conversations found</p>
             <p className="text-[10px] text-text-faint">
-              Try adjusting your filters
+              Waiting for customer messages
             </p>
           </div>
         ) : (
           conversations.map((conv) => {
             const isSelected = conv._id === selectedId;
             const isGuest = !conv.customerId;
-            // WhatsApp rule: badge only renders if thread is NOT currently open
-            const showUnreadBadge = !isSelected && conv.unreadCountAdmin > 0;
+            // Badge only appears on unselected conversations with pending messages
+            const showUnreadBadge =
+              !isSelected && (conv.unreadCountAdmin || 0) > 0;
 
             return (
               <button
