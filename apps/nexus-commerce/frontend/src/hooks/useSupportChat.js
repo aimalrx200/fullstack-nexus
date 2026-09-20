@@ -1,3 +1,4 @@
+// apps/nexus-commerce/frontend/src/hooks/useSupportChat.js
 import { useEffect, useRef, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -19,7 +20,7 @@ import { toast } from "sonner";
 export function useSupportChat() {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, isStaff } = useAuth();
 
   const {
     activeConversationId,
@@ -32,7 +33,7 @@ export function useSupportChat() {
 
   const typingTimeoutRef = useRef(null);
 
-  // 1. Query or Create Active Conversation (with 3s background polling fallback)
+  // 1. Fetch active conversation ONLY if already open (DO NOT auto-create empty DB records)
   const { isLoading: isConversationLoading, refetch: refetchConversation } =
     useQuery({
       queryKey: queryKeys.support.conversation(user?.id || "guest"),
@@ -47,11 +48,11 @@ export function useSupportChat() {
         }
         return data;
       },
-      staleTime: 3000,
-      refetchInterval: isWidgetOpen ? 2500 : 8000, // 👈 2.5s polling when open
+      enabled: isWidgetOpen && !isStaff, // Only query when chat widget is actually opened by a shopper
+      staleTime: 5000,
     });
 
-  // 2. Bind Real-Time Stream (SSE in Prod / Socket.io in Dev)
+  // 2. Bind Real-Time Stream
   const { isConnected } = useChatStream(activeConversationId, {
     onMessage: (msg) => {
       dispatch(appendChatMessage(msg));
@@ -61,11 +62,23 @@ export function useSupportChat() {
     },
   });
 
-  // 3. Send Message Mutation
+  // 3. Send Message Mutation (Creates thread on first message)
   const sendMessageMutation = useMutation({
-    mutationFn: supportApi.sendMessage,
-    onSuccess: (newMsg) => {
-      dispatch(appendChatMessage(newMsg));
+    mutationFn: (payload) =>
+      supportApi.sendMessage({
+        ...payload,
+        customerName: user?.name || "Shopper",
+        customerEmail: user?.email || undefined,
+      }),
+    onSuccess: (data) => {
+      const msg = data.message || data;
+      const conv = data.conversation;
+
+      if (conv?._id && !activeConversationId) {
+        dispatch(setActiveConversation(conv._id));
+      }
+
+      dispatch(appendChatMessage(msg));
       queryClient.invalidateQueries({ queryKey: queryKeys.support.all });
     },
     onError: (err) => {

@@ -1,3 +1,4 @@
+// apps/nexus-commerce/backend/src/controllers/support/chat.controller.js
 import { Conversation, Message } from "#models/index.js";
 import { asyncHandler } from "#utils/asyncHandler.js";
 import { sanitizeInput } from "#utils/sanitize.js";
@@ -5,7 +6,6 @@ import { broadcastChatMessage } from "#websockets/wsBroadcaster.js";
 import { publishEvent } from "#services/pubSubService.js";
 import env from "#config/env.js";
 
-// Helper to reliably check any staff tier (Support Agent, Merchant Admin, Super Admin, Master Owner)
 const checkIsStaff = (user) => {
   if (!user) return false;
   const isMasterOwner =
@@ -18,14 +18,14 @@ const checkIsStaff = (user) => {
 };
 
 /**
- * Get or create an active support thread for an authenticated shopper or guest.
+ * Get active support thread if it ALREADY exists.
+ * DOES NOT create empty ghost conversations in MongoDB.
  * POST /api/v1/support/conversation
  */
 export const getOrCreateConversation = asyncHandler(async (req, res) => {
   const userId = req.user?.id;
   const guestSessionId =
     req.headers["x-guest-session-id"] || req.body.guestSessionId;
-  const { customerName, customerEmail } = req.body;
 
   let conversation = null;
 
@@ -41,28 +41,12 @@ export const getOrCreateConversation = asyncHandler(async (req, res) => {
     });
   }
 
+  // If no conversation exists yet, return empty state without writing to DB
   if (!conversation) {
-    conversation = await Conversation.create({
-      customerId: userId || null,
-      guestSessionId: !userId ? guestSessionId : null,
-      customerName:
-        sanitizeInput(customerName) ||
-        req.user?.name ||
-        (userId ? "VIP Customer" : "Guest Shopper"),
-      customerEmail: (
-        customerEmail ||
-        req.user?.email ||
-        (userId
-          ? "customer@nexus.io"
-          : `guest_${Date.now().toString().slice(-4)}@nexus.io`)
-      )
-        .toLowerCase()
-        .trim(),
-    });
-
-    publishEvent("admin:support_desk", {
-      type: "chat:new_conversation",
-      data: conversation,
+    return res.status(200).json({
+      success: true,
+      conversation: null,
+      messages: [],
     });
   }
 
@@ -94,7 +78,7 @@ export const getConversationMessages = asyncHandler(async (req, res) => {
 
   const isStaff = checkIsStaff(req.user);
 
-  // Reset admin unread counter when any staff member opens the thread
+  // Reset admin unread counter when staff opens thread
   if (isStaff && conversation.unreadCountAdmin > 0) {
     conversation.unreadCountAdmin = 0;
     await conversation.save();
@@ -116,18 +100,62 @@ export const getConversationMessages = asyncHandler(async (req, res) => {
 
 /**
  * Send message to conversation.
+ * Creates the conversation row in DB on demand if this is the first message.
  * POST /api/v1/support/message
  */
 export const sendMessage = asyncHandler(async (req, res) => {
-  const { conversationId, text, attachments } = req.body;
+  const { conversationId, text, attachments, customerName, customerEmail } =
+    req.body;
   const isStaff = checkIsStaff(req.user);
   const senderType = isStaff ? "admin" : "customer";
+  const userId = req.user?.id;
+  const guestSessionId =
+    req.headers["x-guest-session-id"] || req.body.guestSessionId;
 
-  const conversation = await Conversation.findById(conversationId);
+  let conversation = null;
+  let isNewConversation = false;
+
+  if (conversationId) {
+    conversation = await Conversation.findById(conversationId);
+  }
+
+  // If conversation doesn't exist yet, create it on first message
   if (!conversation) {
-    return res
-      .status(404)
-      .json({ success: false, message: "Conversation not found." });
+    if (userId) {
+      conversation = await Conversation.findOne({
+        customerId: userId,
+        status: { $ne: "closed" },
+      });
+    } else if (guestSessionId) {
+      conversation = await Conversation.findOne({
+        guestSessionId,
+        status: { $ne: "closed" },
+      });
+    }
+
+    if (!conversation) {
+      conversation = await Conversation.create({
+        customerId: userId || null,
+        guestSessionId: !userId ? guestSessionId : null,
+        customerName:
+          sanitizeInput(customerName) ||
+          req.user?.name ||
+          (userId ? "VIP Customer" : "Guest Shopper"),
+        customerEmail: (
+          customerEmail ||
+          req.user?.email ||
+          (userId
+            ? "customer@nexus.io"
+            : `guest_${Date.now().toString().slice(-4)}@nexus.io`)
+        )
+          .toLowerCase()
+          .trim(),
+        unreadCountAdmin: isStaff ? 0 : 1,
+        lastMessageAt: new Date(),
+      });
+
+      isNewConversation = true;
+    }
   }
 
   const senderName = isStaff
@@ -135,7 +163,7 @@ export const sendMessage = asyncHandler(async (req, res) => {
     : conversation.customerName || "Customer";
 
   const message = await Message.create({
-    conversationId,
+    conversationId: conversation._id,
     senderType,
     senderId: req.user?.id || null,
     senderName,
@@ -144,30 +172,39 @@ export const sendMessage = asyncHandler(async (req, res) => {
   });
 
   const updatedConversation = await Conversation.findByIdAndUpdate(
-    conversationId,
+    conversation._id,
     {
       lastMessageAt: new Date(),
       status: conversation.status === "closed" ? "open" : conversation.status,
       ...(senderType === "customer"
-        ? { $inc: { unreadCountAdmin: 1 } }
+        ? { $inc: { unreadCountAdmin: isNewConversation ? 0 : 1 } }
         : { $set: { unreadCountAdmin: 0 }, $inc: { unreadCountCustomer: 1 } }),
     },
     { new: true },
   ).populate("customerId", "name email avatarUrl");
 
-  // 1. Broadcast message to conversation room
-  broadcastChatMessage(conversationId, message);
+  // 1. Broadcast message to active chat window
+  broadcastChatMessage(conversation._id, message);
 
-  // 2. Broadcast conversation item update to Admin Inbox list
-  publishEvent("admin:support_desk", {
-    type: "chat:conversation_updated",
-    data: {
-      conversation: updatedConversation,
-      lastMessage: message,
-    },
-  });
+  // 2. Broadcast to Admin Inbox
+  if (isNewConversation) {
+    publishEvent("admin:support_desk", {
+      type: "chat:new_conversation",
+      data: updatedConversation,
+    });
+  } else {
+    publishEvent("admin:support_desk", {
+      type: "chat:conversation_updated",
+      data: {
+        conversation: updatedConversation,
+        lastMessage: message,
+      },
+    });
+  }
 
-  return res.status(201).json({ success: true, message });
+  return res
+    .status(201)
+    .json({ success: true, message, conversation: updatedConversation });
 });
 
 /**

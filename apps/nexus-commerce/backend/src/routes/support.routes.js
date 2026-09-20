@@ -1,5 +1,7 @@
 // apps/nexus-commerce/backend/src/routes/support.routes.js
 import { Router } from "express";
+import jwt from "jsonwebtoken";
+import env from "#config/env.js";
 import {
   getOrCreateConversation,
   getConversationMessages,
@@ -22,9 +24,31 @@ import {
 
 const router = Router();
 
+// Non-blocking auth extractor: Populates req.user if signed cookie is present
+const optionalAuth = (req, res, next) => {
+  const token = req.signedCookies?.access_token || req.cookies?.access_token;
+  if (!token) {
+    req.user = null;
+    return next();
+  }
+
+  try {
+    const decoded = jwt.verify(token, env.JWT_SECRET);
+    req.user = {
+      id: decoded.id,
+      email: decoded.email,
+      name: decoded.name,
+      role: decoded.role,
+    };
+  } catch {
+    req.user = null;
+  }
+  next();
+};
+
 // Storefront live chat & ticket generation
-router.post("/conversation", getOrCreateConversation);
-router.post("/message", validate(SendMessageSchema), sendMessage);
+router.post("/conversation", optionalAuth, getOrCreateConversation);
+router.post("/message", optionalAuth, validate(SendMessageSchema), sendMessage);
 router.post("/ticket", validate(CreateTicketSchema), createSupportTicket);
 
 // Staff Desk: Accessible to support agents, merchant admins & super admins

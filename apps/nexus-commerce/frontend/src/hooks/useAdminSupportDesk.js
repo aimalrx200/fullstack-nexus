@@ -1,3 +1,4 @@
+// apps/nexus-commerce/frontend/src/hooks/useAdminSupportDesk.js
 import { useState, useMemo, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supportApi } from "../lib/api/supportApi";
@@ -41,11 +42,8 @@ export function useAdminSupportDesk() {
     [data?.conversations],
   );
 
-  // STABLE SELECTION: Default to first item ONLY ONCE on mount without hijacking when new messages arrive
-  const activeId = useMemo(() => {
-    if (selectedConversationId) return selectedConversationId;
-    return conversations[0]?._id ?? null;
-  }, [selectedConversationId, conversations]);
+  // Derived active ID: Explicit selection takes precedence, otherwise defaults to the first available thread
+  const activeId = selectedConversationId || (conversations[0]?._id ?? null);
 
   // 2. Fetch messages for the ACTIVE conversation
   const { data: activeThreadData, isLoading: isThreadLoading } = useQuery({
@@ -66,13 +64,12 @@ export function useAdminSupportDesk() {
     return conversations.find((c) => c._id === activeId) ?? null;
   }, [activeThreadData, conversations, activeId]);
 
-  // SELECT CONVERSATION: Instantly clears unread badge in cache and sets selection
+  // SELECT CONVERSATION: Locks the conversation and clears unread badges
   const handleSelectConversation = useCallback(
     (convId) => {
       setSelectedConversationId(convId);
       setIsTyping(false);
 
-      // Optimistically clear the unread badge in memory
       queryClient.setQueriesData(
         { queryKey: queryKeys.support.all },
         (oldData) => {
@@ -86,7 +83,6 @@ export function useAdminSupportDesk() {
         },
       );
 
-      // Fetch fresh messages
       queryClient.invalidateQueries({
         queryKey: ["support", "conversation", convId],
       });
@@ -97,7 +93,6 @@ export function useAdminSupportDesk() {
   // 3. Push Listener: Active Conversation Room
   useChatStream(activeId, {
     onMessage: (newMsg) => {
-      // Deduplicated message append
       queryClient.setQueryData(["support", "conversation", activeId], (old) => {
         if (!old) return old;
         const exists = old.messages?.some((m) => m._id === newMsg._id);
@@ -108,7 +103,6 @@ export function useAdminSupportDesk() {
         };
       });
 
-      // Update sidebar timestamps without changing active conversation
       queryClient.invalidateQueries({
         queryKey: queryKeys.support.adminConversations({
           status: conversationStatusFilter,
@@ -130,14 +124,14 @@ export function useAdminSupportDesk() {
     },
   });
 
-  // 4. Push Listener: Global Merchant Stream (New threads and background conversation updates)
+  // 4. Push Listener: Global Merchant Stream
   useRealTimeStream({
     channelType: "admin",
     events: {
       "chat:conversation_updated": (payload) => {
         const convId = payload?.conversation?._id;
 
-        // If message belongs to active conversation, append it
+        // If message belongs to the current thread, append it
         if (convId === activeId && payload?.lastMessage) {
           queryClient.setQueryData(
             ["support", "conversation", activeId],
@@ -155,7 +149,7 @@ export function useAdminSupportDesk() {
           );
         }
 
-        // If message is for a background conversation, play sound & update sidebar badge
+        // If message is for a background thread, play chime & update unread badge
         if (
           convId !== activeId &&
           payload?.lastMessage?.senderType === "customer"
@@ -171,9 +165,11 @@ export function useAdminSupportDesk() {
           }),
         });
       },
-      "chat:new_conversation": () => {
+      "chat:new_conversation": (newConv) => {
         playMessageAlert();
-        toast.info("💬 New customer inquiry received!");
+        toast.info(
+          `💬 New message from ${newConv?.customerName || "a customer"}`,
+        );
         queryClient.invalidateQueries({ queryKey: queryKeys.support.all });
       },
     },
@@ -182,7 +178,9 @@ export function useAdminSupportDesk() {
   // 5. Send Message Mutation
   const sendMessageMutation = useMutation({
     mutationFn: supportApi.sendMessage,
-    onSuccess: (newMsg) => {
+    onSuccess: (data) => {
+      const newMsg = data.message || data;
+
       queryClient.setQueryData(["support", "conversation", activeId], (old) => {
         if (!old) return old;
         const exists = old.messages?.some((m) => m._id === newMsg._id);

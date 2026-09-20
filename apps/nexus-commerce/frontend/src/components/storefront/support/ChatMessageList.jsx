@@ -1,3 +1,4 @@
+// apps/nexus-commerce/frontend/src/components/storefront/support/ChatMessageList.jsx
 import React, { useEffect, useRef, useMemo } from "react";
 import { format, isToday, isYesterday } from "date-fns";
 import { ShieldCheck, User, Paperclip, Check, CheckCheck } from "lucide-react";
@@ -19,7 +20,6 @@ export function ChatMessageList({
 }) {
   const scrollBottomRef = useRef(null);
 
-  // Group messages chronologically by date
   const groupedMessages = useMemo(() => {
     const groups = [];
     let currentGroup = null;
@@ -42,7 +42,7 @@ export function ChatMessageList({
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 custom-scrollbar bg-surface-app/40">
-      {/* Intro Header */}
+      {/* Intro Empty State */}
       {messages.length === 0 && (
         <div className="text-center py-10 space-y-2">
           <div className="w-12 h-12 mx-auto rounded-2xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-brand-primary shadow-xs">
@@ -72,8 +72,8 @@ export function ChatMessageList({
 
           <div className="space-y-3">
             {group.items.map((msg, idx) => {
-              // IN AGENT VIEW: Admin is "Me" (Right), Customer is "Other" (Left)
-              // IN STOREFRONT VIEW: Customer is "Me" (Right), Admin is "Other" (Left)
+              // AGENT VIEW: Admin is "Me" (Right), Customer is "Other" (Left)
+              // STOREFRONT VIEW: Customer is "Me" (Right), Admin is "Other" (Left)
               const isMe = isAgentView
                 ? msg.senderType === "admin"
                 : msg.senderType === "customer";
@@ -92,40 +92,40 @@ export function ChatMessageList({
               return (
                 <div
                   key={msg._id || idx}
-                  className={`flex items-end gap-2 ${
+                  className={`flex items-end gap-2.5 ${
                     isMe ? "justify-end" : "justify-start"
                   } animate-in fade-in duration-150`}
                 >
                   {/* Avatar Icon for the Other party */}
                   {!isMe && (
-                    <div className="w-7 h-7 rounded-xl bg-surface-elevated border border-border-main flex items-center justify-center text-text-muted shrink-0 shadow-xs mb-1">
+                    <div className="w-8 h-8 rounded-xl bg-surface-elevated border border-border-main flex items-center justify-center text-text-muted shrink-0 shadow-xs mb-1">
                       {msg.senderType === "admin" ? (
                         <ShieldCheck className="w-4 h-4 text-brand-primary" />
                       ) : (
-                        <User className="w-3.5 h-3.5 text-amber-400" />
+                        <User className="w-4 h-4 text-amber-400" />
                       )}
                     </div>
                   )}
 
-                  {/* Message Bubble */}
+                  {/* Message Bubble Container */}
                   <div
-                    className={`max-w-[78%] sm:max-w-[65%] space-y-1 ${isMe ? "items-end text-right" : "items-start text-left"}`}
+                    className={`max-w-[80%] sm:max-w-[65%] space-y-1 ${isMe ? "items-end text-right" : "items-start text-left"}`}
                   >
                     <span className="text-[10px] font-mono text-text-faint px-1 block">
                       {isMe
                         ? isAgentView
-                          ? "You (Support Lead)"
+                          ? "You (Support Specialist)"
                           : "You"
                         : msg.senderName ||
                           (msg.senderType === "admin"
                             ? "Support Specialist"
-                            : "Customer")}
+                            : "Shopper")}
                     </span>
 
                     <div
                       className={`p-3.5 rounded-2xl text-xs shadow-md space-y-1.5 ${
                         isMe
-                          ? "bg-linear-to-r from-blue-600 to-indigo-600 text-white rounded-br-xs border border-blue-500/30"
+                          ? "bg-brand-primary text-white rounded-br-xs border border-brand-primary/30"
                           : "bg-surface-elevated text-text-main border border-border-main rounded-bl-xs"
                       }`}
                     >
@@ -156,7 +156,7 @@ export function ChatMessageList({
                         </div>
                       )}
 
-                      {/* Timestamp and Delivery Receipt */}
+                      {/* Timestamp & Delivery Receipt */}
                       <div
                         className={`flex items-center gap-1 text-[9px] font-mono pt-0.5 ${
                           isMe
@@ -179,13 +179,13 @@ export function ChatMessageList({
                     </div>
                   </div>
 
-                  {/* Avatar Icon for Me on the Right */}
+                  {/* Avatar Icon for Me */}
                   {isMe && (
-                    <div className="w-7 h-7 rounded-xl bg-brand-primary/20 border border-brand-primary/40 flex items-center justify-center text-brand-primary shrink-0 shadow-xs mb-1">
+                    <div className="w-8 h-8 rounded-xl bg-brand-primary/20 border border-brand-primary/40 flex items-center justify-center text-brand-primary shrink-0 shadow-xs mb-1">
                       {isAgentView ? (
                         <ShieldCheck className="w-4 h-4 text-brand-primary" />
                       ) : (
-                        <User className="w-3.5 h-3.5 text-brand-primary" />
+                        <User className="w-4 h-4 text-brand-primary" />
                       )}
                     </div>
                   )}
@@ -199,8 +199,8 @@ export function ChatMessageList({
       {/* Typing Indicator */}
       {isTyping && (
         <div className="flex items-center gap-2 text-left animate-in fade-in">
-          <div className="w-7 h-7 rounded-xl bg-surface-elevated border border-border-main flex items-center justify-center text-text-muted shrink-0 text-xs">
-            <User className="w-3.5 h-3.5 text-amber-400" />
+          <div className="w-8 h-8 rounded-xl bg-surface-elevated border border-border-main flex items-center justify-center text-text-muted shrink-0 text-xs">
+            <User className="w-4 h-4 text-amber-400" />
           </div>
           <div className="px-3.5 py-2 rounded-2xl bg-surface-elevated border border-border-main text-text-muted text-xs flex items-center gap-2 shadow-xs">
             <span className="text-[11px] font-mono text-text-muted">

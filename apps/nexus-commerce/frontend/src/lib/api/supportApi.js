@@ -1,3 +1,4 @@
+// apps/nexus-commerce/frontend/src/lib/api/supportApi.js
 import apiClient from "./client";
 
 export const supportApi = {
@@ -6,7 +7,6 @@ export const supportApi = {
     return data;
   },
 
-  // 👈 Add method to retrieve messages for a conversation
   getConversationMessages: async (conversationId) => {
     const { data } = await apiClient.get(
       `/support/conversations/${conversationId}/messages`,
@@ -14,13 +14,21 @@ export const supportApi = {
     return data;
   },
 
-  sendMessage: async ({ conversationId, text, attachments = [] }) => {
+  sendMessage: async ({
+    conversationId,
+    text,
+    attachments = [],
+    customerName,
+    customerEmail,
+  }) => {
     const { data } = await apiClient.post("/support/message", {
       conversationId,
       text,
       attachments,
+      customerName,
+      customerEmail,
     });
-    return data.message;
+    return data;
   },
 
   createTicket: async (ticketPayload) => {
