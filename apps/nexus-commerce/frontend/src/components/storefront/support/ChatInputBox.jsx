@@ -1,6 +1,64 @@
+// apps/nexus-commerce/frontend/src/components/storefront/support/ChatInputBox.jsx
 import React, { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { Send, Paperclip, X, Loader2 } from "lucide-react";
+
+/**
+ * Compresses and downscales image files on the client before upload.
+ * Reduces 5MB+ mobile camera captures to ~120KB to avoid Vercel 4.5MB payload limits.
+ */
+const compressImageFile = (
+  file,
+  maxWidth = 1000,
+  maxHeight = 1000,
+  quality = 0.75,
+) => {
+  return new Promise((resolve) => {
+    // If not an image, fall back to normal reader
+    if (!file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert canvas back to compressed JPEG Base64
+        const compressedDataUrl = canvas.toDataURL("image/jpeg", quality);
+        resolve(compressedDataUrl);
+      };
+      img.onerror = () => resolve(event.target.result);
+      img.src = event.target.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+};
 
 export function ChatInputBox({
   value,
@@ -9,39 +67,44 @@ export function ChatInputBox({
   onTyping,
   isSending,
 }) {
-  // Only used if the component is used in uncontrolled mode (no `value` prop provided)
   const [uncontrolledText, setUncontrolledText] = useState("");
   const [attachments, setAttachments] = useState([]);
+  const [isCompressing, setIsCompressing] = useState(false);
 
-  // Derive current text value: controlled prop takes precedence over internal state
   const isControlled = value !== undefined;
   const currentText = isControlled ? value : uncontrolledText;
 
-  const onDrop = useCallback((acceptedFiles) => {
-    acceptedFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setAttachments((prev) => [
-          ...prev,
-          {
-            url: reader.result,
-            fileName: file.name,
-            fileType: file.type,
-            fileSize: file.size,
-          },
-        ]);
-      };
-      reader.readAsDataURL(file);
-    });
+  const onDrop = useCallback(async (acceptedFiles) => {
+    if (acceptedFiles.length === 0) return;
+    setIsCompressing(true);
+
+    try {
+      for (const file of acceptedFiles) {
+        const compressedDataUrl = await compressImageFile(file);
+        if (compressedDataUrl) {
+          setAttachments((prev) => [
+            ...prev,
+            {
+              url: compressedDataUrl,
+              fileName: file.name,
+              fileType: "image/jpeg",
+              fileSize: Math.round((compressedDataUrl.length * 3) / 4),
+            },
+          ]);
+        }
+      }
+    } finally {
+      setIsCompressing(false);
+    }
   }, []);
 
   const { getRootProps, getInputProps, open, isDragActive } = useDropzone({
     onDrop,
     noClick: true,
     noKeyboard: true,
-    maxSize: 5 * 1024 * 1024,
+    maxSize: 10 * 1024 * 1024, // Accept up to 10MB source files before client-compression
     accept: {
-      "image/*": [".jpeg", ".png", ".webp", ".avif"],
+      "image/*": [".jpeg", ".jpg", ".png", ".webp", ".avif", ".heic"],
     },
   });
 
@@ -122,10 +185,15 @@ export function ChatInputBox({
         <button
           type="button"
           onClick={open}
-          className="min-h-10 min-w-10 rounded-xl flex items-center justify-center text-text-muted hover:text-text-main hover:bg-surface-elevated transition-colors cursor-pointer shrink-0"
+          disabled={isCompressing}
+          className="min-h-10 min-w-10 rounded-xl flex items-center justify-center text-text-muted hover:text-text-main hover:bg-surface-elevated transition-colors cursor-pointer shrink-0 disabled:opacity-50"
           aria-label="Attach file"
         >
-          <Paperclip className="w-4 h-4" />
+          {isCompressing ? (
+            <Loader2 className="w-4 h-4 animate-spin text-brand-primary" />
+          ) : (
+            <Paperclip className="w-4 h-4" />
+          )}
         </button>
 
         <textarea
@@ -140,7 +208,9 @@ export function ChatInputBox({
         <button
           type="submit"
           disabled={
-            isSending || (!currentText.trim() && attachments.length === 0)
+            isSending ||
+            isCompressing ||
+            (!currentText.trim() && attachments.length === 0)
           }
           className="min-h-10 min-w-10 rounded-xl bg-brand-primary hover:bg-brand-primary/90 text-white flex items-center justify-center transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shrink-0 active:scale-95 shadow-xs shadow-brand-primary/25"
           aria-label="Send message"
