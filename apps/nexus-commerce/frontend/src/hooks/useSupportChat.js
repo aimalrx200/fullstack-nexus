@@ -6,6 +6,7 @@ import {
   setActiveConversation,
   setChatMessages,
   appendChatMessage,
+  markAllOwnMessagesRead,
   setTypingIndicator,
   setWidgetOpen,
   resetUnreadCount,
@@ -52,28 +53,25 @@ export function useSupportChat() {
       staleTime: 5000,
     });
 
-  // 2. Real-Time Chat Stream (Receives Messages, Typing, and Read Receipts)
+  // 2. Real-Time Chat Stream
   const { isConnected } = useChatStream(activeConversationId, {
     onMessage: (msg) => {
       dispatch(appendChatMessage(msg));
+
+      // If customer has chat widget open when admin replies, immediately acknowledge as read
+      if (isWidgetOpen && msg.senderType === "admin") {
+        supportApi.markConversationAsRead(activeConversationId);
+      }
     },
     onTyping: (typingData) => {
-      dispatch(setTypingIndicator(typingData));
+      // ONLY display typing indicator if the OTHER party (admin) is typing!
+      if (typingData.senderType === "admin") {
+        dispatch(setTypingIndicator(typingData));
+      }
     },
     onRead: () => {
-      // Mark all own messages as read
-      queryClient.setQueryData(
-        queryKeys.support.conversation(user?.id || "guest"),
-        (old) => {
-          if (!old?.messages) return old;
-          return {
-            ...old,
-            messages: old.messages.map((m) =>
-              m.senderType === "customer" ? { ...m, isRead: true } : m,
-            ),
-          };
-        },
-      );
+      // Admin read customer's message -> Turn customer's single tick to double cyan tick
+      dispatch(markAllOwnMessagesRead({ senderType: "customer" }));
     },
   });
 
@@ -101,12 +99,11 @@ export function useSupportChat() {
     },
   });
 
-  // 4. Typing Indicator (Works over Sockets in Dev + SSE/HTTP in Prod)
+  // 4. Typing Indicator
   const emitTyping = useCallback(
     (typingState) => {
       if (!activeConversationId) return;
 
-      // Sockets (dev)
       const socket = getSocket();
       if (socket && socket.connected) {
         socket.emit("chat:typing", {
@@ -115,7 +112,6 @@ export function useSupportChat() {
         });
       }
 
-      // HTTP endpoint (production serverless SSE)
       supportApi.emitTyping({
         conversationId: activeConversationId,
         isTyping: typingState,
@@ -146,7 +142,10 @@ export function useSupportChat() {
   const openWidget = useCallback(() => {
     dispatch(setWidgetOpen(true));
     dispatch(resetUnreadCount());
-  }, [dispatch]);
+    if (activeConversationId) {
+      supportApi.markConversationAsRead(activeConversationId);
+    }
+  }, [dispatch, activeConversationId]);
 
   const closeWidget = useCallback(() => {
     dispatch(setWidgetOpen(false));

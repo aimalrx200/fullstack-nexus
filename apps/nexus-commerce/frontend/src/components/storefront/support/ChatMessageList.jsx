@@ -96,7 +96,7 @@ export function ChatMessageList({
                     isMe ? "justify-end" : "justify-start"
                   } animate-in fade-in duration-150`}
                 >
-                  {/* Avatar Icon for the Other party */}
+                  {/* Avatar for Other party */}
                   {!isMe && (
                     <div className="w-8 h-8 rounded-xl bg-surface-elevated border border-border-main flex items-center justify-center text-text-muted shrink-0 shadow-xs mb-1">
                       {msg.senderType === "admin" ? (
@@ -158,7 +158,7 @@ export function ChatMessageList({
 
                       {/* Timestamp & High-Contrast Read Receipts */}
                       <div
-                        className={`flex items-center gap-1 text-[9px] font-mono pt-0.5 ${
+                        className={`flex items-center gap-1.5 text-[9px] font-mono pt-0.5 ${
                           isMe
                             ? "justify-end text-white/90"
                             : "justify-start text-text-faint"
@@ -170,27 +170,25 @@ export function ChatMessageList({
                             : ""}
                         </span>
 
-                        {isMe &&
-                          (msg.isRead ? (
-                            <span
-                              title="Read by recipient"
-                              className="inline-flex items-center"
-                            >
-                              <CheckCheck className="w-3.5 h-3.5 text-sky-300 shrink-0 font-bold" />
-                            </span>
-                          ) : (
-                            <span
-                              title="Sent"
-                              className="inline-flex items-center"
-                            >
-                              <Check className="w-3.5 h-3.5 text-slate-300 opacity-85 shrink-0" />
-                            </span>
-                          ))}
+                        {isMe && (
+                          <span
+                            title={
+                              msg.isRead ? "Read by recipient" : "Delivered"
+                            }
+                            className="inline-flex items-center"
+                          >
+                            {msg.isRead ? (
+                              <CheckCheck className="w-4 h-4 text-cyan-300 font-bold shrink-0 drop-shadow-xs" />
+                            ) : (
+                              <Check className="w-3.5 h-3.5 text-slate-300/80 shrink-0" />
+                            )}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Avatar Icon for Me */}
+                  {/* Avatar for Me */}
                   {isMe && (
                     <div className="w-8 h-8 rounded-xl bg-brand-primary/20 border border-brand-primary/40 flex items-center justify-center text-brand-primary shrink-0 shadow-xs mb-1">
                       {isAgentView ? (
@@ -207,7 +205,7 @@ export function ChatMessageList({
         </div>
       ))}
 
-      {/* Real-Time Animated Typing Indicator */}
+      {/* Real-Time Animated Typing Indicator (Only rendered for the OTHER party) */}
       {isTyping && (
         <div className="flex items-center gap-2.5 text-left animate-in fade-in slide-in-from-bottom-2 duration-200 my-2">
           <div className="w-8 h-8 rounded-xl bg-surface-elevated border border-border-main flex items-center justify-center text-text-muted shrink-0 shadow-xs">

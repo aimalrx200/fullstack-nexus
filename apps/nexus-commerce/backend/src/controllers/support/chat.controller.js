@@ -22,7 +22,7 @@ const checkIsStaff = (user) => {
 };
 
 /**
- * Load all message history and mark opposing messages as read (isRead = true)
+ * Load all message history and mark opposing messages as read in MongoDB
  * GET /api/v1/support/conversations/:conversationId/messages
  */
 export const getConversationMessages = asyncHandler(async (req, res) => {
@@ -40,14 +40,14 @@ export const getConversationMessages = asyncHandler(async (req, res) => {
   }
 
   const isStaff = checkIsStaff(req.user);
+  const chatRoom = `${WS_CHANNELS.CHAT_ROOM_PREFIX}${conversationId}`;
 
-  // 1. Reset counters and mark opposite messages as read
+  // 1. Reset counters and update individual messages to isRead = true
   if (isStaff) {
     if (conversation.unreadCountAdmin > 0) {
       conversation.unreadCountAdmin = 0;
       await conversation.save();
     }
-    // Mark customer messages as read
     await Message.updateMany(
       { conversationId, senderType: "customer", isRead: false },
       { $set: { isRead: true } },
@@ -57,7 +57,6 @@ export const getConversationMessages = asyncHandler(async (req, res) => {
       conversation.unreadCountCustomer = 0;
       await conversation.save();
     }
-    // Mark admin messages as read
     await Message.updateMany(
       { conversationId, senderType: "admin", isRead: false },
       { $set: { isRead: true } },
@@ -65,13 +64,19 @@ export const getConversationMessages = asyncHandler(async (req, res) => {
   }
 
   // 2. Broadcast read receipt to room
-  const chatRoom = `${WS_CHANNELS.CHAT_ROOM_PREFIX}${conversationId}`;
+  const readPayload = {
+    conversationId,
+    readBy: isStaff ? "admin" : "customer",
+  };
+
+  const io = getSocketIOInstance();
+  if (io) {
+    io.to(chatRoom).emit(WS_CHANNELS.EVENT_CHAT_READ, readPayload);
+  }
+
   publishEvent(chatRoom, {
     type: WS_CHANNELS.EVENT_CHAT_READ,
-    data: {
-      conversationId,
-      readBy: isStaff ? "admin" : "customer",
-    },
+    data: readPayload,
   });
 
   const messages = await Message.find({ conversationId })
@@ -86,7 +91,52 @@ export const getConversationMessages = asyncHandler(async (req, res) => {
 });
 
 /**
- * Broadcast typing indicator across both Sockets and SSE/Redis PubSub
+ * Real-time endpoint to instantly mark messages as read and broadcast double ticks
+ * PATCH /api/v1/support/conversations/:conversationId/read
+ */
+export const markConversationRead = asyncHandler(async (req, res) => {
+  const { conversationId } = req.params;
+  const isStaff = checkIsStaff(req.user);
+  const chatRoom = `${WS_CHANNELS.CHAT_ROOM_PREFIX}${conversationId}`;
+
+  if (isStaff) {
+    await Conversation.findByIdAndUpdate(conversationId, {
+      $set: { unreadCountAdmin: 0 },
+    });
+    await Message.updateMany(
+      { conversationId, senderType: "customer", isRead: false },
+      { $set: { isRead: true } },
+    );
+  } else {
+    await Conversation.findByIdAndUpdate(conversationId, {
+      $set: { unreadCountCustomer: 0 },
+    });
+    await Message.updateMany(
+      { conversationId, senderType: "admin", isRead: false },
+      { $set: { isRead: true } },
+    );
+  }
+
+  const readPayload = {
+    conversationId,
+    readBy: isStaff ? "admin" : "customer",
+  };
+
+  const io = getSocketIOInstance();
+  if (io) {
+    io.to(chatRoom).emit(WS_CHANNELS.EVENT_CHAT_READ, readPayload);
+  }
+
+  publishEvent(chatRoom, {
+    type: WS_CHANNELS.EVENT_CHAT_READ,
+    data: readPayload,
+  });
+
+  return res.status(200).json({ success: true, ...readPayload });
+});
+
+/**
+ * Broadcast typing status tagged with senderType
  * POST /api/v1/support/typing
  */
 export const broadcastTypingStatus = asyncHandler(async (req, res) => {
@@ -98,6 +148,7 @@ export const broadcastTypingStatus = asyncHandler(async (req, res) => {
   }
 
   const isStaff = checkIsStaff(req.user);
+  const senderType = isStaff ? "admin" : "customer";
   const senderName = isStaff
     ? req.user?.name || "Support Specialist"
     : "Customer";
@@ -105,17 +156,16 @@ export const broadcastTypingStatus = asyncHandler(async (req, res) => {
 
   const payload = {
     conversationId,
+    senderType,
     senderName,
     isTyping: Boolean(isTyping),
   };
 
-  // Socket broadcast (Localhost)
   const io = getSocketIOInstance();
   if (io) {
     io.to(chatRoom).emit(WS_CHANNELS.EVENT_CHAT_TYPING, payload);
   }
 
-  // SSE / Redis PubSub broadcast (Production Serverless)
   publishEvent(chatRoom, {
     type: WS_CHANNELS.EVENT_CHAT_TYPING,
     data: payload,
@@ -247,10 +297,8 @@ export const sendMessage = asyncHandler(async (req, res) => {
     { new: true },
   ).populate("customerId", "name email avatarUrl");
 
-  // 1. Broadcast message to active chat window
   broadcastChatMessage(conversation._id, message);
 
-  // 2. Broadcast to Admin Inbox
   if (isNewConversation) {
     publishEvent("admin:support_desk", {
       type: "chat:new_conversation",

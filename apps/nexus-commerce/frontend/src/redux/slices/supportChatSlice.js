@@ -1,3 +1,4 @@
+// apps/nexus-commerce/frontend/src/redux/slices/supportChatSlice.js
 import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
@@ -28,8 +29,14 @@ export const supportChatSlice = createSlice({
         }
       }
     },
+    markAllOwnMessagesRead: (state, action) => {
+      const targetSenderType = action.payload?.senderType || "customer";
+      state.messages = state.messages.map((m) =>
+        m.senderType === targetSenderType ? { ...m, isRead: true } : m,
+      );
+    },
     setTypingIndicator: (state, action) => {
-      state.isTyping = action.payload.isTyping;
+      state.isTyping = Boolean(action.payload.isTyping);
       state.typingUserName = action.payload.senderName || "";
     },
     setWidgetOpen: (state, action) => {
@@ -46,8 +53,10 @@ export const {
   setActiveConversation,
   setChatMessages,
   appendChatMessage,
+  markAllOwnMessagesRead,
   setTypingIndicator,
   setWidgetOpen,
   resetUnreadCount,
 } = supportChatSlice.actions;
+
 export default supportChatSlice.reducer;

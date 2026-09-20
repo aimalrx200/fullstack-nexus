@@ -63,11 +63,14 @@ export function useAdminSupportDesk() {
     return conversations.find((c) => c._id === activeId) ?? null;
   }, [activeThreadData, conversations, activeId]);
 
-  // SELECT CONVERSATION
+  // SELECT CONVERSATION: Clears unread badge and triggers mark-as-read acknowledgement
   const handleSelectConversation = useCallback(
     (convId) => {
       setSelectedConversationId(convId);
       setIsTyping(false);
+
+      // Instantly acknowledge read status on backend
+      supportApi.markConversationAsRead(convId);
 
       queryClient.setQueriesData(
         { queryKey: queryKeys.support.all },
@@ -101,20 +104,28 @@ export function useAdminSupportDesk() {
           messages: [...(old.messages ?? []), newMsg],
         };
       });
+
+      // If admin has this chat open when customer sends message, immediately acknowledge as read
+      if (newMsg.senderType === "customer") {
+        supportApi.markConversationAsRead(activeId);
+      }
     },
     onTyping: (typingData) => {
-      setIsTyping(Boolean(typingData.isTyping));
-      setTypingUserName(typingData.senderName || "Customer");
+      // ONLY display typing indicator if the OTHER party (customer) is typing!
+      if (typingData.senderType === "customer") {
+        setIsTyping(Boolean(typingData.isTyping));
+        setTypingUserName(typingData.senderName || "Customer");
 
-      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-      if (typingData.isTyping) {
-        typingTimerRef.current = setTimeout(() => {
-          setIsTyping(false);
-        }, 3500);
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+        if (typingData.isTyping) {
+          typingTimerRef.current = setTimeout(() => {
+            setIsTyping(false);
+          }, 3500);
+        }
       }
     },
     onRead: () => {
-      // Mark all admin messages as read in active thread
+      // Customer read admin's message -> Turn admin's single tick to double cyan tick
       queryClient.setQueryData(["support", "conversation", activeId], (old) => {
         if (!old?.messages) return old;
         return {
@@ -148,6 +159,10 @@ export function useAdminSupportDesk() {
               };
             },
           );
+
+          if (lastMsg.senderType === "customer") {
+            supportApi.markConversationAsRead(activeId);
+          }
         }
 
         if (

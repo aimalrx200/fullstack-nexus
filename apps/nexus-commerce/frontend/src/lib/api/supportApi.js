@@ -31,7 +31,20 @@ export const supportApi = {
     return data;
   },
 
+  markConversationAsRead: async (conversationId) => {
+    if (!conversationId) return null;
+    try {
+      const { data } = await apiClient.patch(
+        `/support/conversations/${conversationId}/read`,
+      );
+      return data;
+    } catch {
+      return null;
+    }
+  },
+
   emitTyping: async ({ conversationId, isTyping }) => {
+    if (!conversationId) return null;
     try {
       const { data } = await apiClient.post("/support/typing", {
         conversationId,
@@ -39,7 +52,6 @@ export const supportApi = {
       });
       return data;
     } catch {
-      // Non-blocking telemetry
       return null;
     }
   },

@@ -7,6 +7,7 @@ import {
   getConversationMessages,
   sendMessage,
   broadcastTypingStatus,
+  markConversationRead,
   getAllConversations,
 } from "#controllers/support/chat.controller.js";
 import {
@@ -50,6 +51,11 @@ const optionalAuth = (req, res, next) => {
 router.post("/conversation", optionalAuth, getOrCreateConversation);
 router.post("/message", optionalAuth, validate(SendMessageSchema), sendMessage);
 router.post("/typing", optionalAuth, broadcastTypingStatus);
+router.patch(
+  "/conversations/:conversationId/read",
+  optionalAuth,
+  markConversationRead,
+);
 router.post("/ticket", validate(CreateTicketSchema), createSupportTicket);
 
 // Staff Helpdesk Administration
