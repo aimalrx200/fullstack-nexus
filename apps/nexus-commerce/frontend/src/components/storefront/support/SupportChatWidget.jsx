@@ -1,11 +1,10 @@
+// apps/nexus-commerce/frontend/src/components/storefront/support/SupportChatWidget.jsx
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MessageSquare,
-  X,
   ShieldCheck,
-  Radio,
   FileQuestion,
   ChevronDown,
 } from "lucide-react";
@@ -16,6 +15,7 @@ import { OfflineTicketForm } from "./OfflineTicketForm";
 
 export function SupportChatWidget() {
   const {
+    activeConversationId,
     messages,
     isTyping,
     typingUserName,
@@ -30,6 +30,14 @@ export function SupportChatWidget() {
   } = useSupportChat();
 
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+
+  // When no conversation exists yet, the desk is online and ready for the first message
+  const isOnline = isConnected || !activeConversationId;
+  const statusLabel = isConnected
+    ? "Live Stream Connected"
+    : !activeConversationId
+      ? "Live Support Online"
+      : "Connecting...";
 
   if (typeof document === "undefined") return null;
 
@@ -87,14 +95,14 @@ export function SupportChatWidget() {
                     <span>Live Customer Desk</span>
                     <span
                       className={`w-2 h-2 rounded-full ${
-                        isConnected
+                        isOnline
                           ? "bg-emerald-400 animate-pulse"
                           : "bg-amber-400"
                       }`}
                     />
                   </h3>
                   <span className="text-[10px] font-mono text-text-muted">
-                    {isConnected ? "Live Stream Connected" : "Connecting..."}
+                    {statusLabel}
                   </span>
                 </div>
               </div>
@@ -130,7 +138,7 @@ export function SupportChatWidget() {
               typingUserName={typingUserName}
             />
 
-            {/* Input Tray with Drag-and-Drop */}
+            {/* Input Tray */}
             <ChatInputBox
               onSendMessage={sendMessage}
               onTyping={emitTyping}

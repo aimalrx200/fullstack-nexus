@@ -7,16 +7,13 @@ import { logger } from "#config/logger.js";
 const initSSEStream = (req, res, channelName, onCleanup) => {
   let isCleanedUp = false;
 
-  res.writeHead(200, {
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache, no-transform, no-buffer",
-    Connection: "keep-alive",
-    "X-Accel-Buffering": "no",
-    "Content-Encoding": "none",
-  });
-
-  if (typeof res.flushHeaders === "function") {
-    res.flushHeaders();
+  if (!res.headersSent) {
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    });
   }
 
   const safeWrite = (payload) => {
@@ -37,7 +34,6 @@ const initSSEStream = (req, res, channelName, onCleanup) => {
     }
   };
 
-  // Immediate connection confirmation
   safeWrite(
     `event: connected\ndata: ${JSON.stringify({
       status: "connected",
@@ -74,12 +70,12 @@ const initSSEStream = (req, res, channelName, onCleanup) => {
       try {
         res.end();
       } catch {
-        // Already closed
+        // Stream already ended
       }
     }
 
     logger.debug({
-      msg: "SSE connection and resources cleanly evicted",
+      msg: "SSE connection cleanly closed",
       channel: channelName,
     });
   };
@@ -127,7 +123,7 @@ export const streamOrderTracking = async (req, res) => {
 
   const order = await Order.findOne({
     $or: [
-      { _id: orderId.match(/^[0-9a-fA-F]{24}$/) ? orderId : null },
+      { _id: orderId?.match(/^[0-9a-fA-F]{24}$/) ? orderId : null },
       { orderNumber: orderId },
     ].filter(Boolean),
   });
@@ -193,6 +189,16 @@ export const streamChat = async (req, res) => {
     req.query.guestSessionId ||
     req.headers["x-guest-session-id"] ||
     req.query["x-guest-session-id"];
+
+  if (
+    !conversationId ||
+    conversationId === "null" ||
+    conversationId === "undefined"
+  ) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Conversation ID is required." });
+  }
 
   const conversation = await Conversation.findById(conversationId);
   if (!conversation) {
