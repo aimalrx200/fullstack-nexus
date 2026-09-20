@@ -2,9 +2,6 @@ import React, { useEffect, useRef, useMemo } from "react";
 import { format, isToday, isYesterday } from "date-fns";
 import { ShieldCheck, User, Paperclip, Check, CheckCheck } from "lucide-react";
 
-/**
- * Formats date section dividers (e.g. "Today", "Yesterday", "Oct 14, 2026")
- */
 function formatDateDivider(dateString) {
   if (!dateString) return "Recent";
   const date = new Date(dateString);
@@ -16,13 +13,13 @@ function formatDateDivider(dateString) {
 
 export function ChatMessageList({
   messages = [],
-  isTyping,
-  typingUserName,
+  isTyping = false,
+  typingUserName = "",
   isAgentView = false,
 }) {
   const scrollBottomRef = useRef(null);
 
-  // Group messages chronologically with date section headers
+  // Group messages chronologically by date
   const groupedMessages = useMemo(() => {
     const groups = [];
     let currentGroup = null;
@@ -58,27 +55,25 @@ export function ChatMessageList({
           </h4>
           <p className="text-[11px] text-text-muted max-w-xs mx-auto leading-relaxed">
             {isAgentView
-              ? "This customer is connected. Reply directly using the input tray below."
-              : "Ask us about order fulfillment, sizing, dynamic FX rates, or payments."}
+              ? "Customer is connected. Type below to respond in real time."
+              : "Ask about product specs, sizing, orders, or payment assistance."}
           </p>
         </div>
       )}
 
       {/* Date Sections */}
       {groupedMessages.map((group, groupIdx) => (
-        <div key={groupIdx} className="space-y-3">
-          {/* Section Date Pill Divider */}
-          <div className="flex items-center justify-center my-3">
+        <div key={groupIdx} className="space-y-4">
+          <div className="flex items-center justify-center my-2">
             <span className="px-3 py-1 rounded-full bg-surface-elevated/90 border border-border-subtle text-[10px] font-mono text-text-muted shadow-xs">
               {group.date}
             </span>
           </div>
 
-          {/* Messages in this section */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             {group.items.map((msg, idx) => {
-              // In Agent View: Admin is "Me" (Right), Customer is "Other" (Left)
-              // In Customer View: Customer is "Me" (Right), Admin is "Other" (Left)
+              // IN AGENT VIEW: Admin is "Me" (Right), Customer is "Other" (Left)
+              // IN STOREFRONT VIEW: Customer is "Me" (Right), Admin is "Other" (Left)
               const isMe = isAgentView
                 ? msg.senderType === "admin"
                 : msg.senderType === "customer";
@@ -94,10 +89,6 @@ export function ChatMessageList({
                 );
               }
 
-              const nextMsg = group.items[idx + 1];
-              const isLastInSequence =
-                !nextMsg || nextMsg.senderType !== msg.senderType;
-
               return (
                 <div
                   key={msg._id || idx}
@@ -105,51 +96,43 @@ export function ChatMessageList({
                     isMe ? "justify-end" : "justify-start"
                   } animate-in fade-in duration-150`}
                 >
-                  {/* Left Avatar for Other Person (shown on last message of sequence) */}
+                  {/* Avatar Icon for the Other party */}
                   {!isMe && (
-                    <div className="w-7 h-7 rounded-xl bg-surface-elevated border border-border-main flex items-center justify-center text-text-muted shrink-0 text-xs font-mono font-bold shadow-xs">
-                      {isLastInSequence ? (
-                        msg.senderType === "admin" ? (
-                          <ShieldCheck className="w-4 h-4 text-brand-primary" />
-                        ) : (
-                          <User className="w-3.5 h-3.5" />
-                        )
+                    <div className="w-7 h-7 rounded-xl bg-surface-elevated border border-border-main flex items-center justify-center text-text-muted shrink-0 shadow-xs mb-1">
+                      {msg.senderType === "admin" ? (
+                        <ShieldCheck className="w-4 h-4 text-brand-primary" />
                       ) : (
-                        <div className="w-7" />
+                        <User className="w-3.5 h-3.5 text-amber-400" />
                       )}
                     </div>
                   )}
 
-                  {/* Message Bubble Container */}
+                  {/* Message Bubble */}
                   <div
-                    className={`max-w-[75%] sm:max-w-[65%] space-y-1 ${isMe ? "items-end" : "items-start"}`}
+                    className={`max-w-[78%] sm:max-w-[65%] space-y-1 ${isMe ? "items-end text-right" : "items-start text-left"}`}
                   >
-                    {/* Sender Name label for first message in sequence */}
-                    {!isMe &&
-                      (idx === 0 ||
-                        group.items[idx - 1]?.senderType !==
-                          msg.senderType) && (
-                        <span className="text-[10px] font-mono font-semibold text-text-faint px-1">
-                          {msg.senderName ||
-                            (msg.senderType === "admin"
-                              ? "Support Agent"
-                              : "Customer")}
-                        </span>
-                      )}
+                    <span className="text-[10px] font-mono text-text-faint px-1 block">
+                      {isMe
+                        ? isAgentView
+                          ? "You (Support Lead)"
+                          : "You"
+                        : msg.senderName ||
+                          (msg.senderType === "admin"
+                            ? "Support Specialist"
+                            : "Customer")}
+                    </span>
 
                     <div
-                      className={`p-3 rounded-2xl text-xs shadow-xs space-y-1.5 ${
+                      className={`p-3.5 rounded-2xl text-xs shadow-md space-y-1.5 ${
                         isMe
-                          ? "bg-brand-primary text-white rounded-br-xs"
+                          ? "bg-linear-to-r from-blue-600 to-indigo-600 text-white rounded-br-xs border border-blue-500/30"
                           : "bg-surface-elevated text-text-main border border-border-main rounded-bl-xs"
                       }`}
                     >
-                      {/* Message Content */}
-                      <p className="leading-relaxed whitespace-pre-wrap wrap-break-word text-xs">
+                      <p className="leading-relaxed whitespace-pre-wrap wrap-break-word text-xs text-left">
                         {msg.text}
                       </p>
 
-                      {/* File Attachments */}
                       {msg.attachments && msg.attachments.length > 0 && (
                         <div className="space-y-1 pt-1">
                           {msg.attachments.map((att, i) => (
@@ -173,10 +156,12 @@ export function ChatMessageList({
                         </div>
                       )}
 
-                      {/* Timestamp & Read Receipt Tick */}
+                      {/* Timestamp and Delivery Receipt */}
                       <div
-                        className={`flex items-center justify-end gap-1 text-[9px] font-mono pt-0.5 ${
-                          isMe ? "text-white/70" : "text-text-faint"
+                        className={`flex items-center gap-1 text-[9px] font-mono pt-0.5 ${
+                          isMe
+                            ? "justify-end text-white/80"
+                            : "justify-start text-text-faint"
                         }`}
                       >
                         <span>
@@ -186,13 +171,24 @@ export function ChatMessageList({
                         </span>
                         {isMe &&
                           (msg.isRead ? (
-                            <CheckCheck className="w-3 h-3 text-emerald-300" />
+                            <CheckCheck className="w-3.5 h-3.5 text-emerald-300" />
                           ) : (
-                            <Check className="w-3 h-3" />
+                            <Check className="w-3.5 h-3.5 text-white/70" />
                           ))}
                       </div>
                     </div>
                   </div>
+
+                  {/* Avatar Icon for Me on the Right */}
+                  {isMe && (
+                    <div className="w-7 h-7 rounded-xl bg-brand-primary/20 border border-brand-primary/40 flex items-center justify-center text-brand-primary shrink-0 shadow-xs mb-1">
+                      {isAgentView ? (
+                        <ShieldCheck className="w-4 h-4 text-brand-primary" />
+                      ) : (
+                        <User className="w-3.5 h-3.5 text-brand-primary" />
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -204,13 +200,13 @@ export function ChatMessageList({
       {isTyping && (
         <div className="flex items-center gap-2 text-left animate-in fade-in">
           <div className="w-7 h-7 rounded-xl bg-surface-elevated border border-border-main flex items-center justify-center text-text-muted shrink-0 text-xs">
-            <User className="w-3.5 h-3.5" />
+            <User className="w-3.5 h-3.5 text-amber-400" />
           </div>
-          <div className="px-3 py-2 rounded-2xl bg-surface-elevated border border-border-main text-text-muted text-xs flex items-center gap-1.5">
+          <div className="px-3.5 py-2 rounded-2xl bg-surface-elevated border border-border-main text-text-muted text-xs flex items-center gap-2 shadow-xs">
             <span className="text-[11px] font-mono text-text-muted">
-              {typingUserName || "User"} is typing
+              {typingUserName || "Customer"} is typing
             </span>
-            <span className="flex gap-0.5 items-center">
+            <span className="flex gap-1 items-center">
               <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-bounce [animation-delay:-0.3s]" />
               <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-bounce [animation-delay:-0.15s]" />
               <span className="w-1.5 h-1.5 rounded-full bg-brand-primary animate-bounce" />

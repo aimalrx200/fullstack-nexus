@@ -3,7 +3,6 @@ import { format } from "date-fns";
 import {
   MessageSquare,
   User,
-  Sparkles,
   Search,
   UserCheck,
   Smartphone,
@@ -52,7 +51,7 @@ export function ConversationList({
           <Search className="w-3.5 h-3.5 text-text-faint absolute left-2.5 top-1/2 -translate-y-1/2" />
         </div>
 
-        {/* Segmented Filter Pills: All | VIP Customers | Guests */}
+        {/* Filter Pills */}
         <div className="grid grid-cols-3 p-0.5 rounded-lg bg-surface-elevated border border-border-subtle text-[11px] font-medium">
           <button
             type="button"
@@ -105,6 +104,8 @@ export function ConversationList({
           conversations.map((conv) => {
             const isSelected = conv._id === selectedId;
             const isGuest = !conv.customerId;
+            // WhatsApp rule: badge only renders if thread is NOT currently open
+            const showUnreadBadge = !isSelected && conv.unreadCountAdmin > 0;
 
             return (
               <button
@@ -113,11 +114,10 @@ export function ConversationList({
                 onClick={() => onSelect(conv._id)}
                 className={`w-full p-3.5 text-left transition-all flex items-start gap-3 cursor-pointer ${
                   isSelected
-                    ? "bg-brand-primary/10 border-l-3 border-brand-primary shadow-inner"
+                    ? "bg-brand-primary/10 border-l-4 border-brand-primary shadow-inner"
                     : "hover:bg-surface-elevated/70"
                 }`}
               >
-                {/* Avatar with Guest vs VIP Badge */}
                 <div
                   className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 text-xs font-bold font-mono ${
                     isGuest
@@ -139,16 +139,17 @@ export function ConversationList({
                         {conv.customerName ||
                           (isGuest ? "Guest Shopper" : "Customer")}
                       </h4>
-                      {isGuest ? (
-                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 font-bold shrink-0">
-                          GUEST
-                        </span>
-                      ) : (
-                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-bold shrink-0">
-                          VIP
-                        </span>
-                      )}
+                      <span
+                        className={`text-[9px] font-mono px-1.5 py-0.5 rounded-md font-bold shrink-0 ${
+                          isGuest
+                            ? "bg-amber-500/10 border border-amber-500/20 text-amber-400"
+                            : "bg-indigo-500/10 border border-indigo-500/20 text-indigo-400"
+                        }`}
+                      >
+                        {isGuest ? "GUEST" : "VIP"}
+                      </span>
                     </div>
+
                     <span className="text-[10px] font-mono text-text-faint shrink-0 ml-1">
                       {conv.lastMessageAt
                         ? format(new Date(conv.lastMessageAt), "HH:mm")
@@ -161,8 +162,8 @@ export function ConversationList({
                   </p>
                 </div>
 
-                {conv.unreadCountAdmin > 0 && (
-                  <span className="min-w-5 h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold font-mono flex items-center justify-center animate-pulse">
+                {showUnreadBadge && (
+                  <span className="min-w-5 h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold font-mono flex items-center justify-center animate-pulse shrink-0">
                     {conv.unreadCountAdmin}
                   </span>
                 )}

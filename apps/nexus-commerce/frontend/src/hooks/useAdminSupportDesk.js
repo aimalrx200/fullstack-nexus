@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supportApi } from "../lib/api/supportApi";
 import { queryKeys } from "../lib/api/queryKeys";
@@ -15,7 +15,11 @@ export function useAdminSupportDesk() {
   const [customerTypeFilter, setCustomerTypeFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 1. Fetch conversations list with 3-second adaptive background polling
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingUserName, setTypingUserName] = useState("");
+  const typingTimerRef = useRef(null);
+
+  // 1. Fetch conversations list
   const { data, isLoading: isListLoading } = useQuery({
     queryKey: queryKeys.support.adminConversations({
       status: conversationStatusFilter,
@@ -28,29 +32,32 @@ export function useAdminSupportDesk() {
         type: customerTypeFilter,
         search: searchQuery,
       }),
-    staleTime: 2000,
-    refetchInterval: 3000, // 👈 Auto-polls in background every 3s as failover
-    refetchIntervalInBackground: false,
+    staleTime: 5000,
+    refetchOnWindowFocus: false,
   });
 
   const conversations = useMemo(
     () => data?.conversations ?? [],
     [data?.conversations],
   );
-  const activeId = selectedConversationId ?? conversations[0]?._id ?? null;
 
-  // 2. Fetch messages for the ACTIVE conversation with 2.5s polling
+  // STABLE SELECTION: Default to first item ONLY ONCE on mount without hijacking when new messages arrive
+  const activeId = useMemo(() => {
+    if (selectedConversationId) return selectedConversationId;
+    return conversations[0]?._id ?? null;
+  }, [selectedConversationId, conversations]);
+
+  // 2. Fetch messages for the ACTIVE conversation
   const { data: activeThreadData, isLoading: isThreadLoading } = useQuery({
     queryKey: ["support", "conversation", activeId],
     queryFn: () => supportApi.getConversationMessages(activeId),
     enabled: Boolean(activeId),
-    staleTime: 1000,
-    refetchInterval: 2500, // 👈 Auto-polls active chat every 2.5s
-    refetchIntervalInBackground: false,
+    staleTime: 5000,
+    refetchOnWindowFocus: false,
   });
 
   const activeConversation = useMemo(() => {
-    if (activeThreadData) {
+    if (activeThreadData?.conversation) {
       return {
         ...activeThreadData.conversation,
         messages: activeThreadData.messages ?? [],
@@ -59,12 +66,13 @@ export function useAdminSupportDesk() {
     return conversations.find((c) => c._id === activeId) ?? null;
   }, [activeThreadData, conversations, activeId]);
 
-  // Click handler that switches conversation AND immediately clears the red unread badge
+  // SELECT CONVERSATION: Instantly clears unread badge in cache and sets selection
   const handleSelectConversation = useCallback(
     (convId) => {
       setSelectedConversationId(convId);
+      setIsTyping(false);
 
-      // Instantly clear the red unread badge in the conversation list cache
+      // Optimistically clear the unread badge in memory
       queryClient.setQueriesData(
         { queryKey: queryKeys.support.all },
         (oldData) => {
@@ -77,15 +85,19 @@ export function useAdminSupportDesk() {
           };
         },
       );
+
+      // Fetch fresh messages
+      queryClient.invalidateQueries({
+        queryKey: ["support", "conversation", convId],
+      });
     },
     [queryClient],
   );
 
-  // 3. Instant Push Listener: Active Conversation Room
+  // 3. Push Listener: Active Conversation Room
   useChatStream(activeId, {
     onMessage: (newMsg) => {
-      playMessageAlert();
-      // Optimistically push to active chat window
+      // Deduplicated message append
       queryClient.setQueryData(["support", "conversation", activeId], (old) => {
         if (!old) return old;
         const exists = old.messages?.some((m) => m._id === newMsg._id);
@@ -95,19 +107,38 @@ export function useAdminSupportDesk() {
           messages: [...(old.messages ?? []), newMsg],
         };
       });
-      // Invalidate list to refresh last message timestamps
-      queryClient.invalidateQueries({ queryKey: queryKeys.support.all });
+
+      // Update sidebar timestamps without changing active conversation
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.support.adminConversations({
+          status: conversationStatusFilter,
+          type: customerTypeFilter,
+          search: searchQuery,
+        }),
+      });
+    },
+    onTyping: (typingData) => {
+      setIsTyping(Boolean(typingData.isTyping));
+      setTypingUserName(typingData.senderName || "Customer");
+
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      if (typingData.isTyping) {
+        typingTimerRef.current = setTimeout(() => {
+          setIsTyping(false);
+        }, 3500);
+      }
     },
   });
 
-  // 4. Instant Push Listener: Global Merchant Support Stream
+  // 4. Push Listener: Global Merchant Stream (New threads and background conversation updates)
   useRealTimeStream({
     channelType: "admin",
     events: {
       "chat:conversation_updated": (payload) => {
-        playMessageAlert();
-        queryClient.invalidateQueries({ queryKey: queryKeys.support.all });
-        if (payload?.conversation?._id === activeId && payload?.lastMessage) {
+        const convId = payload?.conversation?._id;
+
+        // If message belongs to active conversation, append it
+        if (convId === activeId && payload?.lastMessage) {
           queryClient.setQueryData(
             ["support", "conversation", activeId],
             (old) => {
@@ -123,10 +154,26 @@ export function useAdminSupportDesk() {
             },
           );
         }
+
+        // If message is for a background conversation, play sound & update sidebar badge
+        if (
+          convId !== activeId &&
+          payload?.lastMessage?.senderType === "customer"
+        ) {
+          playMessageAlert();
+        }
+
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.support.adminConversations({
+            status: conversationStatusFilter,
+            type: customerTypeFilter,
+            search: searchQuery,
+          }),
+        });
       },
       "chat:new_conversation": () => {
         playMessageAlert();
-        toast.info("💬 New customer support inquiry received!");
+        toast.info("💬 New customer inquiry received!");
         queryClient.invalidateQueries({ queryKey: queryKeys.support.all });
       },
     },
@@ -138,12 +185,21 @@ export function useAdminSupportDesk() {
     onSuccess: (newMsg) => {
       queryClient.setQueryData(["support", "conversation", activeId], (old) => {
         if (!old) return old;
+        const exists = old.messages?.some((m) => m._id === newMsg._id);
+        if (exists) return old;
         return {
           ...old,
           messages: [...(old.messages ?? []), newMsg],
         };
       });
-      queryClient.invalidateQueries({ queryKey: queryKeys.support.all });
+
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.support.adminConversations({
+          status: conversationStatusFilter,
+          type: customerTypeFilter,
+          search: searchQuery,
+        }),
+      });
     },
     onError: (err) => {
       toast.error(err?.response?.data?.message || "Failed to dispatch message");
@@ -176,5 +232,7 @@ export function useAdminSupportDesk() {
     isLoading: isListLoading || isThreadLoading,
     sendAgentMessage,
     isSending: sendMessageMutation.isPending,
+    isTyping,
+    typingUserName,
   };
 }

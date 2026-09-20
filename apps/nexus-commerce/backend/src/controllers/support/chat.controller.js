@@ -3,6 +3,19 @@ import { asyncHandler } from "#utils/asyncHandler.js";
 import { sanitizeInput } from "#utils/sanitize.js";
 import { broadcastChatMessage } from "#websockets/wsBroadcaster.js";
 import { publishEvent } from "#services/pubSubService.js";
+import env from "#config/env.js";
+
+// Helper to reliably check any staff tier (Support Agent, Merchant Admin, Super Admin, Master Owner)
+const checkIsStaff = (user) => {
+  if (!user) return false;
+  const isMasterOwner =
+    user.email?.toLowerCase().trim() ===
+    env.MASTER_OWNER_EMAIL?.toLowerCase().trim();
+  return (
+    isMasterOwner ||
+    ["support_agent", "merchant_admin", "super_admin"].includes(user.role)
+  );
+};
 
 /**
  * Get or create an active support thread for an authenticated shopper or guest.
@@ -47,7 +60,6 @@ export const getOrCreateConversation = asyncHandler(async (req, res) => {
         .trim(),
     });
 
-    // Notify all online merchant admins that a new thread was created
     publishEvent("admin:support_desk", {
       type: "chat:new_conversation",
       data: conversation,
@@ -63,7 +75,7 @@ export const getOrCreateConversation = asyncHandler(async (req, res) => {
 });
 
 /**
- * Load all message history for a specific conversation
+ * Load all message history for a specific conversation and reset unread counters
  * GET /api/v1/support/conversations/:conversationId/messages
  */
 export const getConversationMessages = asyncHandler(async (req, res) => {
@@ -80,19 +92,20 @@ export const getConversationMessages = asyncHandler(async (req, res) => {
       .json({ success: false, message: "Conversation not found." });
   }
 
-  // Fetch all messages belonging to this conversation in chronological order
+  const isStaff = checkIsStaff(req.user);
+
+  // Reset admin unread counter when any staff member opens the thread
+  if (isStaff && conversation.unreadCountAdmin > 0) {
+    conversation.unreadCountAdmin = 0;
+    await conversation.save();
+  } else if (!isStaff && conversation.unreadCountCustomer > 0) {
+    conversation.unreadCountCustomer = 0;
+    await conversation.save();
+  }
+
   const messages = await Message.find({ conversationId })
     .sort({ createdAt: 1 })
     .lean();
-
-  // Reset admin unread counter when admin opens thread
-  if (
-    req.user?.role === "merchant_admin" &&
-    conversation.unreadCountAdmin > 0
-  ) {
-    conversation.unreadCountAdmin = 0;
-    await conversation.save();
-  }
 
   return res.status(200).json({
     success: true,
@@ -107,8 +120,8 @@ export const getConversationMessages = asyncHandler(async (req, res) => {
  */
 export const sendMessage = asyncHandler(async (req, res) => {
   const { conversationId, text, attachments } = req.body;
-  const isAdmin = req.user?.role === "merchant_admin";
-  const senderType = isAdmin ? "admin" : "customer";
+  const isStaff = checkIsStaff(req.user);
+  const senderType = isStaff ? "admin" : "customer";
 
   const conversation = await Conversation.findById(conversationId);
   if (!conversation) {
@@ -117,13 +130,15 @@ export const sendMessage = asyncHandler(async (req, res) => {
       .json({ success: false, message: "Conversation not found." });
   }
 
+  const senderName = isStaff
+    ? req.user?.name || "Support Specialist"
+    : conversation.customerName || "Customer";
+
   const message = await Message.create({
     conversationId,
     senderType,
-    senderId: req.user?.id,
-    senderName: isAdmin
-      ? req.user?.name || "Support Specialist"
-      : conversation.customerName || "Customer",
+    senderId: req.user?.id || null,
+    senderName,
     text: sanitizeInput(text),
     attachments: attachments || [],
   });
@@ -135,15 +150,15 @@ export const sendMessage = asyncHandler(async (req, res) => {
       status: conversation.status === "closed" ? "open" : conversation.status,
       ...(senderType === "customer"
         ? { $inc: { unreadCountAdmin: 1 } }
-        : { $inc: { unreadCountCustomer: 1 } }),
+        : { $set: { unreadCountAdmin: 0 }, $inc: { unreadCountCustomer: 1 } }),
     },
     { new: true },
   ).populate("customerId", "name email avatarUrl");
 
-  // 1. Broadcast message to the specific room (Customer + Active Agent)
+  // 1. Broadcast message to conversation room
   broadcastChatMessage(conversationId, message);
 
-  // 2. Broadcast conversation metadata update to all Admins' inbox desk
+  // 2. Broadcast conversation item update to Admin Inbox list
   publishEvent("admin:support_desk", {
     type: "chat:conversation_updated",
     data: {
@@ -156,7 +171,7 @@ export const sendMessage = asyncHandler(async (req, res) => {
 });
 
 /**
- * Server-Side Paginated Admin Support Inbox with Segmentation (VIP Customers vs Guests)
+ * Server-Side Paginated Admin Support Inbox
  * GET /api/v1/support/conversations
  */
 export const getAllConversations = asyncHandler(async (req, res) => {
@@ -171,7 +186,6 @@ export const getAllConversations = asyncHandler(async (req, res) => {
     query.status = status;
   }
 
-  // Segmentation: Customers (registered) vs Guests (anonymous)
   if (type === "customers") {
     query.customerId = { $ne: null };
   } else if (type === "guests") {

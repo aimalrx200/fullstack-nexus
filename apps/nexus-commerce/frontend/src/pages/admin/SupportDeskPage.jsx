@@ -26,6 +26,8 @@ export function SupportDeskPage() {
     setSearchQuery,
     sendAgentMessage,
     isSending,
+    isTyping,
+    typingUserName,
   } = useAdminSupportDesk();
 
   const resolveMutation = useMutation({
@@ -67,6 +69,8 @@ export function SupportDeskPage() {
           conversation={activeConversation}
           onSendMessage={sendAgentMessage}
           isSending={isSending}
+          isTyping={isTyping}
+          typingUserName={typingUserName}
         />
 
         <CustomerContextSidebar conversation={activeConversation} />

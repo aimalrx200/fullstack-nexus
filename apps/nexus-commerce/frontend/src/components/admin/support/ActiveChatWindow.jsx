@@ -4,7 +4,13 @@ import { ChatInputBox } from "../../storefront/support/ChatInputBox";
 import { CannedResponsePicker } from "./CannedResponsePicker";
 import { ShieldCheck, Smartphone, User } from "lucide-react";
 
-export function ActiveChatWindow({ conversation, onSendMessage, isSending }) {
+export function ActiveChatWindow({
+  conversation,
+  onSendMessage,
+  isSending,
+  isTyping = false,
+  typingUserName = "",
+}) {
   const [draftText, setDraftText] = useState("");
 
   if (!conversation) {
@@ -15,8 +21,7 @@ export function ActiveChatWindow({ conversation, onSendMessage, isSending }) {
         </div>
         <p className="font-semibold text-text-main">No conversation selected</p>
         <p className="text-[11px] text-text-faint">
-          Select a shopper from the left inbox to view their live message
-          history.
+          Select an inquiry from the inbox on the left to start live messaging.
         </p>
       </div>
     );
@@ -46,10 +51,10 @@ export function ActiveChatWindow({ conversation, onSendMessage, isSending }) {
             <div className="flex items-center gap-2">
               <h3 className="text-xs font-bold text-text-main leading-tight">
                 {conversation.customerName ||
-                  (isGuest ? "Guest Shopper" : "VIP Customer")}
+                  (isGuest ? "Guest Shopper" : "Customer")}
               </h3>
               <span
-                className={`text-[9px] font-mono px-1.5 py-0.2 rounded-md font-bold ${
+                className={`text-[9px] font-mono px-1.5 py-0.5 rounded-md font-bold ${
                   isGuest
                     ? "bg-amber-500/10 border border-amber-500/20 text-amber-400"
                     : "bg-indigo-500/10 border border-indigo-500/20 text-indigo-400"
@@ -70,13 +75,15 @@ export function ActiveChatWindow({ conversation, onSendMessage, isSending }) {
         </div>
       </div>
 
-      {/* Messenger Message Feed (isAgentView={true} aligns Agent to Right, Customer to Left) */}
+      {/* Messenger Feed: Agent messages aligned Right, Customer messages aligned Left */}
       <ChatMessageList
         messages={conversation.messages || []}
         isAgentView={true}
+        isTyping={isTyping}
+        typingUserName={typingUserName}
       />
 
-      {/* Canned Responses Toolbar: Inserts template into input instead of instant-send */}
+      {/* Canned Responses Toolbar */}
       <CannedResponsePicker
         onSelectResponse={(templateText) => {
           setDraftText((prev) =>
@@ -85,7 +92,7 @@ export function ActiveChatWindow({ conversation, onSendMessage, isSending }) {
         }}
       />
 
-      {/* Agent Input Tray */}
+      {/* Input Tray */}
       <ChatInputBox
         value={draftText}
         onValueChange={setDraftText}
