@@ -72,8 +72,6 @@ export function ChatMessageList({
 
           <div className="space-y-3">
             {group.items.map((msg, idx) => {
-              // AGENT VIEW: Admin is "Me" (Right), Customer is "Other" (Left)
-              // STOREFRONT VIEW: Customer is "Me" (Right), Admin is "Other" (Left)
               const isMe = isAgentView
                 ? msg.senderType === "admin"
                 : msg.senderType === "customer";
@@ -88,6 +86,8 @@ export function ChatMessageList({
                   </div>
                 );
               }
+
+              const hasText = Boolean(msg.text && msg.text.trim().length > 0);
 
               return (
                 <div
@@ -129,10 +129,14 @@ export function ChatMessageList({
                           : "bg-surface-elevated text-text-main border border-border-main rounded-bl-xs"
                       }`}
                     >
-                      <p className="leading-relaxed whitespace-pre-wrap wrap-break-word text-xs text-left">
-                        {msg.text}
-                      </p>
+                      {/* Text Paragraph (Only rendered if text exists) */}
+                      {hasText && (
+                        <p className="leading-relaxed whitespace-pre-wrap wrap-break-word text-xs text-left">
+                          {msg.text}
+                        </p>
+                      )}
 
+                      {/* Attachments */}
                       {msg.attachments && msg.attachments.length > 0 && (
                         <div className="space-y-1 pt-1">
                           {msg.attachments.map((att, i) => (
@@ -205,7 +209,7 @@ export function ChatMessageList({
         </div>
       ))}
 
-      {/* Real-Time Animated Typing Indicator (Only rendered for the OTHER party) */}
+      {/* Real-Time Animated Typing Indicator */}
       {isTyping && (
         <div className="flex items-center gap-2.5 text-left animate-in fade-in slide-in-from-bottom-2 duration-200 my-2">
           <div className="w-8 h-8 rounded-xl bg-surface-elevated border border-border-main flex items-center justify-center text-text-muted shrink-0 shadow-xs">

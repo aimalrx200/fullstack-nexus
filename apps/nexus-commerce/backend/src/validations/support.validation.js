@@ -2,35 +2,49 @@
 import { z } from "zod";
 import { isPhoneValid, normalizePhoneNumber } from "#utils/phoneUtils.js";
 
-// 1. Live Chat Message Payload Schema
+// 1. Live Chat Message Payload Schema (Valid if text OR attachment is present)
 export const SendMessageSchema = z.object({
-  body: z.object({
-    // Optional/nullable to support first-message on-demand conversation creation
-    conversationId: z.string().nullable().optional(),
-    text: z
-      .string()
-      .min(1, "Message text cannot be empty.")
-      .max(2000, "Message cannot exceed 2000 characters.")
-      .trim(),
-    customerName: z.string().max(60).optional(),
-    customerEmail: z
-      .string()
-      .email("Please provide a valid email address.")
-      .optional()
-      .nullable()
-      .or(z.literal("")),
-    attachments: z
-      .array(
-        z.object({
-          // Accepts both HTTP(S) URLs and Base64 Data URIs from file drops
-          url: z.string().min(1, "Attachment data is required."),
-          fileName: z.string().optional(),
-          fileType: z.string().optional(),
-          fileSize: z.number().optional(),
-        }),
-      )
-      .optional(),
-  }),
+  body: z
+    .object({
+      conversationId: z.string().nullable().optional(),
+      text: z
+        .string()
+        .max(2000, "Message cannot exceed 2000 characters.")
+        .optional()
+        .default(""),
+      customerName: z.string().max(60).optional(),
+      customerEmail: z
+        .string()
+        .email("Please provide a valid email address.")
+        .optional()
+        .nullable()
+        .or(z.literal("")),
+      attachments: z
+        .array(
+          z.object({
+            url: z.string().min(1, "Attachment data is required."),
+            fileName: z.string().optional(),
+            fileType: z.string().optional(),
+            fileSize: z.number().optional(),
+          }),
+        )
+        .optional()
+        .default([]),
+    })
+    .superRefine((data, ctx) => {
+      const hasText = Boolean(data.text && data.text.trim().length > 0);
+      const hasAttachments = Boolean(
+        data.attachments && data.attachments.length > 0,
+      );
+
+      if (!hasText && !hasAttachments) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["text"],
+          message: "Please enter a message or attach a file.",
+        });
+      }
+    }),
 });
 
 // 2. Create Offline Support Ticket Schema

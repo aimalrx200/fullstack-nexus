@@ -20,6 +20,9 @@ export const supportChatSlice = createSlice({
     setChatMessages: (state, action) => {
       state.messages = action.payload;
     },
+    setUnreadCount: (state, action) => {
+      state.unreadCount = Number(action.payload) || 0;
+    },
     appendChatMessage: (state, action) => {
       const exists = state.messages.some((m) => m._id === action.payload._id);
       if (!exists) {
@@ -52,6 +55,7 @@ export const supportChatSlice = createSlice({
 export const {
   setActiveConversation,
   setChatMessages,
+  setUnreadCount,
   appendChatMessage,
   markAllOwnMessagesRead,
   setTypingIndicator,

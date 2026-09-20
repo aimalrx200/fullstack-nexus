@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   setActiveConversation,
   setChatMessages,
+  setUnreadCount,
   appendChatMessage,
   markAllOwnMessagesRead,
   setTypingIndicator,
@@ -35,7 +36,7 @@ export function useSupportChat() {
   const typingTimeoutRef = useRef(null);
   const receiveTypingTimerRef = useRef(null);
 
-  // 1. Fetch active conversation only when widget is open
+  // 1. Check on mount if an existing conversation has unread messages
   const { isLoading: isConversationLoading, refetch: refetchConversation } =
     useQuery({
       queryKey: queryKeys.support.conversation(user?.id || "guest"),
@@ -44,17 +45,26 @@ export function useSupportChat() {
           customerName: user?.name || "Shopper",
           customerEmail: user?.email || "guest@nexus.io",
         });
+
         if (data?.conversation?._id) {
           dispatch(setActiveConversation(data.conversation._id));
           dispatch(setChatMessages(data.messages || []));
+
+          // Set unread count badge on mount if the chat widget is currently closed
+          if (
+            !isWidgetOpen &&
+            typeof data.conversation.unreadCountCustomer === "number"
+          ) {
+            dispatch(setUnreadCount(data.conversation.unreadCountCustomer));
+          }
         }
         return data;
       },
-      enabled: isWidgetOpen && !isStaff,
-      staleTime: 5000,
+      enabled: !isStaff, // Queries on mount for shoppers without writing empty records to DB
+      staleTime: 30000,
     });
 
-  // 2. Real-Time Chat Stream (Receives Messages, Typing, and Read Receipts)
+  // 2. Real-Time Chat Stream
   const { isConnected } = useChatStream(activeConversationId, {
     onMessage: (msg) => {
       dispatch(appendChatMessage(msg));
@@ -64,14 +74,12 @@ export function useSupportChat() {
       }
     },
     onTyping: (typingData) => {
-      // ONLY show typing if the OTHER party (admin) is typing
       if (typingData.senderType === "admin") {
         dispatch(setTypingIndicator(typingData));
 
         if (receiveTypingTimerRef.current)
           clearTimeout(receiveTypingTimerRef.current);
         if (typingData.isTyping) {
-          // Auto-clear indicator after 3.5s of no updates
           receiveTypingTimerRef.current = setTimeout(() => {
             dispatch(setTypingIndicator({ isTyping: false, senderName: "" }));
           }, 3500);
@@ -107,7 +115,7 @@ export function useSupportChat() {
     },
   });
 
-  // 4. Typing Indicator (With automatic 2.5s stop-typing debounce)
+  // 4. Typing Indicator
   const emitTyping = useCallback(
     (typingState) => {
       if (!activeConversationId) return;

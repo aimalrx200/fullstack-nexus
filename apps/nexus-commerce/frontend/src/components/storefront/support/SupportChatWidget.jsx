@@ -32,8 +32,6 @@ export function SupportChatWidget() {
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
 
   const isOnline = isConnected || !activeConversationId;
-
-  // Header subtitle switches to "Aimal is typing..." if admin is typing
   const statusLabel = isTyping
     ? `${typingUserName || "Agent"} is typing...`
     : isConnected
@@ -41,6 +39,9 @@ export function SupportChatWidget() {
       : !activeConversationId
         ? "Live Support Online"
         : "Reconnecting to live channel...";
+
+  // Format badge overflow (e.g. 10 becomes '9+')
+  const badgeDisplay = unreadCount > 9 ? "9+" : unreadCount;
 
   if (typeof document === "undefined") return null;
 
@@ -61,10 +62,10 @@ export function SupportChatWidget() {
           >
             <MessageSquare className="w-6 h-6" />
 
-            {/* Unread Counter Badge */}
+            {/* Unread Counter Badge (Capped at 9+) */}
             {unreadCount > 0 && (
               <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-mono font-bold flex items-center justify-center shadow-md animate-bounce">
-                {unreadCount}
+                {badgeDisplay}
               </span>
             )}
 

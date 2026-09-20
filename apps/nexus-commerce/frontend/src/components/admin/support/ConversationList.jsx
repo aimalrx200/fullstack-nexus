@@ -74,7 +74,7 @@ export function ConversationList({
                 : "text-text-muted hover:text-text-main"
             }`}
           >
-            <UserCheck className="w-3 h-3" />
+            <UserCheck className="w-3.5 h-3.5" />
             <span>VIP</span>
           </button>
           <button
@@ -86,7 +86,7 @@ export function ConversationList({
                 : "text-text-muted hover:text-text-main"
             }`}
           >
-            <Smartphone className="w-3 h-3" />
+            <Smartphone className="w-3.5 h-3.5" />
             <span>Guests</span>
           </button>
         </div>
@@ -105,9 +105,9 @@ export function ConversationList({
           conversations.map((conv) => {
             const isSelected = conv._id === selectedId;
             const isGuest = !conv.customerId;
-            // Badge only appears on unselected conversations with pending messages
-            const showUnreadBadge =
-              !isSelected && (conv.unreadCountAdmin || 0) > 0;
+            const count = conv.unreadCountAdmin || 0;
+            const showUnreadBadge = !isSelected && count > 0;
+            const badgeDisplay = count > 99 ? "99+" : count;
 
             return (
               <button
@@ -166,7 +166,7 @@ export function ConversationList({
 
                 {showUnreadBadge && (
                   <span className="min-w-5 h-5 px-1.5 rounded-full bg-rose-500 text-white text-[10px] font-bold font-mono flex items-center justify-center animate-pulse shrink-0">
-                    {conv.unreadCountAdmin}
+                    {badgeDisplay}
                   </span>
                 )}
               </button>

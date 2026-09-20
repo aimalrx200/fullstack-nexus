@@ -1,3 +1,4 @@
+// apps/nexus-commerce/backend/src/models/Message.js
 import mongoose from "mongoose";
 
 const messageAttachmentSchema = new mongoose.Schema({
@@ -30,7 +31,7 @@ const messageSchema = new mongoose.Schema(
     },
     text: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
     },
     attachments: [messageAttachmentSchema],
@@ -43,6 +44,21 @@ const messageSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
+
+// Ensures message contains either text or at least one attachment
+messageSchema.pre("validate", function () {
+  const hasText = Boolean(this.text && this.text.trim().length > 0);
+  const hasAttachments = Boolean(
+    this.attachments && this.attachments.length > 0,
+  );
+
+  if (!hasText && !hasAttachments) {
+    this.invalidate(
+      "text",
+      "A message must contain either text or an attachment.",
+    );
+  }
+});
 
 messageSchema.index({ conversationId: 1, createdAt: 1 });
 
