@@ -21,7 +21,7 @@ export function ConversationList({
   onSearchChange,
 }) {
   return (
-    <div className="w-full sm:w-88 bg-surface-card border-r border-border-main flex flex-col h-full shrink-0">
+    <div className="w-full bg-surface-card flex flex-col h-full shrink-0">
       {/* Header & Status Dropdown */}
       <div className="p-3.5 border-b border-border-subtle space-y-3">
         <div className="flex items-center justify-between">
@@ -74,7 +74,7 @@ export function ConversationList({
                 : "text-text-muted hover:text-text-main"
             }`}
           >
-            <UserCheck className="w-3.5 h-3.5" />
+            <UserCheck className="w-3 h-3" />
             <span>VIP</span>
           </button>
           <button
@@ -86,7 +86,7 @@ export function ConversationList({
                 : "text-text-muted hover:text-text-main"
             }`}
           >
-            <Smartphone className="w-3.5 h-3.5" />
+            <Smartphone className="w-3 h-3" />
             <span>Guests</span>
           </button>
         </div>

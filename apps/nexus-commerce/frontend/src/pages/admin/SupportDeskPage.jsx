@@ -13,6 +13,7 @@ import { toast } from "sonner";
 export function SupportDeskPage() {
   const queryClient = useQueryClient();
   const [resolvingTicket, setResolvingTicket] = useState(null);
+  const [isMobileContextOpen, setIsMobileContextOpen] = useState(false);
 
   const {
     conversations,
@@ -43,40 +44,68 @@ export function SupportDeskPage() {
   });
 
   return (
-    <div className="space-y-4 animate-in fade-in">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-text-main tracking-tight">
-          3-Pane Live Support Control Desk
-        </h1>
-        <p className="text-xs text-text-muted">
-          Real-time customer messaging, active bag inspection, and segmented
-          guest/customer routing.
-        </p>
+    <div className="space-y-3.5 animate-in fade-in w-full">
+      {/* Page Header */}
+      <div className="px-1 flex items-center justify-between">
+        <div>
+          <h1 className="text-lg sm:text-2xl font-bold text-text-main tracking-tight">
+            Live Support Control Desk
+          </h1>
+          <p className="text-[11px] sm:text-xs text-text-muted">
+            Real-time customer messaging, active bag inspection, and segmented
+            guest/customer routing.
+          </p>
+        </div>
       </div>
 
-      <div className="h-[78vh] rounded-3xl bg-surface-card border border-border-main overflow-hidden flex shadow-2xl">
-        <ConversationList
-          conversations={conversations}
-          selectedId={selectedConversationId}
-          onSelect={setSelectedConversationId}
-          statusFilter={conversationStatusFilter}
-          onStatusFilterChange={setConversationStatusFilter}
-          customerTypeFilter={customerTypeFilter}
-          onCustomerTypeFilterChange={setCustomerTypeFilter}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-        />
+      {/* Master Multi-Pane Shell */}
+      <div className="h-[calc(100dvh-9.5rem)] sm:h-[calc(100dvh-8rem)] min-h-[540px] rounded-2xl sm:rounded-3xl bg-surface-card border border-border-main overflow-hidden flex shadow-2xl relative w-full">
+        {/* Pane 1: Conversation List (Full width on mobile when no chat is open, 340px on desktop) */}
+        <div
+          className={`${
+            selectedConversationId ? "hidden lg:flex" : "flex"
+          } w-full lg:w-80 xl:w-92 shrink-0 h-full border-r border-border-main`}
+        >
+          <ConversationList
+            conversations={conversations}
+            selectedId={selectedConversationId}
+            onSelect={(id) => {
+              setSelectedConversationId(id);
+              setIsMobileContextOpen(false);
+            }}
+            statusFilter={conversationStatusFilter}
+            onStatusFilterChange={setConversationStatusFilter}
+            customerTypeFilter={customerTypeFilter}
+            onCustomerTypeFilterChange={setCustomerTypeFilter}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+          />
+        </div>
 
-        <ActiveChatWindow
+        {/* Pane 2: Active Chat Window (Full width on mobile when selected, flex-1 on desktop) */}
+        <div
+          className={`${
+            selectedConversationId ? "flex" : "hidden lg:flex"
+          } flex-1 min-w-0 h-full flex-col`}
+        >
+          <ActiveChatWindow
+            conversation={activeConversation}
+            onSendMessage={sendAgentMessage}
+            onTyping={emitAgentTyping}
+            onBack={() => setSelectedConversationId(null)}
+            onToggleContext={() => setIsMobileContextOpen(!isMobileContextOpen)}
+            isSending={isSending}
+            isTyping={isTyping}
+            typingUserName={typingUserName}
+          />
+        </div>
+
+        {/* Pane 3: Shopper Context Sidebar (Always visible on xl screens, drawer modal on smaller screens) */}
+        <CustomerContextSidebar
           conversation={activeConversation}
-          onSendMessage={sendAgentMessage}
-          onTyping={emitAgentTyping}
-          isSending={isSending}
-          isTyping={isTyping}
-          typingUserName={typingUserName}
+          isOpenMobile={isMobileContextOpen}
+          onCloseMobile={() => setIsMobileContextOpen(false)}
         />
-
-        <CustomerContextSidebar conversation={activeConversation} />
       </div>
 
       {resolvingTicket && (
