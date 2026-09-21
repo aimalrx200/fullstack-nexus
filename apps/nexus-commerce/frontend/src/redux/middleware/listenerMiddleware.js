@@ -1,5 +1,5 @@
 import { createListenerMiddleware } from "@reduxjs/toolkit";
-import { setTheme, toggleTheme } from "../slices/themeSlice";
+import { setTheme, toggleTheme, applyThemeToDOM } from "../slices/themeSlice";
 import { setCurrency, toggleCurrency } from "../slices/currencySlice";
 import { pushLiveOrder } from "../slices/adminStreamSlice";
 import { appendChatMessage } from "../slices/supportChatSlice";
@@ -16,18 +16,7 @@ listenerMiddleware.startListening({
   effect: (action) => {
     const theme = action.payload;
     localStorage.setItem(STORAGE_KEYS.THEME, theme);
-    const root = document.documentElement;
-
-    if (theme === THEMES.DARK) {
-      root.classList.add("dark");
-    } else if (theme === THEMES.LIGHT) {
-      root.classList.remove("dark");
-    } else {
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)",
-      ).matches;
-      root.classList.toggle("dark", prefersDark);
-    }
+    applyThemeToDOM(theme);
   },
 });
 
@@ -35,7 +24,8 @@ listenerMiddleware.startListening({
   actionCreator: toggleTheme,
   effect: (_action, listenerApi) => {
     const current = listenerApi.getState().theme.currentTheme;
-    listenerApi.dispatch(setTheme(current));
+    const next = current === THEMES.DARK ? THEMES.LIGHT : THEMES.DARK;
+    listenerApi.dispatch(setTheme(next));
   },
 });
 

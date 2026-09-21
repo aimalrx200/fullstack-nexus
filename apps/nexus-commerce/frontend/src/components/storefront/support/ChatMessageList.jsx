@@ -1,5 +1,6 @@
 // apps/nexus-commerce/frontend/src/components/storefront/support/ChatMessageList.jsx
 import React, { useEffect, useRef, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { format, isToday, isYesterday } from "date-fns";
 import {
   ShieldCheck,
@@ -49,6 +50,26 @@ export function ChatMessageList({
   useEffect(() => {
     scrollBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
+
+  // Trap Escape key & lock body scrolling when attachment lightbox is open
+  useEffect(() => {
+    if (!previewAttachment) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setPreviewAttachment(null);
+      }
+    };
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [previewAttachment]);
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 custom-scrollbar bg-surface-app/40 relative">
@@ -119,7 +140,9 @@ export function ChatMessageList({
 
                   {/* Message Bubble Container */}
                   <div
-                    className={`max-w-[85%] sm:max-w-[70%] space-y-1 ${isMe ? "items-end text-right" : "items-start text-left"}`}
+                    className={`max-w-[85%] sm:max-w-[70%] space-y-1 ${
+                      isMe ? "items-end text-right" : "items-start text-left"
+                    }`}
                   >
                     <span className="text-[10px] font-mono text-text-faint px-1 block">
                       {isMe
@@ -202,7 +225,7 @@ export function ChatMessageList({
                         </div>
                       )}
 
-                      {/* Timestamp & High-Contrast Read Receipts */}
+                      {/* Timestamp & Read Receipts */}
                       <div
                         className={`flex items-center gap-1.5 text-[9px] font-mono pt-0.5 ${
                           isMe
@@ -251,7 +274,7 @@ export function ChatMessageList({
         </div>
       ))}
 
-      {/* Real-Time Animated Typing Indicator */}
+      {/* Real-Time Typing Indicator */}
       {isTyping && (
         <div className="flex items-center gap-2.5 text-left animate-in fade-in slide-in-from-bottom-2 duration-200 my-2">
           <div className="w-8 h-8 rounded-xl bg-surface-elevated border border-border-main flex items-center justify-center text-text-muted shrink-0 shadow-xs">
@@ -276,55 +299,58 @@ export function ChatMessageList({
         </div>
       )}
 
-      {/* Fullscreen Attachment Lightbox Modal */}
-      {previewAttachment && (
-        <div
-          className="fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-6 bg-black/90 backdrop-blur-md animate-in fade-in duration-200"
-          onClick={() => setPreviewAttachment(null)}
-        >
+      {/* Fullscreen Attachment Lightbox (Portaled to document.body) */}
+      {previewAttachment &&
+        typeof document !== "undefined" &&
+        createPortal(
           <div
-            className="relative max-w-4xl max-h-[92vh] flex flex-col items-center gap-3 w-full"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-100 flex items-center justify-center p-3 sm:p-6 md:p-8 bg-black/90 backdrop-blur-md animate-in fade-in duration-200 select-none"
+            onClick={() => setPreviewAttachment(null)}
           >
-            {/* Top Action Bar */}
-            <div className="w-full flex items-center justify-between text-white px-1">
-              <span className="text-xs font-mono truncate max-w-xs sm:max-w-md">
-                {previewAttachment.fileName || "Attachment Preview"}
-              </span>
-              <div className="flex items-center gap-2">
-                <a
-                  href={previewAttachment.url}
-                  download={
-                    previewAttachment.fileName || "nexus_attachment.jpg"
-                  }
-                  className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
-                  title="Download File"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Download</span>
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setPreviewAttachment(null)}
-                  className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
-                  title="Close Preview"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+            <div
+              className="relative w-full max-w-6xl h-full max-h-[95dvh] flex flex-col items-center justify-between gap-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Top Action Bar */}
+              <div className="w-full flex items-center justify-between text-white px-3 py-2 shrink-0 bg-surface-card/70 backdrop-blur-md rounded-2xl border border-white/10 shadow-lg">
+                <span className="text-xs font-mono font-medium truncate max-w-xs sm:max-w-md">
+                  {previewAttachment.fileName || "Attachment Preview"}
+                </span>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={previewAttachment.url}
+                    download={
+                      previewAttachment.fileName || "nexus_attachment.jpg"
+                    }
+                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer"
+                    title="Download File"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Download</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewAttachment(null)}
+                    className="p-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+                    title="Close Preview (Esc)"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Full Viewport Image Container */}
+              <div className="flex-1 w-full rounded-2xl overflow-hidden border border-white/10 bg-slate-950/85 flex items-center justify-center p-2 sm:p-4 shadow-2xl min-h-0">
+                <img
+                  src={previewAttachment.url}
+                  alt={previewAttachment.fileName || "Attachment preview"}
+                  className="w-auto h-auto max-w-full max-h-full object-contain select-none rounded-lg"
+                />
               </div>
             </div>
-
-            {/* Lightbox Image Viewport */}
-            <div className="rounded-2xl overflow-hidden border border-white/10 bg-slate-950 flex items-center justify-center max-h-[82vh] w-full shadow-2xl">
-              <img
-                src={previewAttachment.url}
-                alt={previewAttachment.fileName || "Attachment preview"}
-                className="max-h-[82vh] w-auto max-w-full object-contain select-none"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
 
       <div ref={scrollBottomRef} />
     </div>

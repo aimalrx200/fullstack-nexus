@@ -1,8 +1,13 @@
+// apps/nexus-commerce/frontend/src/components/common/ThemeSelector.jsx
 import React from "react";
 import { Sun, Moon, Laptop } from "lucide-react";
 import { useTheme } from "../../hooks/useTheme";
 
-export function ThemeSelector({ className = "" }) {
+export function ThemeSelector({
+  className = "",
+  showLabels = false, // 👈 Clean icon-only default for popovers/toolbars
+  compact = false,
+}) {
   const { theme, setTheme, THEMES } = useTheme();
 
   const options = [
@@ -13,7 +18,7 @@ export function ThemeSelector({ className = "" }) {
 
   return (
     <div
-      className={`inline-flex items-center p-1 rounded-xl bg-surface-elevated border border-border-main shadow-inner ${className}`}
+      className={`inline-flex items-center p-1 rounded-xl bg-surface-elevated border border-border-main shadow-inner shrink-0 ${className}`}
       role="radiogroup"
       aria-label="Select Color Theme"
     >
@@ -23,7 +28,9 @@ export function ThemeSelector({ className = "" }) {
           <button
             key={value}
             onClick={() => setTheme(value)}
-            className={`min-h-8.5 px-2 min-[962px]:px-3 rounded-lg flex items-center justify-center gap-1.5 text-xs font-medium transition-all cursor-pointer ${
+            className={`min-h-8 min-w-8 ${
+              showLabels && !compact ? "px-2.5" : "px-2"
+            } rounded-lg flex items-center justify-center gap-1.5 text-xs font-medium transition-all cursor-pointer ${
               isActive
                 ? "bg-surface-card text-text-main shadow-xs border border-border-subtle font-semibold"
                 : "text-text-muted hover:text-text-main"
@@ -34,8 +41,7 @@ export function ThemeSelector({ className = "" }) {
             title={`${label} Mode`}
           >
             <Icon className="w-3.5 h-3.5 shrink-0" />
-            {/* Hidden on < 962px, Visible on >= 962px */}
-            <span className="hidden min-[962px]:inline text-xs">{label}</span>
+            {showLabels && !compact && <span className="text-xs">{label}</span>}
           </button>
         );
       })}
