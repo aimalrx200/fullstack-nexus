@@ -1,10 +1,13 @@
+// apps/nexus-commerce/frontend/src/pages/storefront/AccountPage.jsx
+
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../hooks/useAuth";
 import { orderApi } from "../../lib/api/orderApi";
 import { queryKeys } from "../../lib/api/queryKeys";
-import { User, Package, MapPin, ShieldCheck } from "lucide-react";
+import { Package } from "lucide-react";
 import { OrderSummaryCard } from "../../components/storefront/orders/OrderSummaryCard";
+import { OrderCardSkeleton } from "../../components/feedback/OrderCardSkeleton";
 import { Badge } from "../../components/common/Badge";
 
 export function AccountPage() {
@@ -47,9 +50,7 @@ export function AccountPage() {
         </h2>
 
         {isLoading ? (
-          <div className="py-10 text-center text-xs text-text-muted font-mono">
-            Loading order history...
-          </div>
+          <OrderCardSkeleton count={4} />
         ) : data?.orders?.length === 0 ? (
           <div className="p-8 rounded-2xl bg-surface-card border border-border-main text-center text-xs text-text-muted font-mono">
             You have not placed any orders yet.

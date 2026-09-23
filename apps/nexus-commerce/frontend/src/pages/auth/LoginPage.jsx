@@ -1,4 +1,5 @@
-import React from "react";
+// apps/nexus-commerce/frontend/src/pages/auth/LoginPage.jsx
+
 import { useNavigate } from "react-router";
 import { LoginForm } from "../../components/auth/LoginForm";
 
@@ -7,7 +8,6 @@ export function LoginPage() {
 
   return (
     <LoginForm
-      onSuccess={() => navigate("/")}
       onSwitchToRegister={() => navigate("/register")}
       onSwitchToForgot={() => navigate("/forgot-password")}
     />

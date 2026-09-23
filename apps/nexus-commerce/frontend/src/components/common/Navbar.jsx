@@ -1,3 +1,5 @@
+// apps/nexus-commerce/frontend/src/components/common/Navbar.jsx
+
 import React, { useState, useEffect } from "react";
 import {
   ShoppingBag,
@@ -14,9 +16,50 @@ import { useAuth } from "../../hooks/useAuth";
 import { useCart } from "../../hooks/useCart";
 import { ThemeSelector } from "./ThemeSelector";
 import { CurrencySwitcher } from "./CurrencySwitcher";
+import { getRoleDefaultRoute } from "../../lib/auth/rbacNav";
+
+// Adaptive Avatar Helper for Google, OAuth, Passkey, and fallback initials
+function StorefrontUserAvatar({ user, size = "w-6 h-6" }) {
+  const [imgError, setImgError] = useState(false);
+  const avatarSrc =
+    user?.avatarUrl || user?.picture || user?.avatar || user?.image;
+  const initial = user?.name
+    ? user.name[0].toUpperCase()
+    : user?.email
+      ? user.email[0].toUpperCase()
+      : "U";
+
+  if (avatarSrc && !imgError) {
+    return (
+      <img
+        src={avatarSrc}
+        alt={user?.name || "User Avatar"}
+        referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
+        onError={() => setImgError(true)}
+        className={`${size} rounded-full object-cover border border-brand-primary/30 shrink-0 shadow-xs`}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`${size} rounded-full bg-brand-primary/10 border border-brand-primary/30 flex items-center justify-center text-brand-primary font-mono text-[11px] font-bold shrink-0 select-none`}
+    >
+      {initial}
+    </div>
+  );
+}
 
 export function Navbar({ onOpenAuthModal }) {
-  const { user, isAuthenticated, isStaff, isMerchantAdmin, logout } = useAuth();
+  const {
+    user,
+    isAuthenticated,
+    isInitialized,
+    isStaff,
+    isMerchantAdmin,
+    logout,
+  } = useAuth();
   const { itemCount, openCart } = useCart();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
@@ -34,8 +77,8 @@ export function Navbar({ onOpenAuthModal }) {
     }
   }, [isMobileMenuOpen]);
 
-  // Determine appropriate staff navigation label and path
-  const staffLinkPath = isMerchantAdmin ? "/admin" : "/admin/support";
+  // Determine appropriate staff navigation label and path based on role
+  const staffLinkPath = isStaff ? getRoleDefaultRoute(user?.role) : "/";
   const staffLinkLabel = isMerchantAdmin ? "Merchant Hub" : "Support Desk";
 
   return (
@@ -84,7 +127,7 @@ export function Navbar({ onOpenAuthModal }) {
               Apparel
             </a>
 
-            {/* Dynamic Staff Button: Visible for Support Agent, Merchant Admin & Super Admin */}
+            {/* Dynamic Staff Hub Trigger: Visible for Support Agent, Merchant Admin & Super Admin */}
             {isStaff && (
               <a
                 href={staffLinkPath}
@@ -103,7 +146,7 @@ export function Navbar({ onOpenAuthModal }) {
 
         {/* Right: Actions Tray */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-          {/* Currency & Theme Switchers: Hidden on small mobile screens, visible on >= 962px */}
+          {/* Currency & Theme Switchers */}
           <div className="hidden min-[962px]:flex items-center gap-2">
             <CurrencySwitcher />
             <ThemeSelector />
@@ -111,6 +154,7 @@ export function Navbar({ onOpenAuthModal }) {
 
           {/* Shopping Bag Button */}
           <button
+            type="button"
             onClick={openCart}
             className="relative min-h-10 min-w-10 sm:min-h-11 sm:min-w-11 rounded-xl flex items-center justify-center text-text-main hover:bg-surface-elevated transition-colors cursor-pointer"
             aria-label={`Shopping bag, ${itemCount} items`}
@@ -123,18 +167,19 @@ export function Navbar({ onOpenAuthModal }) {
             )}
           </button>
 
-          {/* User Account / Auth Dropdown */}
-          {isAuthenticated ? (
+          {/* User Account / Auth Dropdown or Shimmer Init Skeleton */}
+          {!isInitialized ? (
+            <div className="w-20 sm:w-24 h-10 rounded-xl bg-surface-elevated/70 border border-border-subtle animate-pulse" />
+          ) : isAuthenticated ? (
             <div className="relative">
               <button
+                type="button"
                 onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
                 className="min-h-10 px-2 sm:min-h-11 sm:px-3 rounded-xl flex items-center gap-1.5 sm:gap-2 hover:bg-surface-elevated text-text-main text-xs font-semibold border border-border-subtle transition-colors cursor-pointer"
                 aria-label="User Account Menu"
                 aria-expanded={isUserDropdownOpen}
               >
-                <div className="w-6 h-6 rounded-full bg-brand-primary/10 border border-brand-primary/30 flex items-center justify-center text-brand-primary font-mono text-[11px] shrink-0">
-                  {user?.name ? user.name[0].toUpperCase() : "U"}
-                </div>
+                <StorefrontUserAvatar user={user} size="w-6 h-6" />
                 <span className="hidden min-[962px]:inline max-w-28 truncate">
                   {user?.name || "Account"}
                 </span>
@@ -149,18 +194,21 @@ export function Navbar({ onOpenAuthModal }) {
                     onClick={() => setIsUserDropdownOpen(false)}
                   />
                   <div className="absolute right-0 mt-2 w-60 p-1.5 rounded-2xl bg-surface-card border border-border-main shadow-2xl z-40 animate-in fade-in zoom-in-95">
-                    <div className="px-3 py-2.5 border-b border-border-subtle">
-                      <div className="flex items-center justify-between gap-1">
-                        <p className="text-xs font-semibold text-text-main truncate">
-                          {user?.name}
+                    <div className="px-3 py-2.5 border-b border-border-subtle flex items-center gap-2.5">
+                      <StorefrontUserAvatar user={user} size="w-8 h-8" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-1">
+                          <p className="text-xs font-semibold text-text-main truncate">
+                            {user?.name}
+                          </p>
+                          <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-md bg-brand-primary/10 text-brand-primary border border-brand-primary/20 font-bold uppercase shrink-0">
+                            {user?.role?.replace("_", " ") || "CUSTOMER"}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-text-muted truncate mt-0.5 font-mono">
+                          {user?.email}
                         </p>
-                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-md bg-brand-primary/10 text-brand-primary border border-brand-primary/20 font-bold uppercase shrink-0">
-                          {user?.role?.replace("_", " ") || "CUSTOMER"}
-                        </span>
                       </div>
-                      <p className="text-[11px] text-text-muted truncate mt-0.5">
-                        {user?.email}
-                      </p>
                     </div>
 
                     <div className="py-1">
@@ -170,7 +218,7 @@ export function Navbar({ onOpenAuthModal }) {
                         className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-text-main hover:bg-surface-elevated transition-colors"
                       >
                         <User className="w-4 h-4 text-text-muted" />
-                        <span>Order History & Addresses</span>
+                        <span>Order History & Profile</span>
                       </a>
 
                       {/* Staff Hub Option in Dropdown */}
@@ -196,6 +244,7 @@ export function Navbar({ onOpenAuthModal }) {
 
                     <div className="pt-1 border-t border-border-subtle">
                       <button
+                        type="button"
                         onClick={() => {
                           setIsUserDropdownOpen(false);
                           logout();
@@ -212,6 +261,7 @@ export function Navbar({ onOpenAuthModal }) {
             </div>
           ) : (
             <button
+              type="button"
               onClick={onOpenAuthModal}
               className="min-h-10 px-3 sm:min-h-11 sm:px-4 rounded-xl bg-surface-elevated hover:bg-surface-hover text-text-main text-xs font-semibold border border-border-main transition-colors cursor-pointer shadow-xs"
             >
@@ -219,8 +269,9 @@ export function Navbar({ onOpenAuthModal }) {
             </button>
           )}
 
-          {/* Hamburger Mobile Menu Toggle Button: Visible on < 962px */}
+          {/* Hamburger Mobile Menu Toggle Button */}
           <button
+            type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             className="min-[962px]:hidden min-h-10 min-w-10 sm:min-h-11 sm:min-w-11 rounded-xl flex items-center justify-center text-text-main hover:bg-surface-elevated transition-colors cursor-pointer"
             aria-label="Toggle navigation menu"
@@ -238,7 +289,6 @@ export function Navbar({ onOpenAuthModal }) {
       {/* Full-Height Mobile Drawer */}
       {isMobileMenuOpen && (
         <div className="min-[962px]:hidden fixed inset-x-0 top-16 bottom-0 h-[calc(100dvh-4rem)] bg-surface-app/98 backdrop-blur-2xl border-t border-border-subtle overflow-y-auto custom-scrollbar z-60 flex flex-col justify-between p-5 pb-8 animate-in fade-in slide-in-from-top-2 duration-200">
-          {/* Navigation Links */}
           <nav className="flex flex-col gap-1.5 text-sm font-medium">
             <a
               href="/catalog"
@@ -283,7 +333,6 @@ export function Navbar({ onOpenAuthModal }) {
             )}
           </nav>
 
-          {/* Preferences inside Drawer */}
           <div className="pt-4 mt-6 border-t border-border-subtle space-y-3.5">
             <div className="flex items-center justify-between gap-3 px-2">
               <span className="text-xs font-medium text-text-muted">

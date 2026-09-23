@@ -1,9 +1,18 @@
+// apps/nexus-commerce/frontend/src/lib/api/client.js
+
 import axios from "axios";
 import { env } from "../../config/env";
 import { STORAGE_KEYS } from "../../config/constants";
 import { AuthManager } from "../auth/AuthManager";
+import { store } from "../../redux/store";
+import {
+  startLoading,
+  stopLoading,
+  finalizeLoading,
+  hideLoading,
+  resetLoading,
+} from "../../redux/slices/uiSlice";
 
-// Generate or retrieve persistent guest tracking ID
 const getGuestSessionId = () => {
   let id = localStorage.getItem(STORAGE_KEYS.GUEST_SESSION_ID);
   if (!id) {
@@ -13,7 +22,6 @@ const getGuestSessionId = () => {
   return id;
 };
 
-// Unique instance ID for this specific browser tab
 const getClientInstanceId = () => {
   let id = sessionStorage.getItem(STORAGE_KEYS.CLIENT_INSTANCE_ID);
   if (!id) {
@@ -32,6 +40,35 @@ export const apiClient = axios.create({
   timeout: 15000,
 });
 
+let settleTimer = null;
+let cleanupTimer = null;
+
+const handleRequestStart = () => {
+  if (settleTimer) clearTimeout(settleTimer);
+  if (cleanupTimer) clearTimeout(cleanupTimer);
+  store.dispatch(startLoading());
+};
+
+const handleRequestEnd = () => {
+  store.dispatch(stopLoading());
+
+  if (settleTimer) clearTimeout(settleTimer);
+  if (cleanupTimer) clearTimeout(cleanupTimer);
+
+  // 350ms bridging window holds the bar open while the target page mounts and queries fetch
+  settleTimer = setTimeout(() => {
+    store.dispatch(finalizeLoading());
+
+    cleanupTimer = setTimeout(() => {
+      store.dispatch(hideLoading());
+      setTimeout(() => {
+        store.dispatch(resetLoading());
+      }, 300);
+    }, 200);
+  }, 350);
+};
+
+// 1. Request Interceptor
 apiClient.interceptors.request.use(
   (config) => {
     config.headers["x-request-id"] =
@@ -39,9 +76,14 @@ apiClient.interceptors.request.use(
     config.headers["x-request-timestamp"] = String(Date.now());
     config.headers["x-client-instance-id"] = getClientInstanceId();
     config.headers["x-guest-session-id"] = getGuestSessionId();
+
+    handleRequestStart();
     return config;
   },
-  (error) => Promise.reject(error),
+  (error) => {
+    handleRequestEnd();
+    return Promise.reject(error);
+  },
 );
 
 let refreshPromise = null;
@@ -73,14 +115,19 @@ const executeSingleFlightRefresh = async () => {
   return refreshPromise;
 };
 
+// 2. Response Interceptor
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    handleRequestEnd();
+    return response;
+  },
   async (error) => {
+    handleRequestEnd();
     const originalRequest = error.config;
 
-    // Avoid infinite refresh loops
     if (
       error.response?.status === 401 &&
+      originalRequest &&
       !originalRequest._retry &&
       !originalRequest.url?.includes("/auth/login") &&
       !originalRequest.url?.includes("/auth/refresh") &&
@@ -92,7 +139,6 @@ apiClient.interceptors.response.use(
         await executeSingleFlightRefresh();
         return apiClient(originalRequest);
       } catch (refreshErr) {
-        // Only terminate session if this was an authenticated call (not a guest 401 check on /auth/me)
         if (!originalRequest.url?.includes("/auth/me")) {
           AuthManager.notifySessionTerminated();
         }

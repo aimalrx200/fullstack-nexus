@@ -1,4 +1,5 @@
 // apps/nexus-commerce/frontend/src/hooks/useAuth.js
+
 import { useEffect, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -108,11 +109,21 @@ export function useAuth() {
     isMerchantAdmin,
     isSupportAgent,
     isStaff,
-    isAdmin: isMerchantAdmin, // 👈 Ensures both merchant_admin & super_admin show admin options
+    isAdmin: isMerchantAdmin,
     isEmailVerified: Boolean(user?.isEmailVerified),
-    logout: useCallback(() => logoutMutation.mutate(), [logoutMutation]),
+    logout: useCallback(async () => {
+      try {
+        await logoutMutation.mutateAsync();
+      } catch {
+        // Handled in mutation onError
+      }
+    }, [logoutMutation]),
+    // mutateAsync ensures the authenticated user payload is returned for RBAC routing
     demoLogin: useCallback(
-      (r) => demoLoginMutation.mutate(r),
+      async (r) => {
+        const data = await demoLoginMutation.mutateAsync(r);
+        return data.user;
+      },
       [demoLoginMutation],
     ),
     isLoggingOut: logoutMutation.isPending,

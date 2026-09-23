@@ -1,4 +1,5 @@
 // apps/nexus-commerce/frontend/src/App.jsx
+
 import React from "react";
 import { Provider } from "react-redux";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -7,18 +8,10 @@ import { store } from "./redux/store";
 import { queryClient } from "./config/queryClient";
 import { AppRouter } from "./routes/Router";
 import { ErrorBoundary } from "./components/feedback/ErrorBoundary";
-import { useTheme } from "./hooks/useTheme";
-
-// Runs global theme lifecycle and system media queries
-function ThemeInitializer() {
-  useTheme();
-  return null;
-}
 
 export function App() {
   return (
     <Provider store={store}>
-      <ThemeInitializer />
       <QueryClientProvider client={queryClient}>
         <ErrorBoundary>
           <AppRouter />

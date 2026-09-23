@@ -1,71 +1,71 @@
 // apps/nexus-commerce/frontend/src/lib/auth/guards.jsx
-import React from "react";
-import { Navigate, Outlet, useLocation } from "react-router";
-import { useAuth } from "../../hooks/useAuth";
-import { LoadingSpinner } from "../../components/feedback/LoadingSpinner";
 
-export function RoleGuard({ allowedRoles = [], fallbackPath = "/login" }) {
+import React, { useEffect } from "react";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import { getRoleDefaultRoute, normalizeRole, navigateByRole } from "./rbacNav";
+
+/**
+ * Role-Based Access Guard for Admin & Staff Tiers
+ */
+export function RoleGuard({ allowedRoles = [] }) {
   const { user, isAuthenticated, isInitialized } = useAuth();
   const location = useLocation();
 
   if (!isInitialized) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-app">
-        <LoadingSpinner size="lg" label="Verifying access credentials..." />
-      </div>
-    );
+    return null;
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  const userRole = user?.role || "customer";
+  const cleanRole = normalizeRole(user?.role);
+  const normalizedAllowed = allowedRoles.map(normalizeRole);
+
   const isAllowed =
-    userRole === "super_admin" || allowedRoles.includes(userRole);
+    cleanRole === "super_admin" || normalizedAllowed.includes(cleanRole);
 
   if (!isAllowed) {
-    const defaultFallback =
-      userRole === "support_agent" ? "/admin/support" : "/";
-    return <Navigate to={fallbackPath || defaultFallback} replace />;
+    const targetRoute = getRoleDefaultRoute(cleanRole);
+    return <Navigate to={targetRoute} replace />;
   }
 
   return <Outlet />;
 }
 
+/**
+ * Protected Route Guard for Customer Account & Order Pages
+ */
 export function ProtectedRoute() {
   const { isAuthenticated, isInitialized } = useAuth();
   const location = useLocation();
 
   if (!isInitialized) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-app">
-        <LoadingSpinner size="lg" label="Authenticating session..." />
-      </div>
-    );
+    return null;
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
   return <Outlet />;
 }
 
+/**
+ * Guest Route Guard for Login, Register, & Forgot Password
+ * 1. Keeps <Outlet /> continuously rendered so the form card never empties during auth transitions.
+ * 2. Uses adaptive role navigation to route already logged-in users directly to their dashboards.
+ */
 export function GuestRoute() {
-  const { isAuthenticated, isInitialized } = useAuth();
+  const { user, isAuthenticated, isInitialized } = useAuth();
+  const navigate = useNavigate();
 
-  if (!isInitialized) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-surface-app">
-        <LoadingSpinner size="lg" label="Initializing..." />
-      </div>
-    );
-  }
-
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
+  useEffect(() => {
+    if (isInitialized && isAuthenticated && user) {
+      navigateByRole(navigate, user);
+    }
+  }, [isInitialized, isAuthenticated, user, navigate]);
 
   return <Outlet />;
 }

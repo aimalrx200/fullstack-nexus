@@ -1,3 +1,5 @@
+// apps/nexus-commerce/frontend/src/components/common/DataTable.jsx
+
 import React, { useState } from "react";
 import {
   useReactTable,
@@ -12,7 +14,6 @@ import {
   ChevronsUpDown,
   ChevronLeft,
   ChevronRight,
-  Loader2,
 } from "lucide-react";
 import { Button } from "./Button";
 
@@ -88,17 +89,21 @@ export function DataTable({
           {/* Table Body */}
           <tbody className="divide-y divide-border-subtle">
             {isLoading ? (
-              <tr>
-                <td
-                  colSpan={columns.length}
-                  className="px-4 py-12 text-center text-text-muted"
-                >
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <Loader2 className="w-6 h-6 animate-spin text-brand-primary" />
-                    <span>Loading data records...</span>
-                  </div>
-                </td>
-              </tr>
+              // Column-Matched Skeleton Loading Rows
+              Array.from({ length: 6 }).map((_, rowIdx) => (
+                <tr key={rowIdx} className="animate-pulse">
+                  {columns.map((_, colIdx) => (
+                    <td key={colIdx} className="px-4 py-3.5">
+                      <div
+                        className="h-4 rounded-md bg-surface-elevated/70"
+                        style={{
+                          width: `${Math.max(45, ((colIdx * 17 + rowIdx * 13) % 85) + 20)}%`,
+                        }}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))
             ) : table.getRowModel().rows.length === 0 ? (
               <tr>
                 <td

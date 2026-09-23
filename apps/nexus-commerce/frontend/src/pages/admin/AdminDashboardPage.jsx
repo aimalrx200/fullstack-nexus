@@ -1,3 +1,5 @@
+// apps/nexus-commerce/frontend/src/pages/admin/AdminDashboardPage.jsx
+
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MetricsOverview } from "../../components/admin/dashboard/MetricsOverview";
@@ -5,19 +7,25 @@ import { LiveOrderStream } from "../../components/admin/dashboard/LiveOrderStrea
 import { RecentOrdersCard } from "../../components/admin/dashboard/RecentOrdersCard";
 import { SalesChart } from "../../components/admin/analytics/SalesChart";
 import { GatewayPieChart } from "../../components/admin/analytics/GatewayPieChart";
+import { DashboardSkeleton } from "../../components/feedback/DashboardSkeleton";
 import { adminApi } from "../../lib/api/adminApi";
 import { queryKeys } from "../../lib/api/queryKeys";
 
 export function AdminDashboardPage() {
-  const { data: analyticsData } = useQuery({
+  const { data: analyticsData, isLoading: isLoadingAnalytics } = useQuery({
     queryKey: queryKeys.admin.analytics(),
     queryFn: () => adminApi.getDashboardAnalytics(),
   });
 
-  const { data: ordersData } = useQuery({
+  const { data: ordersData, isLoading: isLoadingOrders } = useQuery({
     queryKey: queryKeys.admin.orders({ limit: 5 }),
     queryFn: () => adminApi.getAllOrders({ limit: 5 }),
   });
+
+  // Render matching metric cards and chart skeletons while queries are in flight
+  if (isLoadingAnalytics || isLoadingOrders) {
+    return <DashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in">

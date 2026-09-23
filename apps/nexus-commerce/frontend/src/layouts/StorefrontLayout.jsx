@@ -1,5 +1,7 @@
+// apps/nexus-commerce/frontend/src/layouts/StorefrontLayout.jsx
+
 import React, { useState } from "react";
-import { Outlet, useNavigate } from "react-router";
+import { Outlet, useNavigate, useLocation } from "react-router";
 import { Navbar } from "../components/common/Navbar";
 import { Footer } from "../components/common/Footer";
 import { VerifyEmailBanner } from "../components/auth/VerifyEmailBanner";
@@ -9,10 +11,16 @@ import { Modal } from "../components/common/Modal";
 import { LoginForm } from "../components/auth/LoginForm";
 import { RegisterForm } from "../components/auth/RegisterForm";
 import { ForgotPasswordForm } from "../components/auth/ForgotPasswordForm";
+import { PageTransition } from "../components/common/PageTransition";
 
 export function StorefrontLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [authModal, setAuthModal] = useState({ isOpen: false, view: "login" });
+
+  const handleModalAuthSuccess = () => {
+    setAuthModal({ isOpen: false, view: "login" });
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-app text-text-main transition-colors selection:bg-brand-primary selection:text-white relative">
@@ -22,21 +30,20 @@ export function StorefrontLayout() {
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <Outlet />
+        <PageTransition key={location.pathname}>
+          <Outlet />
+        </PageTransition>
       </main>
 
       <Footer />
 
-      {/* Global Slide-Over Cart Drawer */}
       <CartDrawer
         onProceedToCheckout={() => navigate("/checkout")}
         onOpenAuth={() => setAuthModal({ isOpen: true, view: "login" })}
       />
 
-      {/* Global Floating Live Support Chat Widget */}
       <SupportChatWidget />
 
-      {/* Full-Height Global Authentication Modal */}
       <Modal
         isOpen={authModal.isOpen}
         onClose={() => setAuthModal({ isOpen: false, view: "login" })}
@@ -44,7 +51,8 @@ export function StorefrontLayout() {
       >
         {authModal.view === "login" && (
           <LoginForm
-            onSuccess={() => setAuthModal({ isOpen: false, view: "login" })}
+            isModal={true}
+            onSuccess={handleModalAuthSuccess}
             onSwitchToRegister={() =>
               setAuthModal({ isOpen: true, view: "register" })
             }
@@ -55,7 +63,8 @@ export function StorefrontLayout() {
         )}
         {authModal.view === "register" && (
           <RegisterForm
-            onSuccess={() => setAuthModal({ isOpen: false, view: "login" })}
+            isModal={true}
+            onSuccess={handleModalAuthSuccess}
             onSwitchToLogin={() =>
               setAuthModal({ isOpen: true, view: "login" })
             }

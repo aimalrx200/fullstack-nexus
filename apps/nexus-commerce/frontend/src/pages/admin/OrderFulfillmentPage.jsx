@@ -1,3 +1,5 @@
+// apps/nexus-commerce/frontend/src/pages/admin/OrderFulfillmentPage.jsx
+
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminApi } from "../../lib/api/adminApi";
@@ -5,6 +7,7 @@ import { queryKeys } from "../../lib/api/queryKeys";
 import { OrderFulfillmentFSM } from "../../components/admin/orders/OrderFulfillmentFSM";
 import { CourierTrackingModal } from "../../components/admin/orders/CourierTrackingModal";
 import { OrderSummaryCard } from "../../components/storefront/orders/OrderSummaryCard";
+import { OrderCardSkeleton } from "../../components/feedback/OrderCardSkeleton";
 import { toast } from "sonner";
 
 export function OrderFulfillmentPage() {
@@ -47,9 +50,7 @@ export function OrderFulfillmentPage() {
       </div>
 
       {isLoading ? (
-        <div className="py-12 text-center text-xs text-text-muted font-mono">
-          Loading orders...
-        </div>
+        <OrderCardSkeleton count={4} />
       ) : (
         <div className="space-y-4">
           {data?.orders?.map((order) => (

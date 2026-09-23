@@ -1,3 +1,5 @@
+// apps/nexus-commerce/frontend/src/pages/storefront/ProductDetailPage.jsx
+
 import React, { useState } from "react";
 import { useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -6,7 +8,7 @@ import { ProductInfo } from "../../components/storefront/product-detail/ProductI
 import { ReviewSection } from "../../components/storefront/product-detail/ReviewSection";
 import { VariantSelector } from "../../components/storefront/catalog/VariantSelector";
 import { Button } from "../../components/common/Button";
-import { LoadingSpinner } from "../../components/feedback/LoadingSpinner";
+import { ProductDetailSkeleton } from "../../components/feedback/ProductDetailSkeleton";
 import { productApi } from "../../lib/api/productApi";
 import { queryKeys } from "../../lib/api/queryKeys";
 import { useCart } from "../../hooks/useCart";
@@ -27,12 +29,9 @@ export function ProductDetailPage() {
 
   const activeVariant = selectedVariant || variants[0] || null;
 
+  // Render matching 2-column skeleton during query fetching
   if (isLoading) {
-    return (
-      <div className="py-20 flex justify-center">
-        <LoadingSpinner size="lg" label="Loading product specifications..." />
-      </div>
-    );
+    return <ProductDetailSkeleton />;
   }
 
   if (!product) {

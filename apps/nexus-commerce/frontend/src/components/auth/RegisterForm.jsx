@@ -7,14 +7,15 @@ import { z } from "zod";
 import { User, Mail, Lock, Eye, EyeOff, Sparkles } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useLocation } from "react-router";
 import { authApi } from "../../lib/api/authApi";
 import { setCredentials } from "../../redux/slices/authSlice";
 import { queryKeys } from "../../lib/api/queryKeys";
 import { Button } from "../common/Button";
 import { PasskeyPromptModal } from "./PasskeyPromptModal";
+import { navigateByRole } from "../../lib/auth/rbacNav";
 import { toast } from "sonner";
 
-// Synchronized with backend RegisterPasswordSchema
 const RegisterSchema = z.object({
   name: z
     .string()
@@ -35,9 +36,6 @@ const RegisterSchema = z.object({
     ),
 });
 
-/**
- * Isolated Entropy Meter component using React Hook Form's useWatch
- */
 function PasswordEntropyMeter({ control }) {
   const password = useWatch({ control, name: "password", defaultValue: "" });
 
@@ -51,7 +49,6 @@ function PasswordEntropyMeter({ control }) {
   };
 
   const strengthScore = calculateStrength(password);
-
   if (!password) return null;
 
   return (
@@ -71,7 +68,7 @@ function PasswordEntropyMeter({ control }) {
         ))}
       </div>
       <p className="text-[10px] text-text-muted font-mono flex items-center justify-between">
-        <span>Strength:</span>
+        <span>Entropy Security:</span>
         <span
           className={
             strengthScore >= 3 ? "text-emerald-400 font-bold" : "text-amber-400"
@@ -80,7 +77,7 @@ function PasswordEntropyMeter({ control }) {
           {strengthScore === 4
             ? "Exceptional Entropy"
             : strengthScore === 3
-              ? "Strong"
+              ? "Strong Password"
               : "Weak (add symbols & mix case)"}
         </span>
       </p>
@@ -88,8 +85,10 @@ function PasswordEntropyMeter({ control }) {
   );
 }
 
-export function RegisterForm({ onSuccess, onSwitchToLogin }) {
+export function RegisterForm({ onSuccess, onSwitchToLogin, isModal = false }) {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -121,46 +120,32 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }) {
       const serverResponse = err?.response?.data;
       const validationErrors = serverResponse?.errors;
 
-      // 1. Map field-specific Zod/zxcvbn errors from backend errorMiddleware
       if (validationErrors && typeof validationErrors === "object") {
         let firstErrorMessage = null;
-
         Object.entries(validationErrors).forEach(([field, messages]) => {
           const message = Array.isArray(messages) ? messages[0] : messages;
           if (message) {
             if (!firstErrorMessage) firstErrorMessage = message;
-            setError(field, {
-              type: "server",
-              message: String(message),
-            });
+            setError(field, { type: "server", message: String(message) });
           }
         });
-
         toast.error(
-          firstErrorMessage ||
-            serverResponse.message ||
-            "Please resolve the highlighted field errors.",
+          firstErrorMessage || "Please correct the highlighted field errors.",
         );
-      }
-      // 2. Handle Duplicate Account / 409 Conflicts
-      else if (err?.response?.status === 409) {
+      } else if (err?.response?.status === 409) {
         setError("email", {
           type: "server",
           message:
             serverResponse?.message ||
-            "An account with this email address already exists.",
+            "An account with this email already exists.",
         });
         toast.error(
           serverResponse?.message || "Email address is already in use.",
         );
-      }
-      // 3. Fallback to Safe Operational Message (Never leaks stack traces or raw system internals)
-      else {
-        const safeMessage =
-          serverResponse?.message && typeof serverResponse.message === "string"
-            ? serverResponse.message
-            : "Registration could not be completed. Please check your details and try again.";
-        toast.error(safeMessage);
+      } else {
+        toast.error(
+          serverResponse?.message || "Registration failed. Please try again.",
+        );
       }
     } finally {
       setIsSubmitting(false);
@@ -169,13 +154,18 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }) {
 
   const handlePasskeyModalClosed = () => {
     setIsOpenPasskeyModal(false);
-    onSuccess?.();
+    if (registeredUser) {
+      navigateByRole(navigate, registeredUser, {
+        isModal,
+        from: location.state?.from,
+      });
+    }
+    onSuccess?.(registeredUser);
   };
 
   return (
     <>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3.5">
-        {/* Full Name */}
         <div className="space-y-1.5">
           <label className="block text-xs font-medium text-text-muted">
             Full Name
@@ -194,13 +184,12 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }) {
             <User className="w-4 h-4 text-text-faint absolute left-3 top-1/2 -translate-y-1/2" />
           </div>
           {errors.name && (
-            <p className="text-[11px] text-rose-500 font-medium animate-in fade-in">
+            <p className="text-[11px] text-rose-500 font-medium">
               {errors.name.message}
             </p>
           )}
         </div>
 
-        {/* Email Address */}
         <div className="space-y-1.5">
           <label className="block text-xs font-medium text-text-muted">
             Email Address
@@ -219,13 +208,12 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }) {
             <Mail className="w-4 h-4 text-text-faint absolute left-3 top-1/2 -translate-y-1/2" />
           </div>
           {errors.email && (
-            <p className="text-[11px] text-rose-500 font-medium animate-in fade-in">
+            <p className="text-[11px] text-rose-500 font-medium">
               {errors.email.message}
             </p>
           )}
         </div>
 
-        {/* Password */}
         <div className="space-y-1.5">
           <label className="block text-xs font-medium text-text-muted">
             Password
@@ -255,11 +243,10 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }) {
             </button>
           </div>
 
-          {/* Password Entropy Meter */}
           <PasswordEntropyMeter control={control} />
 
           {errors.password && (
-            <p className="text-[11px] text-rose-500 font-medium animate-in fade-in">
+            <p className="text-[11px] text-rose-500 font-medium">
               {errors.password.message}
             </p>
           )}
@@ -271,7 +258,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }) {
           size="lg"
           icon={Sparkles}
           isLoading={isSubmitting}
-          className="w-full"
+          className="w-full font-bold shadow-lg shadow-indigo-500/25"
         >
           Create Free Account
         </Button>
@@ -290,7 +277,6 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }) {
         </div>
       </form>
 
-      {/* Post-Registration Passkey Enrollment Modal */}
       {registeredUser && (
         <PasskeyPromptModal
           isOpen={isOpenPasskeyModal}
