@@ -8,6 +8,7 @@ import { queryKeys } from "../../lib/api/queryKeys";
 import { Package } from "lucide-react";
 import { OrderSummaryCard } from "../../components/storefront/orders/OrderSummaryCard";
 import { OrderCardSkeleton } from "../../components/feedback/OrderCardSkeleton";
+import { useDelayedLoading } from "../../hooks/useDelayedLoading";
 import { Badge } from "../../components/common/Badge";
 
 export function AccountPage() {
@@ -18,8 +19,13 @@ export function AccountPage() {
     queryFn: () => orderApi.getCustomerOrders(),
   });
 
+  const showSkeleton = useDelayedLoading(isLoading, {
+    delay: 120,
+    minDuration: 3000,
+  });
+
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in">
+    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-300">
       {/* Profile Header */}
       <div className="p-6 rounded-3xl bg-surface-card border border-border-main flex flex-wrap items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-4">
@@ -49,14 +55,14 @@ export function AccountPage() {
           <span>Past Orders & Live Tracking</span>
         </h2>
 
-        {isLoading ? (
+        {showSkeleton ? (
           <OrderCardSkeleton count={4} />
         ) : data?.orders?.length === 0 ? (
           <div className="p-8 rounded-2xl bg-surface-card border border-border-main text-center text-xs text-text-muted font-mono">
             You have not placed any orders yet.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-300">
             {data?.orders?.map((ord) => (
               <OrderSummaryCard key={ord._id} order={ord} />
             ))}

@@ -27,11 +27,13 @@ export function CartItemRow({ item, onUpdateQuantity, onRemove }) {
   return (
     <div className="py-4 flex items-center gap-3.5 border-b border-border-subtle last:border-b-0 animate-in fade-in">
       {/* Thumbnail */}
-      <img
-        src={itemImage}
-        alt={product?.title || "Product item"}
-        className="w-16 h-16 rounded-xl bg-surface-elevated object-cover shrink-0 border border-border-subtle"
-      />
+      <div className="w-16 h-16 rounded-xl bg-surface-elevated/60 p-1.5 shrink-0 border border-border-subtle flex items-center justify-center overflow-hidden">
+        <img
+          src={itemImage}
+          alt={product?.title || "Product item"}
+          className="w-full h-full object-contain drop-shadow-xs"
+        />
+      </div>
 
       {/* Info */}
       <div className="flex-1 min-w-0 space-y-1">

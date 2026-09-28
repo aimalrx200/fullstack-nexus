@@ -1,11 +1,44 @@
+// apps/nexus-commerce/frontend/src/components/storefront/orders/OrderSummaryCard.jsx
+
 import React from "react";
 import { useCurrency } from "../../../hooks/useCurrency";
 import { PaymentStatusBadge } from "../../admin/orders/PaymentStatusBadge";
 
 export function OrderSummaryCard({ order }) {
-  const { formatPrice } = useCurrency();
+  const { formatPrice, exchangeRate } = useCurrency();
 
   if (!order) return null;
+
+  const pricing = order.pricing || {};
+  const isOrderPKR = pricing.currency === "PKR";
+  const rate = exchangeRate || 280;
+
+  // Dual currency price resolution with backward-compatibility
+  const subtotalUSD =
+    pricing.subtotalUSD ??
+    (isOrderPKR ? pricing.subtotal / rate : pricing.subtotal);
+  const subtotalPKR =
+    pricing.subtotalPKR ??
+    (isOrderPKR ? pricing.subtotal : pricing.subtotal * rate);
+
+  const shippingUSD =
+    pricing.shippingFeeUSD ??
+    (isOrderPKR ? pricing.shippingFee / rate : pricing.shippingFee);
+  const shippingPKR =
+    pricing.shippingFeePKR ??
+    (isOrderPKR ? pricing.shippingFee : pricing.shippingFee * rate);
+
+  const discountUSD =
+    pricing.discountUSD ??
+    (isOrderPKR ? pricing.discount / rate : pricing.discount);
+  const discountPKR =
+    pricing.discountPKR ??
+    (isOrderPKR ? pricing.discount : pricing.discount * rate);
+
+  const totalUSD =
+    pricing.totalUSD ?? (isOrderPKR ? pricing.total / rate : pricing.total);
+  const totalPKR =
+    pricing.totalPKR ?? (isOrderPKR ? pricing.total : pricing.total * rate);
 
   return (
     <div className="p-5 rounded-2xl bg-surface-card border border-border-main space-y-4">
@@ -61,30 +94,27 @@ export function OrderSummaryCard({ order }) {
         <div className="flex justify-between">
           <span>Subtotal</span>
           <span className="font-mono text-text-main">
-            {formatPrice(order.pricing?.subtotal, order.pricing?.subtotal)}
+            {formatPrice(subtotalUSD, subtotalPKR)}
           </span>
         </div>
         <div className="flex justify-between">
           <span>Shipping Fee</span>
           <span className="font-mono text-text-main">
-            {formatPrice(
-              order.pricing?.shippingFee,
-              order.pricing?.shippingFee,
-            )}
+            {formatPrice(shippingUSD, shippingPKR)}
           </span>
         </div>
-        {order.pricing?.discount > 0 && (
+        {discountUSD > 0 && (
           <div className="flex justify-between text-emerald-400">
             <span>Promotional Discount</span>
             <span className="font-mono">
-              -{formatPrice(order.pricing?.discount, order.pricing?.discount)}
+              -{formatPrice(discountUSD, discountPKR)}
             </span>
           </div>
         )}
         <div className="pt-2 border-t border-border-main flex justify-between text-sm font-bold text-text-main">
           <span>Total</span>
           <span className="font-mono text-brand-primary">
-            {formatPrice(order.pricing?.total, order.pricing?.total)}
+            {formatPrice(totalUSD, totalPKR)}
           </span>
         </div>
       </div>

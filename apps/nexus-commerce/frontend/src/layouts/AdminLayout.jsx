@@ -25,6 +25,18 @@ import { ThemeSelector } from "../components/common/ThemeSelector";
 import { CurrencySwitcher } from "../components/common/CurrencySwitcher";
 import { PageTransition } from "../components/common/PageTransition";
 
+// ⚡ Chunk prefetch registry for instantaneous admin tab switching
+const ADMIN_PREFETCH_MAP = {
+  "/admin": () => import("../pages/admin/AdminDashboardPage"),
+  "/admin/analytics": () => import("../pages/admin/AnalyticsPage"),
+  "/admin/orders": () => import("../pages/admin/OrderFulfillmentPage"),
+  "/admin/inventory": () => import("../pages/admin/InventoryManagerPage"),
+  "/admin/coupons": () => import("../pages/admin/CouponManagerPage"),
+  "/admin/customers": () => import("../pages/admin/CustomerDirectoryPage"),
+  "/admin/support": () => import("../pages/admin/SupportDeskPage"),
+  "/admin/staff": () => import("../pages/admin/StaffManagerPage"),
+};
+
 function AdminUserAvatar({ user, size = "w-8 h-8" }) {
   const [imgError, setImgError] = useState(false);
   const avatarSrc =
@@ -126,7 +138,6 @@ export function AdminLayout() {
     (link) => userRole === "super_admin" || link.roles.includes(userRole),
   );
 
-  // Outside click & Escape listener
   useEffect(() => {
     if (!isSettingsOpen) return;
 
@@ -161,7 +172,6 @@ export function AdminLayout() {
     };
   }, [isSettingsOpen]);
 
-  // Lock background scroll on mobile overlay
   useEffect(() => {
     const isMobileViewport =
       typeof window !== "undefined" && window.innerWidth < 640;
@@ -186,6 +196,13 @@ export function AdminLayout() {
       ? location.pathname === link.to
       : location.pathname.startsWith(link.to),
   );
+
+  const handlePrefetch = (path) => {
+    const prefetchFn = ADMIN_PREFETCH_MAP[path];
+    if (prefetchFn) {
+      prefetchFn();
+    }
+  };
 
   const renderPreferencesContent = (isMobile = false) => (
     <>
@@ -246,7 +263,6 @@ export function AdminLayout() {
 
   return (
     <div className="min-h-screen flex bg-surface-app text-text-main transition-colors">
-      {/* Mobile Drawer Backdrop */}
       {isMobileNavOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-xs lg:hidden"
@@ -263,7 +279,6 @@ export function AdminLayout() {
         } lg:flex lg:w-64 lg:h-screen lg:sticky lg:top-0 bg-surface-card border-r border-border-main p-4 flex-col justify-between shrink-0 shadow-lg`}
       >
         <div className="space-y-6">
-          {/* Logo navigates to Storefront */}
           <div className="flex items-center justify-between pb-2 border-b border-border-subtle">
             <a
               href="/"
@@ -299,7 +314,6 @@ export function AdminLayout() {
             </button>
           </div>
 
-          {/* Navigation Links */}
           <nav className="space-y-1">
             {visibleLinks.map((link) => {
               const Icon = link.icon;
@@ -308,6 +322,8 @@ export function AdminLayout() {
                   key={link.to}
                   to={link.to}
                   end={link.end}
+                  onMouseEnter={() => handlePrefetch(link.to)}
+                  onFocus={() => handlePrefetch(link.to)}
                   onClick={() => setIsMobileNavOpen(false)}
                   className={({ isActive }) =>
                     `min-h-10 px-3.5 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-semibold transition-all ${
@@ -325,7 +341,6 @@ export function AdminLayout() {
           </nav>
         </div>
 
-        {/* Sidebar Telemetry Footer */}
         <div className="pt-4 border-t border-border-subtle flex items-center justify-between text-[11px] font-mono text-text-faint">
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -339,7 +354,6 @@ export function AdminLayout() {
 
       {/* 2. MAIN CONTENT WRAPPER */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        {/* Top Header Navbar */}
         <header className="h-16 px-3.5 sm:px-6 bg-surface-card/90 backdrop-blur-md border-b border-border-main flex items-center justify-between gap-3 sm:gap-4 z-30 shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <button
@@ -386,7 +400,6 @@ export function AdminLayout() {
                 />
               </button>
 
-              {/* Desktop Floating Dropdown */}
               {isSettingsOpen && (
                 <div
                   ref={desktopDropdownRef}
@@ -398,10 +411,8 @@ export function AdminLayout() {
               )}
             </div>
 
-            {/* User Avatar Pill */}
             <div className="flex items-center gap-2 pl-1 border-l border-border-subtle">
               <AdminUserAvatar user={user} size="w-8 h-8" />
-
               <div className="hidden md:flex flex-col text-left leading-tight min-w-0 max-w-32">
                 <span className="text-xs font-bold text-text-main truncate">
                   {user?.name || "Admin"}
@@ -414,7 +425,6 @@ export function AdminLayout() {
           </div>
         </header>
 
-        {/* Fluid Content Area */}
         <main className="flex-1 p-3 sm:p-5 lg:p-6 overflow-y-auto w-full min-w-0 custom-scrollbar">
           <PageTransition key={location.pathname}>
             <Outlet />
@@ -422,7 +432,6 @@ export function AdminLayout() {
         </main>
       </div>
 
-      {/* Mobile Modal Overlay */}
       {isSettingsOpen &&
         typeof document !== "undefined" &&
         createPortal(
@@ -441,7 +450,6 @@ export function AdminLayout() {
               className="fixed inset-0 bg-black/60 backdrop-blur-xs -z-10 transition-opacity pointer-events-none"
               aria-hidden="true"
             />
-
             <div
               ref={mobileDropdownRef}
               className="relative w-full max-w-sm mt-16 mb-8 p-4.5 rounded-2xl bg-surface-card border border-border-main shadow-2xl space-y-4 animate-in fade-in zoom-in-95 cursor-default select-text shrink-0"

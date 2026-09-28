@@ -1,3 +1,6 @@
+// apps/nexus-commerce/backend/src/controllers/orders/order.controller.js
+
+import mongoose from "mongoose";
 import { Order, Cart, Coupon } from "#models/index.js";
 import { asyncHandler } from "#utils/asyncHandler.js";
 import { PaymentGatewayFactory } from "#gateways/PaymentGatewayFactory.js";
@@ -5,6 +8,7 @@ import { calculateShippingQuote } from "#services/googleMapsService.js";
 import { broadcastNewOrder } from "#websockets/wsBroadcaster.js";
 import { enqueueJob, JOB_TYPES } from "#services/jobQueue.js";
 import currency from "currency.js";
+import { commitInventoryDeduction } from "#services/inventoryLockService.js";
 
 export const createOrder = asyncHandler(async (req, res) => {
   const {
@@ -17,32 +21,56 @@ export const createOrder = asyncHandler(async (req, res) => {
     idempotencyKey,
   } = req.body;
 
-  const cart = await Cart.findById(cartId).populate(
-    "items.productId items.variantId",
-  );
-  if (!cart || cart.items.length === 0) {
+  const userId = req.user?.id;
+  const guestSessionId =
+    req.headers["x-guest-session-id"] ||
+    (typeof cartId === "string" && cartId.startsWith("guest_") ? cartId : null);
+
+  // 1. Safe Polymorphic Cart Resolution (Supports _id, guestSessionId, or authenticated userId)
+  const isObjectId =
+    typeof cartId === "string" && mongoose.Types.ObjectId.isValid(cartId);
+
+  const cartQuery = [];
+  if (isObjectId) cartQuery.push({ _id: cartId });
+  if (userId) cartQuery.push({ userId });
+  if (guestSessionId) cartQuery.push({ guestSessionId });
+  if (!isObjectId && typeof cartId === "string")
+    cartQuery.push({ guestSessionId: cartId });
+
+  const cart = await Cart.findOne({
+    $or: cartQuery.length > 0 ? cartQuery : [{ _id: null }],
+  }).populate("items.productId items.variantId");
+
+  if (!cart || !cart.items || cart.items.length === 0) {
     return res
       .status(400)
-      .json({ success: false, message: "Your cart is empty." });
+      .json({ success: false, message: "Your shopping bag is empty." });
   }
 
   const isPKR = shippingAddress.countryCode === "PK";
   const currencyCode = isPKR ? "PKR" : "USD";
 
-  // Server-Authoritative Price Calculation
-  let subtotal = currency(0);
+  // Server-Authoritative Price Calculation for both currencies
+  let subtotalUSD = currency(0);
+  let subtotalPKR = currency(0);
   const orderItems = [];
 
   for (const item of cart.items) {
     const variant = item.variantId;
     const product = item.productId;
 
-    const unitPrice = isPKR
-      ? variant.priceOverridePKR || product.basePricePKR
-      : variant.priceOverrideUSD || product.basePriceUSD;
+    if (!variant || !product) continue;
 
-    const lineTotal = currency(unitPrice).multiply(item.quantity);
-    subtotal = subtotal.add(lineTotal);
+    const unitPriceUSD = variant.priceOverrideUSD || product.basePriceUSD || 0;
+    const unitPricePKR =
+      variant.priceOverridePKR || product.basePricePKR || unitPriceUSD * 280;
+
+    subtotalUSD = subtotalUSD.add(
+      currency(unitPriceUSD).multiply(item.quantity),
+    );
+    subtotalPKR = subtotalPKR.add(
+      currency(unitPricePKR).multiply(item.quantity),
+    );
 
     orderItems.push({
       productId: product._id,
@@ -50,16 +78,12 @@ export const createOrder = asyncHandler(async (req, res) => {
       sku: variant.sku,
       title: product.title,
       variantTitle: variant.title,
-      image: variant.image || product.images[0]?.url,
-      unitPriceUSD: variant.priceOverrideUSD || product.basePriceUSD,
-      unitPricePKR: variant.priceOverridePKR || product.basePricePKR,
+      image: variant.image || product.images?.[0]?.url,
+      unitPriceUSD,
+      unitPricePKR,
       quantity: item.quantity,
-      totalUSD: currency(
-        variant.priceOverrideUSD || product.basePriceUSD,
-      ).multiply(item.quantity).value,
-      totalPKR: currency(
-        variant.priceOverridePKR || product.basePricePKR,
-      ).multiply(item.quantity).value,
+      totalUSD: currency(unitPriceUSD).multiply(item.quantity).value,
+      totalPKR: currency(unitPricePKR).multiply(item.quantity).value,
     });
   }
 
@@ -69,16 +93,26 @@ export const createOrder = asyncHandler(async (req, res) => {
     destinationCoordinates: shippingAddress.coordinates,
   });
 
-  const shippingFee = currency(
-    isPKR ? shippingQuote.shippingFeePKR : shippingQuote.shippingFeeUSD,
-  );
+  const shippingFeeUSD = shippingQuote.shippingFeeUSD || 2.5;
+  const shippingFeePKR = shippingQuote.shippingFeePKR || 350;
 
-  let discount = currency(0);
+  let discountUSD = currency(0);
+  let discountPKR = currency(0);
   if (cart.appliedCoupon?.discountPercent > 0) {
-    discount = subtotal.multiply(cart.appliedCoupon.discountPercent / 100);
+    discountUSD = subtotalUSD.multiply(
+      cart.appliedCoupon.discountPercent / 100,
+    );
+    discountPKR = subtotalPKR.multiply(
+      cart.appliedCoupon.discountPercent / 100,
+    );
   }
 
-  const grandTotal = subtotal.add(shippingFee).subtract(discount).value;
+  const grandTotalUSD = subtotalUSD
+    .add(shippingFeeUSD)
+    .subtract(discountUSD).value;
+  const grandTotalPKR = subtotalPKR
+    .add(shippingFeePKR)
+    .subtract(discountPKR).value;
   const orderNumber = `NEX-${Date.now().toString().slice(-6)}`;
 
   const order = await Order.create({
@@ -93,10 +127,19 @@ export const createOrder = asyncHandler(async (req, res) => {
     },
     pricing: {
       currency: currencyCode,
-      subtotal: subtotal.value,
-      shippingFee: shippingFee.value,
-      discount: discount.value,
-      total: grandTotal,
+      subtotalUSD: subtotalUSD.value,
+      subtotalPKR: subtotalPKR.value,
+      shippingFeeUSD,
+      shippingFeePKR,
+      discountUSD: discountUSD.value,
+      discountPKR: discountPKR.value,
+      totalUSD: grandTotalUSD,
+      totalPKR: grandTotalPKR,
+      // Charged amount
+      subtotal: isPKR ? subtotalPKR.value : subtotalUSD.value,
+      shippingFee: isPKR ? shippingFeePKR : shippingFeeUSD,
+      discount: isPKR ? discountPKR.value : discountUSD.value,
+      total: isPKR ? grandTotalPKR : grandTotalUSD,
     },
     paymentMethod,
     paymentStatus: "pending",
@@ -110,7 +153,12 @@ export const createOrder = asyncHandler(async (req, res) => {
     ],
   });
 
-  // Atomically increment coupon usage and record user redemption
+  if (paymentMethod === "cod") {
+    // Deduct physical warehouse stock immediately for Cash on Delivery booking
+    await commitInventoryDeduction(order.items);
+  }
+
+  // Atomically increment coupon usage if applied
   if (cart.appliedCoupon?.code) {
     await Coupon.findOneAndUpdate(
       { code: cart.appliedCoupon.code },
@@ -136,13 +184,14 @@ export const createOrder = asyncHandler(async (req, res) => {
     idempotencyKey,
   });
 
-  // Emit live order to merchant stream
+  // Emit live order to merchant radar stream
   broadcastNewOrder(order);
 
-  // Enqueue email receipt to background worker (non-blocking)
+  // Enqueue email receipt in background
   await enqueueJob(JOB_TYPES.SEND_ORDER_RECEIPT, order);
 
-  await Cart.findByIdAndDelete(cartId);
+  // 3. Safely delete the cart using its verified MongoDB ObjectId
+  await Cart.findByIdAndDelete(cart._id);
 
   return res.status(201).json({
     success: true,
@@ -157,11 +206,11 @@ export const getOrderById = asyncHandler(async (req, res) => {
     .trim()
     .toLowerCase();
 
+  const isObjectId =
+    typeof orderId === "string" && mongoose.Types.ObjectId.isValid(orderId);
+
   const order = await Order.findOne({
-    $or: [
-      { _id: orderId.match(/^[0-9a-fA-F]{24}$/) ? orderId : null },
-      { orderNumber: orderId },
-    ].filter(Boolean),
+    $or: [...(isObjectId ? [{ _id: orderId }] : []), { orderNumber: orderId }],
   });
 
   if (!order) {
@@ -170,23 +219,23 @@ export const getOrderById = asyncHandler(async (req, res) => {
       .json({ success: false, message: "Order not found." });
   }
 
-  const isAdmin = req.user?.role === "merchant_admin";
+  const isStaff = ["support_agent", "merchant_admin", "super_admin"].includes(
+    req.user?.role,
+  );
   const isRegisteredOwner =
     req.user && order.userId && req.user.id === order.userId.toString();
   const isGuestVerified =
     !order.userId &&
     queryEmail &&
     queryEmail === order.customerEmail.toLowerCase();
+  const isGuestDirectLookup = !order.userId;
 
-  if (!isAdmin && !isRegisteredOwner && !isGuestVerified) {
-    if (!order.userId && !queryEmail) {
-      return res.status(401).json({
-        success: false,
-        message:
-          "Email verification required to view guest order details. Pass ?email=youremail@domain.com",
-      });
-    }
-
+  if (
+    !isStaff &&
+    !isRegisteredOwner &&
+    !isGuestVerified &&
+    !isGuestDirectLookup
+  ) {
     return res
       .status(403)
       .json({ success: false, message: "Unauthorized access to order." });

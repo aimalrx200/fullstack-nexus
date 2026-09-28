@@ -41,24 +41,28 @@ export function ProductCard({ product }) {
       className="group relative rounded-2xl bg-surface-card border border-border-main hover:border-brand-primary/40 transition-all duration-300 shadow-xs hover:shadow-xl hover:shadow-brand-primary/5 flex flex-col overflow-hidden"
     >
       {/* Image Thumbnail Frame */}
-      <div className="relative w-full aspect-square bg-surface-elevated overflow-hidden">
+      <div className="relative w-full aspect-square bg-surface-elevated/40 overflow-hidden flex items-center justify-center p-4 border-b border-border-subtle">
+        {/* Ambient Studio Spotlight Glow (Harmonizes transparent & dark photos) */}
+        <div className="absolute inset-0 bg-radial from-white/5 via-transparent to-transparent opacity-60 pointer-events-none" />
+
+        {/* Unified Product Image */}
         <img
           src={primaryImage}
           alt={product.title}
           loading="lazy"
-          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
+          className="w-full h-full object-contain object-center drop-shadow-md group-hover:scale-105 transition-transform duration-500 ease-out z-10"
         />
 
         {/* Featured Tag */}
         {product.isFeatured && (
-          <div className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-md border border-white/10 text-white text-[10px] font-mono font-semibold flex items-center gap-1 shadow-sm">
+          <div className="absolute top-3 left-3 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-md border border-white/10 text-white text-[10px] font-mono font-semibold flex items-center gap-1 shadow-sm z-20">
             <Sparkles className="w-3 h-3 text-amber-400" />
             <span>FEATURED</span>
           </div>
         )}
 
         {/* Stock Status Badge */}
-        <div className="absolute top-3 right-3">
+        <div className="absolute top-3 right-3 z-20">
           <StockTicker
             productId={product._id}
             initialStock={selectedVariant?.stock ?? 10}

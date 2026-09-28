@@ -1,6 +1,6 @@
 // apps/nexus-commerce/frontend/src/components/common/Navbar.jsx
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   ShoppingBag,
   Menu,
@@ -18,7 +18,10 @@ import { ThemeSelector } from "./ThemeSelector";
 import { CurrencySwitcher } from "./CurrencySwitcher";
 import { getRoleDefaultRoute } from "../../lib/auth/rbacNav";
 
-// Adaptive Avatar Helper for Google, OAuth, Passkey, and fallback initials
+// Chunk prefetch handlers for instant transitions
+const prefetchCatalog = () => import("../../pages/storefront/CatalogPage");
+const prefetchAccount = () => import("../../pages/storefront/AccountPage");
+
 function StorefrontUserAvatar({ user, size = "w-6 h-6" }) {
   const [imgError, setImgError] = useState(false);
   const avatarSrc =
@@ -64,9 +67,8 @@ export function Navbar({ onOpenAuthModal }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
 
-  const closeMobileMenu = () => setIsMobileMenuOpen(false);
+  const closeMobileMenu = useCallback(() => setIsMobileMenuOpen(false), []);
 
-  // Lock background body scroll when mobile menu is open
   useEffect(() => {
     if (isMobileMenuOpen) {
       const originalOverflow = document.body.style.overflow;
@@ -77,7 +79,6 @@ export function Navbar({ onOpenAuthModal }) {
     }
   }, [isMobileMenuOpen]);
 
-  // Determine appropriate staff navigation label and path based on role
   const staffLinkPath = isStaff ? getRoleDefaultRoute(user?.role) : "/";
   const staffLinkLabel = isMerchantAdmin ? "Merchant Hub" : "Support Desk";
 
@@ -88,7 +89,7 @@ export function Navbar({ onOpenAuthModal }) {
       }`}
     >
       <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
-        {/* Left: Brand Logo & Desktop Navigation Links */}
+        {/* Left: Brand Logo & Navigation */}
         <div className="flex items-center gap-4 lg:gap-6 min-w-0">
           <a
             href="/"
@@ -106,28 +107,32 @@ export function Navbar({ onOpenAuthModal }) {
             </div>
           </a>
 
-          {/* Desktop Navigation Links: Visible on >= 962px */}
           <nav className="hidden min-[962px]:flex items-center gap-5 lg:gap-6 text-sm font-medium text-text-muted">
             <a
               href="/catalog"
+              onMouseEnter={prefetchCatalog}
+              onFocus={prefetchCatalog}
               className="hover:text-text-main transition-colors"
             >
               Catalog
             </a>
             <a
               href="/catalog?category=Electronics"
+              onMouseEnter={prefetchCatalog}
+              onFocus={prefetchCatalog}
               className="hover:text-text-main transition-colors"
             >
               Electronics
             </a>
             <a
               href="/catalog?category=Apparel"
+              onMouseEnter={prefetchCatalog}
+              onFocus={prefetchCatalog}
               className="hover:text-text-main transition-colors"
             >
               Apparel
             </a>
 
-            {/* Dynamic Staff Hub Trigger: Visible for Support Agent, Merchant Admin & Super Admin */}
             {isStaff && (
               <a
                 href={staffLinkPath}
@@ -144,15 +149,13 @@ export function Navbar({ onOpenAuthModal }) {
           </nav>
         </div>
 
-        {/* Right: Actions Tray */}
+        {/* Right Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-          {/* Currency & Theme Switchers */}
           <div className="hidden min-[962px]:flex items-center gap-2">
             <CurrencySwitcher />
             <ThemeSelector />
           </div>
 
-          {/* Shopping Bag Button */}
           <button
             type="button"
             onClick={openCart}
@@ -167,7 +170,6 @@ export function Navbar({ onOpenAuthModal }) {
             )}
           </button>
 
-          {/* User Account / Auth Dropdown or Shimmer Init Skeleton */}
           {!isInitialized ? (
             <div className="w-20 sm:w-24 h-10 rounded-xl bg-surface-elevated/70 border border-border-subtle animate-pulse" />
           ) : isAuthenticated ? (
@@ -186,7 +188,6 @@ export function Navbar({ onOpenAuthModal }) {
                 <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
               </button>
 
-              {/* User Dropdown Card */}
               {isUserDropdownOpen && (
                 <>
                   <div
@@ -214,6 +215,7 @@ export function Navbar({ onOpenAuthModal }) {
                     <div className="py-1">
                       <a
                         href="/account"
+                        onMouseEnter={prefetchAccount}
                         onClick={() => setIsUserDropdownOpen(false)}
                         className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-text-main hover:bg-surface-elevated transition-colors"
                       >
@@ -221,7 +223,6 @@ export function Navbar({ onOpenAuthModal }) {
                         <span>Order History & Profile</span>
                       </a>
 
-                      {/* Staff Hub Option in Dropdown */}
                       {isStaff && (
                         <a
                           href={staffLinkPath}
@@ -269,7 +270,6 @@ export function Navbar({ onOpenAuthModal }) {
             </button>
           )}
 
-          {/* Hamburger Mobile Menu Toggle Button */}
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -286,7 +286,6 @@ export function Navbar({ onOpenAuthModal }) {
         </div>
       </div>
 
-      {/* Full-Height Mobile Drawer */}
       {isMobileMenuOpen && (
         <div className="min-[962px]:hidden fixed inset-x-0 top-16 bottom-0 h-[calc(100dvh-4rem)] bg-surface-app/98 backdrop-blur-2xl border-t border-border-subtle overflow-y-auto custom-scrollbar z-60 flex flex-col justify-between p-5 pb-8 animate-in fade-in slide-in-from-top-2 duration-200">
           <nav className="flex flex-col gap-1.5 text-sm font-medium">
@@ -312,7 +311,6 @@ export function Navbar({ onOpenAuthModal }) {
               <span>Apparel</span>
             </a>
 
-            {/* Mobile Drawer Staff Link */}
             {isStaff && (
               <a
                 href={staffLinkPath}

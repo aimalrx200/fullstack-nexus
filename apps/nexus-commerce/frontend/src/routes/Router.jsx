@@ -6,11 +6,10 @@ import { StorefrontLayout } from "../layouts/StorefrontLayout";
 import { AdminLayout } from "../layouts/AdminLayout";
 import { AuthLayout } from "../layouts/AuthLayout";
 import { ProtectedRoute, RoleGuard, GuestRoute } from "../lib/auth/guards";
-import { TopProgressBar } from "../components/common/TopProgressBar";
-import { RouteSuspense } from "../components/feedback/RouteSuspense";
+import { DashboardSkeleton } from "../components/feedback/DashboardSkeleton";
 
 // =============================================================================
-// ASYNCHRONOUS CODE-SPLITTING REGISTRY (Vite Dynamic Chunks)
+// LAZY-LOADED PAGE CHUNKS
 // =============================================================================
 
 // 1. Storefront Pages
@@ -110,19 +109,18 @@ const StaffManagerPage = lazy(() =>
   })),
 );
 
-/**
- * Root Router Wrapper: Mounts TopProgressBar exactly once globally.
- * Persists continuously across all layout changes and route transitions.
- */
+// Storefront minimal fallback: zero layout shifts or spinner flickers during chunk load
+function StorefrontSuspenseFallback() {
+  return <div className="min-h-[60vh] w-full" aria-busy="true" />;
+}
+
+// Admin layout fallback: structured dashboard skeleton
+function AdminSuspenseFallback() {
+  return null;
+}
+
 function RootLayout() {
-  return (
-    <>
-      <TopProgressBar />
-      <Suspense fallback={<RouteSuspense />}>
-        <Outlet />
-      </Suspense>
-    </>
-  );
+  return <Outlet />;
 }
 
 const router = createBrowserRouter([
@@ -130,45 +128,63 @@ const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       // =======================================================================
-      // 1. Storefront Routes
+      // 1. STOREFRONT (Seamless, Persistent Navbar/Footer Shell)
       // =======================================================================
       {
         path: "/",
         element: <StorefrontLayout />,
         children: [
-          { index: true, element: <HomePage /> },
-          { path: "catalog", element: <CatalogPage /> },
-          { path: "product/:slugOrId", element: <ProductDetailPage /> },
-          { path: "checkout", element: <CheckoutPage /> },
-          { path: "orders/track/:orderId", element: <OrderTrackingPage /> },
           {
-            element: <ProtectedRoute />,
-            children: [{ path: "account", element: <AccountPage /> }],
+            element: (
+              <Suspense fallback={<StorefrontSuspenseFallback />}>
+                <Outlet />
+              </Suspense>
+            ),
+            children: [
+              { index: true, element: <HomePage /> },
+              { path: "catalog", element: <CatalogPage /> },
+              { path: "product/:slugOrId", element: <ProductDetailPage /> },
+              { path: "checkout", element: <CheckoutPage /> },
+              { path: "orders/track/:orderId", element: <OrderTrackingPage /> },
+              {
+                element: <ProtectedRoute />,
+                children: [{ path: "account", element: <AccountPage /> }],
+              },
+            ],
           },
         ],
       },
 
       // =======================================================================
-      // 2. Auth Routes
+      // 2. AUTHENTICATION
       // =======================================================================
       {
         element: <AuthLayout />,
         children: [
           {
-            element: <GuestRoute />,
+            element: (
+              <Suspense fallback={<div className="min-h-75" />}>
+                <Outlet />
+              </Suspense>
+            ),
             children: [
-              { path: "login", element: <LoginPage /> },
-              { path: "register", element: <RegisterPage /> },
-              { path: "forgot-password", element: <ForgotPasswordPage /> },
-              { path: "reset-password", element: <ResetPasswordPage /> },
+              {
+                element: <GuestRoute />,
+                children: [
+                  { path: "login", element: <LoginPage /> },
+                  { path: "register", element: <RegisterPage /> },
+                  { path: "forgot-password", element: <ForgotPasswordPage /> },
+                  { path: "reset-password", element: <ResetPasswordPage /> },
+                ],
+              },
+              { path: "verify-email", element: <VerifyEmailPage /> },
             ],
           },
-          { path: "verify-email", element: <VerifyEmailPage /> },
         ],
       },
 
       // =======================================================================
-      // 3. Admin & Staff Operations Control Center (4-Tier RBAC Gated)
+      // 3. ADMIN & STAFF CONTROL CENTER (Persistent Shell + Skeleton Grids)
       // =======================================================================
       {
         path: "/admin",
@@ -181,28 +197,41 @@ const router = createBrowserRouter([
           {
             element: <AdminLayout />,
             children: [
-              // A. Support & Customers (Shared Staff)
-              { path: "support", element: <SupportDeskPage /> },
-              { path: "customers", element: <CustomerDirectoryPage /> },
-
-              // B. Merchant Operations & Analytics (Merchant Admin + Super Admin)
               {
                 element: (
-                  <RoleGuard allowedRoles={["merchant_admin", "super_admin"]} />
+                  <Suspense fallback={<AdminSuspenseFallback />}>
+                    <Outlet />
+                  </Suspense>
                 ),
                 children: [
-                  { index: true, element: <AdminDashboardPage /> },
-                  { path: "analytics", element: <AnalyticsPage /> },
-                  { path: "orders", element: <OrderFulfillmentPage /> },
-                  { path: "inventory", element: <InventoryManagerPage /> },
-                  { path: "coupons", element: <CouponManagerPage /> },
-                ],
-              },
+                  // Support & Customers (Shared Staff)
+                  { path: "support", element: <SupportDeskPage /> },
+                  { path: "customers", element: <CustomerDirectoryPage /> },
 
-              // C. Super Admin Team Governance (Super Admin Only)
-              {
-                element: <RoleGuard allowedRoles={["super_admin"]} />,
-                children: [{ path: "staff", element: <StaffManagerPage /> }],
+                  // Merchant Operations & Analytics
+                  {
+                    element: (
+                      <RoleGuard
+                        allowedRoles={["merchant_admin", "super_admin"]}
+                      />
+                    ),
+                    children: [
+                      { index: true, element: <AdminDashboardPage /> },
+                      { path: "analytics", element: <AnalyticsPage /> },
+                      { path: "orders", element: <OrderFulfillmentPage /> },
+                      { path: "inventory", element: <InventoryManagerPage /> },
+                      { path: "coupons", element: <CouponManagerPage /> },
+                    ],
+                  },
+
+                  // Super Admin Staff Governance
+                  {
+                    element: <RoleGuard allowedRoles={["super_admin"]} />,
+                    children: [
+                      { path: "staff", element: <StaffManagerPage /> },
+                    ],
+                  },
+                ],
               },
             ],
           },

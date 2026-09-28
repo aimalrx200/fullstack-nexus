@@ -1,3 +1,5 @@
+// apps/nexus-commerce/frontend/src/lib/api/adminApi.js
+
 import apiClient from "./client";
 
 export const adminApi = {
@@ -32,7 +34,32 @@ export const adminApi = {
     return data;
   },
 
-  // 4. Order Fulfillment FSM & Couriers
+  // 4. Product & SKU Variant Creation (NEW)
+  createProduct: async (formData) => {
+    const { data } = await apiClient.post("/products", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return data.product;
+  },
+
+  createVariant: async (variantPayload) => {
+    const { data } = await apiClient.post("/products/variants", variantPayload);
+    return data.variant;
+  },
+
+  updateProduct: async (productId, payload) => {
+    const { data } = await apiClient.patch(`/products/${productId}`, payload);
+    return data.product;
+  },
+
+  archiveProduct: async (productId) => {
+    const { data } = await apiClient.delete(`/products/${productId}`);
+    return data;
+  },
+
+  // 5. Order Fulfillment FSM & Couriers
   getAllOrders: async (params = {}) => {
     const { data } = await apiClient.get("/admin/orders", { params });
     return data;
@@ -61,7 +88,7 @@ export const adminApi = {
     return data;
   },
 
-  // 5. Promotional Coupons CRUD
+  // 6. Promotional Coupons CRUD
   getCoupons: async (params = {}) => {
     const { data } = await apiClient.get("/admin/coupons", { params });
     return data;
@@ -85,7 +112,7 @@ export const adminApi = {
     return data;
   },
 
-  // 6. Payment Transaction Ledger & Refunds
+  // 7. Payment Transaction Ledger & Refunds
   getTransactions: async (params = {}) => {
     const { data } = await apiClient.get("/payments/transactions", { params });
     return data;

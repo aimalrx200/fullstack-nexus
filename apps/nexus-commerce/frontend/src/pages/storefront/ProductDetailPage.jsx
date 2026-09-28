@@ -9,6 +9,7 @@ import { ReviewSection } from "../../components/storefront/product-detail/Review
 import { VariantSelector } from "../../components/storefront/catalog/VariantSelector";
 import { Button } from "../../components/common/Button";
 import { ProductDetailSkeleton } from "../../components/feedback/ProductDetailSkeleton";
+import { useDelayedLoading } from "../../hooks/useDelayedLoading";
 import { productApi } from "../../lib/api/productApi";
 import { queryKeys } from "../../lib/api/queryKeys";
 import { useCart } from "../../hooks/useCart";
@@ -23,18 +24,19 @@ export function ProductDetailPage() {
     queryFn: () => productApi.getProductBySlug(slugOrId),
   });
 
+  const showSkeleton = useDelayedLoading(isLoading);
+
   const product = data?.product;
   const variants = data?.variants || [];
   const [selectedVariant, setSelectedVariant] = useState(null);
 
   const activeVariant = selectedVariant || variants[0] || null;
 
-  // Render matching 2-column skeleton during query fetching
-  if (isLoading) {
+  if (showSkeleton) {
     return <ProductDetailSkeleton />;
   }
 
-  if (!product) {
+  if (!product && !isLoading) {
     return (
       <div className="py-20 text-center text-sm font-semibold text-text-muted">
         Product not found.
@@ -42,16 +44,16 @@ export function ProductDetailPage() {
     );
   }
 
+  if (!product) return null;
+
   const isSoldOut = activeVariant ? activeVariant.stock <= 0 : false;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-12 py-6 animate-in fade-in">
+    <div className="max-w-6xl mx-auto space-y-12 py-6 animate-in fade-in duration-300">
       {/* Top Half: Gallery & Buy Box */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-        {/* Product Image Gallery */}
         <ProductGalleryCarousel images={product.images || []} />
 
-        {/* Product Information & Actions */}
         <div className="space-y-6 flex flex-col justify-center">
           <ProductInfo product={product} selectedVariant={activeVariant} />
 
@@ -59,7 +61,6 @@ export function ProductDetailPage() {
             {product.description}
           </p>
 
-          {/* Variant SKU Selector */}
           {variants.length > 0 && (
             <VariantSelector
               variants={variants}
@@ -68,7 +69,6 @@ export function ProductDetailPage() {
             />
           )}
 
-          {/* Purchase CTA */}
           <div className="pt-2 space-y-3">
             <Button
               variant={isSoldOut ? "secondary" : "luxury"}
@@ -82,7 +82,6 @@ export function ProductDetailPage() {
               {isSoldOut ? "Sold Out" : "Add to Shopping Bag"}
             </Button>
 
-            {/* Guarantees Box */}
             <div className="p-4 rounded-2xl bg-surface-elevated border border-border-subtle grid grid-cols-3 gap-2 text-center text-[11px] text-text-muted">
               <div className="flex flex-col items-center gap-1">
                 <Truck className="w-4 h-4 text-brand-primary" />
@@ -101,7 +100,6 @@ export function ProductDetailPage() {
         </div>
       </div>
 
-      {/* Bottom Half: Customer Reviews */}
       <ReviewSection />
     </div>
   );

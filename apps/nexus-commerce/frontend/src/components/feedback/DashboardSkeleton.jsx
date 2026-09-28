@@ -4,7 +4,7 @@ import React from "react";
 
 export function DashboardSkeleton() {
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="space-y-6 animate-in fade-in duration-1000">
       {/* Metrics Overview 4-Card Grid Skeleton */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, i) => (

@@ -16,6 +16,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Button } from "./Button";
+import { useDelayedLoading } from "../../hooks/useDelayedLoading"; // 👈 Import delay hook
 
 export function DataTable({
   data = [],
@@ -26,6 +27,12 @@ export function DataTable({
   onPaginationChange,
 }) {
   const [sorting, setSorting] = useState([]);
+
+  // ⏱️ Centralized threshold: fast queries (<120ms) skip skeleton, slow queries show for min 350ms
+  const showSkeleton = useDelayedLoading(isLoading, {
+    delay: 120,
+    minDuration: 3000,
+  });
 
   // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
@@ -42,11 +49,10 @@ export function DataTable({
   });
 
   return (
-    <div className="w-full space-y-3">
+    <div className="w-full space-y-3 animate-in fade-in duration-200">
       {/* Table Shell */}
       <div className="w-full overflow-x-auto rounded-2xl border border-border-main bg-surface-card shadow-xs custom-scrollbar">
         <table className="w-full text-left text-xs text-text-main border-collapse">
-          {/* Table Header */}
           <thead className="bg-surface-elevated border-b border-border-main font-mono text-[11px] uppercase tracking-wider text-text-muted select-none">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
@@ -86,10 +92,9 @@ export function DataTable({
             ))}
           </thead>
 
-          {/* Table Body */}
           <tbody className="divide-y divide-border-subtle">
-            {isLoading ? (
-              // Column-Matched Skeleton Loading Rows
+            {showSkeleton ? (
+              // 👈 Uses showSkeleton instead of raw isLoading
               Array.from({ length: 6 }).map((_, rowIdx) => (
                 <tr key={rowIdx} className="animate-pulse">
                   {columns.map((_, colIdx) => (

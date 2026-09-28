@@ -1,11 +1,13 @@
+// apps/nexus-commerce/backend/src/controllers/admin/orderFulfillment.controller.js
+
 import { Order } from "#models/index.js";
 import { transitionOrderStatus } from "#services/orderFSMService.js";
-import { broadcastCourierLocation } from "#websockets/wsBroadcaster.js";
+import {
+  broadcastCourierLocation,
+  broadcastOrderStatusUpdate,
+} from "#websockets/wsBroadcaster.js";
 import { asyncHandler } from "#utils/asyncHandler.js";
 
-/**
- * Server-Side Paginated Admin Order Pipeline
- */
 export const getAllOrders = asyncHandler(async (req, res) => {
   const {
     page = 1,
@@ -74,7 +76,7 @@ export const updateFulfillmentStatus = asyncHandler(async (req, res) => {
     orderId,
     targetStatus: status,
     note,
-    triggeredBy: req.user.name || "merchant_admin",
+    triggeredBy: req.user?.name || "merchant_admin",
   });
 
   return res.status(200).json({ success: true, order });
@@ -84,34 +86,47 @@ export const assignCourierTracking = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
   const { carrier, trackingNumber, estimatedDelivery } = req.body;
 
-  const order = await Order.findByIdAndUpdate(
-    orderId,
-    {
-      $set: {
-        "courier.carrier": carrier,
-        "courier.trackingNumber": trackingNumber,
-        "courier.dispatchDate": new Date(),
-        "courier.estimatedDelivery": estimatedDelivery,
-        fulfillmentStatus: "dispatched",
-      },
-    },
-    { new: true },
-  );
+  const order = await Order.findById(orderId);
+  if (!order) {
+    return res
+      .status(404)
+      .json({ success: false, message: "Order not found." });
+  }
 
+  order.courier = {
+    carrier: carrier || "TCS",
+    trackingNumber: trackingNumber || `TRK-${Date.now().toString().slice(-6)}`,
+    dispatchDate: new Date(),
+    estimatedDelivery: estimatedDelivery
+      ? new Date(estimatedDelivery)
+      : new Date(Date.now() + 2 * 86400000),
+    currentLocation: {
+      lat: 31.5204,
+      lng: 74.3587,
+      label: `Dispatched with ${carrier || "TCS Express"}`,
+    },
+  };
+  order.fulfillmentStatus = "dispatched";
+  order.timeline.push({
+    status: "DISPATCHED",
+    note: `Assigned courier ${carrier} (Tracking #${order.courier.trackingNumber})`,
+    timestamp: new Date(),
+    triggeredBy: req.user?.name || "merchant_admin",
+  });
+
+  await order.save();
+
+  // Broadcast location & status simultaneously
   broadcastCourierLocation(
     order._id,
-    order.shippingAddress.coordinates,
+    order.courier.currentLocation,
     `Dispatched with ${carrier}`,
   );
+  broadcastOrderStatusUpdate(order._id, "dispatched", order.timeline);
 
   return res.status(200).json({ success: true, order });
 });
 
-/**
- * Simulates real-time courier GPS movement from Warehouse Hub to Customer Destination.
- * Dispatches interpolated coordinates at 2-second intervals.
- * POST /api/v1/orders/:orderId/simulate-delivery
- */
 export const simulateCourierDelivery = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
 
@@ -122,7 +137,6 @@ export const simulateCourierDelivery = asyncHandler(async (req, res) => {
       .json({ success: false, message: "Order not found." });
   }
 
-  // 1. Ensure order is in dispatched state
   if (
     order.fulfillmentStatus !== "dispatched" &&
     order.fulfillmentStatus !== "delivered"
@@ -135,17 +149,22 @@ export const simulateCourierDelivery = asyncHandler(async (req, res) => {
         `TRK-${Date.now().toString().slice(-6)}`,
       dispatchDate: new Date(),
     };
+    order.timeline.push({
+      status: "DISPATCHED",
+      note: "Dispatched from fulfillment center",
+      timestamp: new Date(),
+      triggeredBy: "simulator",
+    });
     await order.save();
+    broadcastOrderStatusUpdate(order._id, "dispatched", order.timeline);
   }
 
-  // Origin: Central Fulfillment Hub (Lahore, PK)
   const origin = {
     lat: 31.5204,
     lng: 74.3587,
     label: "Fulfillment Center (Gulberg III)",
   };
 
-  // Destination: Customer delivery coordinates (defaulting to destination if unpinned)
   const destination = order.shippingAddress?.coordinates?.lat
     ? {
         lat: order.shippingAddress.coordinates.lat,
@@ -154,13 +173,11 @@ export const simulateCourierDelivery = asyncHandler(async (req, res) => {
       }
     : { lat: 31.4697, lng: 74.2728, label: "Customer Residence (DHA Phase 5)" };
 
-  // Generate 8 geographical waypoints along the delivery vector
   const waypoints = [];
   const steps = 8;
 
   for (let i = 0; i <= steps; i++) {
     const fraction = i / steps;
-    // Add realistic courier road jitter
     const jitterLat =
       i === 0 || i === steps ? 0 : (Math.random() - 0.5) * 0.004;
     const jitterLng =
@@ -190,32 +207,39 @@ export const simulateCourierDelivery = asyncHandler(async (req, res) => {
     });
   }
 
-  // Asynchronously broadcast waypoints every 2.5 seconds (Non-blocking response)
   waypoints.forEach((wp, index) => {
     setTimeout(async () => {
       broadcastCourierLocation(order._id, wp.coordinates, wp.statusLabel);
 
-      // Final step: update DB state to delivered
       if (wp.step === waypoints.length) {
-        await Order.findByIdAndUpdate(order._id, {
-          $set: {
-            fulfillmentStatus: "delivered",
-            "courier.currentLocation": {
-              ...wp.coordinates,
-              label: wp.statusLabel,
-            },
-          },
-        });
+        const finalOrder = await Order.findById(order._id);
+        if (finalOrder) {
+          finalOrder.fulfillmentStatus = "delivered";
+          finalOrder.courier.currentLocation = {
+            ...wp.coordinates,
+            label: wp.statusLabel,
+          };
+          finalOrder.timeline.push({
+            status: "DELIVERED",
+            note: "Package handed over to customer",
+            timestamp: new Date(),
+            triggeredBy: "courier_gps",
+          });
+          await finalOrder.save();
+          // ⚡ Final live delivery broadcast
+          broadcastOrderStatusUpdate(
+            finalOrder._id,
+            "delivered",
+            finalOrder.timeline,
+          );
+        }
       }
-    }, index * 2500);
+    }, index * 2000);
   });
 
   return res.status(200).json({
     success: true,
-    message:
-      "Live courier delivery simulation started. Dispatched 8 GPS telemetry waypoints.",
+    message: "Live courier delivery simulation started.",
     waypointsCount: waypoints.length,
-    origin,
-    destination,
   });
 });

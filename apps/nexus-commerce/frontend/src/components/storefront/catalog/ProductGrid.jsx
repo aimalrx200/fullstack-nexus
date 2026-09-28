@@ -1,14 +1,19 @@
+// apps/nexus-commerce/frontend/src/components/storefront/catalog/ProductGrid.jsx
+
 import React from "react";
 import { ProductCard } from "./ProductCard";
 import { ProductCardSkeleton } from "../../feedback/ProductCardSkeleton";
 import { EmptyState } from "../../feedback/EmptyState";
+import { useDelayedLoading } from "../../../hooks/useDelayedLoading";
 
 export function ProductGrid({
   products = [],
   isLoading = false,
   onResetFilters,
 }) {
-  if (isLoading) {
+  const showSkeleton = useDelayedLoading(isLoading);
+
+  if (showSkeleton) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
         {Array.from({ length: 8 }).map((_, idx) => (
@@ -30,7 +35,7 @@ export function ProductGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 animate-in fade-in duration-300">
       {products.map((product) => (
         <ProductCard key={product._id} product={product} />
       ))}

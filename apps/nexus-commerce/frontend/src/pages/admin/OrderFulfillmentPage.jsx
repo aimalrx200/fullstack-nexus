@@ -1,13 +1,20 @@
 // apps/nexus-commerce/frontend/src/pages/admin/OrderFulfillmentPage.jsx
 
 import React, { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
 import { adminApi } from "../../lib/api/adminApi";
 import { queryKeys } from "../../lib/api/queryKeys";
 import { OrderFulfillmentFSM } from "../../components/admin/orders/OrderFulfillmentFSM";
 import { CourierTrackingModal } from "../../components/admin/orders/CourierTrackingModal";
 import { OrderSummaryCard } from "../../components/storefront/orders/OrderSummaryCard";
 import { OrderCardSkeleton } from "../../components/feedback/OrderCardSkeleton";
+import { useDelayedLoading } from "../../hooks/useDelayedLoading";
+import { useRealTimeStream } from "../../hooks/useRealTimeStream";
 import { toast } from "sonner";
 
 export function OrderFulfillmentPage() {
@@ -17,13 +24,54 @@ export function OrderFulfillmentPage() {
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.admin.orders(),
     queryFn: () => adminApi.getAllOrders(),
+    placeholderData: keepPreviousData,
+  });
+
+  const showSkeleton = useDelayedLoading(isLoading, {
+    delay: 120,
+    minDuration: 3000,
+  });
+
+  // ⚡ Live Stream: Auto-update orders list whenever an order changes status in any tab/webhook
+  useRealTimeStream({
+    channelType: "admin",
+    events: {
+      "order:status_updated": (payload) => {
+        queryClient.setQueryData(queryKeys.admin.orders(), (oldData) => {
+          if (!oldData?.orders) return oldData;
+          return {
+            ...oldData,
+            orders: oldData.orders.map((o) =>
+              o._id === payload.orderId
+                ? {
+                    ...o,
+                    fulfillmentStatus: payload.status,
+                    paymentStatus: payload.paymentStatus || o.paymentStatus,
+                  }
+                : o,
+            ),
+          };
+        });
+      },
+      "order:new": () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.admin.orders() });
+      },
+    },
   });
 
   const transitionMutation = useMutation({
     mutationFn: ({ orderId, status }) =>
       adminApi.updateFulfillmentStatus(orderId, { status }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.orders() });
+    onSuccess: (updatedOrder) => {
+      queryClient.setQueryData(queryKeys.admin.orders(), (oldData) => {
+        if (!oldData?.orders) return oldData;
+        return {
+          ...oldData,
+          orders: oldData.orders.map((o) =>
+            o._id === updatedOrder._id ? updatedOrder : o,
+          ),
+        };
+      });
       toast.success("Order status updated successfully!");
     },
   });
@@ -31,28 +79,36 @@ export function OrderFulfillmentPage() {
   const courierMutation = useMutation({
     mutationFn: (payload) =>
       adminApi.assignCourierTracking(payload.orderId, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.orders() });
+    onSuccess: (updatedOrder) => {
+      queryClient.setQueryData(queryKeys.admin.orders(), (oldData) => {
+        if (!oldData?.orders) return oldData;
+        return {
+          ...oldData,
+          orders: oldData.orders.map((o) =>
+            o._id === updatedOrder._id ? updatedOrder : o,
+          ),
+        };
+      });
       setSelectedOrderForCourier(null);
       toast.success("Courier tracking label assigned & dispatched!");
     },
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-6 animate-in fade-in duration-300">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-text-main tracking-tight">
           Order Fulfillment & FSM Transitions
         </h1>
         <p className="text-xs text-text-muted">
-          Manage fulfillment lifecycle with Saga rollback on cancellation.
+          Manage fulfillment lifecycle with real-time synchronized telemetry.
         </p>
       </div>
 
-      {isLoading ? (
-        <OrderCardSkeleton count={4} />
+      {showSkeleton ? (
+        <OrderCardSkeleton count={4} showActions={true} />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 animate-in fade-in duration-300">
           {data?.orders?.map((order) => (
             <div
               key={order._id}

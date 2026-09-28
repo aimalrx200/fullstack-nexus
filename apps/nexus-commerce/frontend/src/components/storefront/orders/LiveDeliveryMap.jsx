@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+// apps/nexus-commerce/frontend/src/components/storefront/orders/LiveDeliveryMap.jsx
+
+import React, { useState, useRef, useEffect } from "react";
 import {
   Truck,
   MapPin,
@@ -7,48 +9,45 @@ import {
   Play,
   Loader2,
 } from "lucide-react";
-import { useOrderTrackingStream } from "../../../hooks/useRealTimeSubsystems";
 import { orderApi } from "../../../lib/api/orderApi";
 import { toast } from "sonner";
 
-export function LiveDeliveryMap({ order }) {
-  const [currentCoord, setCurrentCoord] = useState(
-    order?.courier?.currentLocation ||
-      order?.shippingAddress?.coordinates || { lat: 31.5204, lng: 74.3587 },
-  );
-  const [statusMessage, setStatusMessage] = useState(
-    order?.courier?.currentLocation?.label ||
-      `Dispatched with ${order?.courier?.carrier || "TCS Express"}`,
-  );
+export function LiveDeliveryMap({ order, isStreamConnected = false }) {
   const [isSimulating, setIsSimulating] = useState(false);
+  const simulationTimerRef = useRef(null);
 
-  // Bind real-time tracking stream (SSE in Prod / Socket.io in Dev)
-  const { isConnected } = useOrderTrackingStream(order?._id, {
-    onLocationUpdate: (telemetry) => {
-      if (telemetry.coordinates) {
-        setCurrentCoord(telemetry.coordinates);
+  // ⚡ Derive directly during render: zero redundant state & zero cascading re-renders
+  const currentCoord = order?.courier?.currentLocation ||
+    order?.shippingAddress?.coordinates || { lat: 31.5204, lng: 74.3587 };
+
+  const statusMessage =
+    order?.courier?.currentLocation?.label ||
+    (order?.fulfillmentStatus === "delivered"
+      ? "Package Delivered"
+      : `Dispatched with ${order?.courier?.carrier || "TCS Express"}`);
+
+  // Clean up simulation timer on unmount
+  useEffect(() => {
+    return () => {
+      if (simulationTimerRef.current) {
+        clearTimeout(simulationTimerRef.current);
       }
-      if (telemetry.statusLabel) {
-        setStatusMessage(telemetry.statusLabel);
-      }
-    },
-    onStatusUpdate: (statusData) => {
-      if (statusData.status) {
-        setStatusMessage(`Status: ${statusData.status.toUpperCase()}`);
-      }
-    },
-  });
+    };
+  }, []);
 
   const handleStartSimulation = async () => {
     if (!order?._id) return;
     setIsSimulating(true);
+
     try {
       await orderApi.simulateDelivery(order._id);
       toast.success("Live courier telemetry simulation started!");
     } catch {
       toast.info("GPS radar telemetry simulation active.");
     } finally {
-      setTimeout(() => setIsSimulating(false), 20000);
+      simulationTimerRef.current = setTimeout(() => {
+        setIsSimulating(false);
+      }, 18000);
     }
   };
 
@@ -71,15 +70,17 @@ export function LiveDeliveryMap({ order }) {
         </div>
 
         <div className="flex items-center gap-2.5">
-          {/* Stream Status Indicator */}
+          {/* Live Status Indicator */}
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-elevated border border-border-main text-[11px] font-mono">
             <span
               className={`w-2 h-2 rounded-full ${
-                isConnected ? "bg-emerald-400 animate-ping" : "bg-amber-400"
+                isStreamConnected
+                  ? "bg-emerald-400 animate-ping"
+                  : "bg-amber-400"
               }`}
             />
             <span className="text-text-muted">
-              {isConnected ? "LIVE RADAR" : "CONNECTING..."}
+              {isStreamConnected ? "LIVE RADAR" : "CONNECTING..."}
             </span>
           </div>
 
@@ -104,7 +105,6 @@ export function LiveDeliveryMap({ order }) {
 
       {/* Visual Radar Vector Grid */}
       <div className="relative w-full h-60 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-center overflow-hidden">
-        {/* Radar Background */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-size-[2rem_2rem] opacity-30" />
 
         {/* Origin Fulfillment Center */}
@@ -113,16 +113,16 @@ export function LiveDeliveryMap({ order }) {
             <MapPin className="w-4 h-4" />
           </div>
           <span className="text-[9px] text-slate-400 font-mono mt-1">
-            Fulfillment Hub
+            Hub (Gulberg III)
           </span>
         </div>
 
-        {/* Animated Vector Route Polyline */}
+        {/* Route Polyline */}
         <div className="absolute left-16 right-16 top-1/2 -translate-y-1/2 h-0.5 bg-slate-800">
           <div className="h-full bg-linear-to-r from-blue-500 to-indigo-500 shadow-[0_0_12px_rgba(59,130,246,0.5)] transition-all duration-1000" />
         </div>
 
-        {/* Courier Marker */}
+        {/* Courier Moving Marker */}
         <div className="relative z-10 flex flex-col items-center transition-all duration-1000">
           <div className="w-11 h-11 rounded-2xl bg-blue-600 border-2 border-white/20 flex items-center justify-center text-white shadow-xl shadow-blue-500/30 animate-bounce">
             <Truck className="w-5 h-5" />
@@ -133,7 +133,7 @@ export function LiveDeliveryMap({ order }) {
           </div>
         </div>
 
-        {/* Destination Customer House Marker */}
+        {/* Destination Marker */}
         <div className="absolute right-8 top-1/2 -translate-y-1/2 flex flex-col items-center">
           <div className="w-8 h-8 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.3)]">
             <CheckCircle2 className="w-4 h-4" />
@@ -159,7 +159,7 @@ export function LiveDeliveryMap({ order }) {
             Carrier
           </span>
           <span className="font-medium text-text-main mt-0.5 block">
-            {order?.courier?.carrier || "TCS Express Delivery"}
+            {order?.courier?.carrier || "TCS Express"}
           </span>
         </div>
       </div>

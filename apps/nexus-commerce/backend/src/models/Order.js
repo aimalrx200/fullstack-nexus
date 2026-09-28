@@ -71,6 +71,14 @@ const orderSchema = new mongoose.Schema(
 
     pricing: {
       currency: { type: String, enum: ["USD", "PKR"], default: "USD" },
+      subtotalUSD: { type: Number },
+      subtotalPKR: { type: Number },
+      shippingFeeUSD: { type: Number, default: 0 },
+      shippingFeePKR: { type: Number, default: 0 },
+      discountUSD: { type: Number, default: 0 },
+      discountPKR: { type: Number, default: 0 },
+      totalUSD: { type: Number },
+      totalPKR: { type: Number },
       subtotal: { type: Number, required: true },
       shippingFee: { type: Number, required: true, default: 0 },
       tax: { type: Number, required: true, default: 0 },

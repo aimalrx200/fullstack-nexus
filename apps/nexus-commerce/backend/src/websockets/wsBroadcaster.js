@@ -47,15 +47,25 @@ export const broadcastNewOrder = (order) => {
 /**
  * Broadcasts order status updates (e.g. confirmed -> dispatched -> delivered).
  */
-export const broadcastOrderStatusUpdate = (orderId, status, timeline) => {
+export const broadcastOrderStatusUpdate = (
+  orderId,
+  status,
+  timeline,
+  paymentStatus,
+) => {
   const trackingRoom = `${WS_CHANNELS.TRACKING_ROOM_PREFIX}${orderId}`;
-  const payload = { orderId, status, timeline };
+  const payload = {
+    orderId,
+    status,
+    timeline,
+    ...(paymentStatus && { paymentStatus }), // 👈 Include paymentStatus
+  };
 
   if (ioInstance) {
     ioInstance.to(trackingRoom).emit(WS_CHANNELS.EVENT_ORDER_STATUS, payload);
     ioInstance
       .to(WS_CHANNELS.ADMIN_ORDERS_ROOM)
-      .emit(WS_CHANNELS.EVENT_ORDER_STATUS, { orderId, status });
+      .emit(WS_CHANNELS.EVENT_ORDER_STATUS, payload);
   }
 
   publishEvent(trackingRoom, {
@@ -65,7 +75,7 @@ export const broadcastOrderStatusUpdate = (orderId, status, timeline) => {
 
   publishEvent(WS_CHANNELS.ADMIN_ORDERS_ROOM, {
     type: WS_CHANNELS.EVENT_ORDER_STATUS,
-    data: { orderId, status },
+    data: payload,
   });
 };
 

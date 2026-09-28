@@ -1,14 +1,10 @@
+// apps/nexus-commerce/frontend/src/components/storefront/checkout/StripeCardElement.jsx
+
 import React from "react";
-import { loadStripe } from "@stripe/stripe-js";
-import { Elements, CardElement } from "@stripe/react-stripe-js";
+import { CardElement } from "@stripe/react-stripe-js";
 import { Lock, ShieldCheck } from "lucide-react";
 
-// Initialize Stripe singleton
-const stripePromise = loadStripe(
-  import.meta.env.VITE_STRIPE_PUBLIC_KEY || "pk_test_placeholder_key",
-);
-
-function CardElementInner({ onChange }) {
+export function StripeCardElement({ onChange }) {
   return (
     <div className="p-4 rounded-2xl bg-surface-elevated border border-border-main space-y-3.5 animate-in fade-in">
       <div className="flex items-center justify-between">
@@ -20,11 +16,12 @@ function CardElementInner({ onChange }) {
         </span>
       </div>
 
-      {/* Native Stripe Iframe Container */}
+      {/* Stripe Native Iframe Container */}
       <div className="p-3.5 rounded-xl bg-surface-card border border-border-main text-text-main">
         <CardElement
           onChange={onChange}
           options={{
+            hidePostalCode: true, // 👈 Removes redundant second ZIP input
             style: {
               base: {
                 fontSize: "13px",
@@ -47,13 +44,5 @@ function CardElementInner({ onChange }) {
         <span>Stripe 3D-Secure 2.0 Strong Customer Authentication (SCA)</span>
       </div>
     </div>
-  );
-}
-
-export function StripeCardElement({ onChange }) {
-  return (
-    <Elements stripe={stripePromise}>
-      <CardElementInner onChange={onChange} />
-    </Elements>
   );
 }

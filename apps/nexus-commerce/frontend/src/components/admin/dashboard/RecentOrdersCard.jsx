@@ -62,7 +62,16 @@ export function RecentOrdersCard({ orders = [] }) {
 
               <div className="text-right shrink-0 space-y-1">
                 <span className="font-mono font-bold text-text-main block">
-                  {formatPrice(order.pricing?.total, order.pricing?.total)}
+                  {formatPrice(
+                    order.pricing?.totalUSD ??
+                      (order.pricing?.currency === "USD"
+                        ? order.pricing?.total
+                        : order.pricing?.total / 280),
+                    order.pricing?.totalPKR ??
+                      (order.pricing?.currency === "PKR"
+                        ? order.pricing?.total
+                        : order.pricing?.total * 280),
+                  )}
                 </span>
                 <Badge
                   variant={
