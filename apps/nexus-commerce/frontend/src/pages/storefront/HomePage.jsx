@@ -1,3 +1,5 @@
+// apps/nexus-commerce/frontend/src/pages/storefront/HomePage.jsx
+
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { HeroCarousel } from "../../components/storefront/catalog/HeroCarousel";
@@ -7,17 +9,24 @@ import { queryKeys } from "../../lib/api/queryKeys";
 import { Sparkles } from "lucide-react";
 
 export function HomePage() {
-  const { data, isLoading } = useQuery({
-    queryKey: queryKeys.products.list({ limit: 8, isFeatured: true }),
+  // 1. Fetch products marked with "Feature on Storefront Hero" (isFeatured: true)
+  const { data: featuredData } = useQuery({
+    queryKey: queryKeys.products.list({ isFeatured: true, limit: 5 }),
+    queryFn: () => productApi.getProducts({ isFeatured: true, limit: 5 }),
+  });
+
+  // 2. Fetch latest catalog items for the grid
+  const { data: catalogData, isLoading } = useQuery({
+    queryKey: queryKeys.products.list({ limit: 8 }),
     queryFn: () => productApi.getProducts({ limit: 8 }),
   });
 
   return (
     <div className="space-y-8 animate-in fade-in">
-      {/* Hero Embla Carousel */}
-      <HeroCarousel />
+      {/* Dynamic Hero Carousel displaying featured products */}
+      <HeroCarousel products={featuredData?.products || []} />
 
-      {/* Featured Products Section */}
+      {/* Featured Collections Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
@@ -37,8 +46,13 @@ export function HomePage() {
           </a>
         </div>
 
-        <ProductGrid products={data?.products || []} isLoading={isLoading} />
+        <ProductGrid
+          products={catalogData?.products || []}
+          isLoading={isLoading}
+        />
       </div>
     </div>
   );
 }
+
+export default HomePage;

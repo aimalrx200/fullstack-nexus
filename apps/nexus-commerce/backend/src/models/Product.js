@@ -1,4 +1,5 @@
 // apps/nexus-commerce/backend/src/models/Product.js
+
 import mongoose from "mongoose";
 
 const productImageSchema = new mongoose.Schema({
@@ -7,6 +8,15 @@ const productImageSchema = new mongoose.Schema({
   alt: { type: String, default: "Product Image" },
   isPrimary: { type: Boolean, default: false },
 });
+
+const productVideoSchema = new mongoose.Schema(
+  {
+    url: { type: String, required: true },
+    publicId: { type: String },
+    thumbnailUrl: { type: String },
+  },
+  { _id: false },
+);
 
 const productSchema = new mongoose.Schema(
   {
@@ -34,6 +44,10 @@ const productSchema = new mongoose.Schema(
     },
     tags: [{ type: String, index: true }],
     images: [productImageSchema],
+    video: {
+      type: productVideoSchema,
+      default: null,
+    },
     basePriceUSD: {
       type: Number,
       required: true,

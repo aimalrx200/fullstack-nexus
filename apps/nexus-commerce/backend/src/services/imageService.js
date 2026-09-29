@@ -1,3 +1,5 @@
+// apps/nexus-commerce/backend/src/services/imageService.js
+
 import fs from "fs";
 import path from "path";
 import os from "os";
@@ -8,7 +10,11 @@ import { logger } from "#config/logger.js";
 
 const ALLOWED_IMAGE_FORMATS = new Set(["jpeg", "png", "webp", "avif"]);
 
-// Determine safe storage directory (uses /tmp on serverless / Linux, local /uploads in dev)
+/**
+ * Resolves the root uploads storage directory:
+ * - Development: <project_root>/uploads
+ * - Production / Serverless fallback: os.tmpdir()
+ */
 const getSafeUploadsDir = () => {
   if (env.NODE_ENV === "production") {
     return os.tmpdir();
@@ -17,8 +23,7 @@ const getSafeUploadsDir = () => {
 };
 
 /**
- * Inspects real binary magic bytes of an uploaded file buffer.
- * Defends against MIME-spoofing and polyglot executable injection.
+ * Inspects binary magic bytes to prevent MIME-spoofing attacks.
  */
 export const validateImageMagicBytes = async (buffer) => {
   if (!buffer || !Buffer.isBuffer(buffer)) {
@@ -40,26 +45,21 @@ export const validateImageMagicBytes = async (buffer) => {
     });
     throw new Error(
       "File content is corrupted or not a valid recognized image format.",
-      {
-        cause: err,
-      },
+      { cause: err },
     );
   }
 };
 
 /**
- * Optimizes an image buffer: validates magic bytes, auto-rotates EXIF orientation,
- * resizes, and converts to WebP.
+ * Optimizes image buffer: validates magic bytes, auto-rotates EXIF, resizes, and converts to WebP.
  */
 export const processImageToWebP = async (
   buffer,
   width = 1200,
   height = 1200,
 ) => {
-  // 1. Enforce strict binary inspection before processing
   await validateImageMagicBytes(buffer);
 
-  // 2. Transcode safely with Sharp
   return sharp(buffer)
     .rotate()
     .resize(width, height, {
@@ -74,24 +74,32 @@ export const processImageToWebP = async (
 };
 
 /**
- * Uploads to Cloudinary if configured; otherwise safely saves locally or returns Data URI.
+ * Uploads an image with hierarchical folder routing:
+ * - Local Dev: writes to `uploads/${subfolder}/`
+ * - Cloudinary: writes to `nexus-commerce/${subfolder}`
+ *
+ * @param {Buffer} fileBuffer - Raw uploaded file buffer
+ * @param {string} subfolder - Target relative path (e.g. "products/images", "support/chat")
  */
 export const uploadImage = async (
   fileBuffer,
-  folder = "nexus-commerce/products",
+  subfolder = "products/images",
 ) => {
   const webpBuffer = await processImageToWebP(fileBuffer);
+  const cleanSubfolder = subfolder.replace(/^\/+|\/+$/g, ""); // e.g. "products/images"
 
-  // 1. Cloudinary Storage (Recommended for Production)
+  // 1. Production Mode: Cloudinary CDN Storage
   if (
     env.CLOUDINARY_CLOUD_NAME &&
     env.CLOUDINARY_API_KEY &&
     env.CLOUDINARY_API_SECRET
   ) {
+    const cloudinaryFolder = `nexus-commerce/${cleanSubfolder}`;
+
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder,
+          folder: cloudinaryFolder,
           format: "webp",
           resource_type: "image",
         },
@@ -115,7 +123,7 @@ export const uploadImage = async (
     });
   }
 
-  // 2. Production Serverless Fallback (Base64 Data URI)
+  // 2. Production Serverless Fallback (Base64 Data URI if Cloudinary credentials missing)
   if (env.NODE_ENV === "production") {
     const base64 = webpBuffer.toString("base64");
     return {
@@ -124,23 +132,31 @@ export const uploadImage = async (
     };
   }
 
-  // 3. Local Development Disk Storage
+  // 3. Local Development Disk Storage with Scoped Subfolders
   try {
-    const uploadsDir = getSafeUploadsDir();
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
+    const uploadsRoot = getSafeUploadsDir();
+    const targetDir = path.join(uploadsRoot, cleanSubfolder);
+
+    // Recursively create directory structure (e.g. uploads/products/images/)
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
     }
 
     const fileName = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.webp`;
-    const filePath = path.join(uploadsDir, fileName);
+    const filePath = path.join(targetDir, fileName);
 
     await fs.promises.writeFile(filePath, webpBuffer);
-    logger.debug({ msg: "Saved image to local storage", fileName });
+    logger.debug({
+      msg: "Saved image to local scoped directory",
+      subfolder: cleanSubfolder,
+      fileName,
+    });
 
-    const baseUrl = env.CLIENT_URL ? "http://localhost:4000" : "";
+    const port = env.PORT || 4000;
+    const baseUrl = `http://localhost:${port}`;
     return {
-      url: `${baseUrl}/uploads/${fileName}`,
-      publicId: fileName,
+      url: `${baseUrl}/uploads/${cleanSubfolder}/${fileName}`,
+      publicId: `${cleanSubfolder}/${fileName}`,
     };
   } catch (err) {
     logger.warn({

@@ -24,7 +24,10 @@ export function ProductDetailPage() {
     queryFn: () => productApi.getProductBySlug(slugOrId),
   });
 
-  const showSkeleton = useDelayedLoading(isLoading);
+  const showSkeleton = useDelayedLoading(isLoading, {
+    delay: 150,
+    minDuration: 3000,
+  });
 
   const product = data?.product;
   const variants = data?.variants || [];
@@ -52,7 +55,11 @@ export function ProductDetailPage() {
     <div className="max-w-6xl mx-auto space-y-12 py-6 animate-in fade-in duration-300">
       {/* Top Half: Gallery & Buy Box */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-        <ProductGalleryCarousel images={product.images || []} />
+        {/* 👈 Passed video={product.video} */}
+        <ProductGalleryCarousel
+          images={product.images || []}
+          video={product.video}
+        />
 
         <div className="space-y-6 flex flex-col justify-center">
           <ProductInfo product={product} selectedVariant={activeVariant} />

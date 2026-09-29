@@ -1,3 +1,5 @@
+// apps/nexus-commerce/backend/src/validations/product.validation.js
+
 import { z } from "zod";
 
 // Helper: Safely transforms comma-separated tag strings or stringified JSON into arrays
@@ -16,6 +18,29 @@ const transformTags = (val) => {
   }
   return [];
 };
+
+// Helper: Safely transforms stringified JSON video object from FormData
+const transformVideo = (val) => {
+  if (!val || val === "null" || val === "undefined") return undefined;
+  if (typeof val === "object") return val;
+  if (typeof val === "string") {
+    try {
+      return JSON.parse(val);
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+};
+
+const VideoSchema = z
+  .object({
+    url: z.string().min(1, "Video URL is required."),
+    publicId: z.string().optional().nullable(),
+    thumbnailUrl: z.string().optional().nullable(),
+  })
+  .optional()
+  .nullable();
 
 // 1. Create Product Schema (Type-coerced for Multer multipart form-data)
 export const CreateProductSchema = z.object({
@@ -39,6 +64,8 @@ export const CreateProductSchema = z.object({
       (val) => val === true || val === "true" || val === 1 || val === "1",
       z.boolean().default(false),
     ),
+    // 👈 Added video field to Zod validation
+    video: z.preprocess(transformVideo, VideoSchema),
   }),
 });
 
@@ -57,6 +84,7 @@ export const UpdateProductSchema = z.object({
     isArchived: z
       .preprocess((val) => val === true || val === "true", z.boolean())
       .optional(),
+    video: z.preprocess(transformVideo, VideoSchema),
   }),
   params: z.object({
     productId: z.string().min(1, "Product ID is required."),

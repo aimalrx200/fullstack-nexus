@@ -122,4 +122,69 @@ export const adminApi = {
     const { data } = await apiClient.post("/payments/refund", refundPayload);
     return data;
   },
+
+  // Media & Video Management
+  getMediaUploadSignature: async (
+    folder = "nexus-commerce/products/videos",
+  ) => {
+    const { data } = await apiClient.get("/media/upload-signature", {
+      params: { folder },
+    });
+    return data;
+  },
+
+  uploadVideo: async (file, onProgress) => {
+    // 1. Fetch upload signature from backend
+    const { data: sigData } = await apiClient.get("/media/upload-signature");
+
+    // 2. Production: Direct Cloudinary Upload (Bypasses Vercel 4.5MB limit)
+    if (sigData.provider === "cloudinary") {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("api_key", sigData.apiKey);
+      formData.append("timestamp", sigData.timestamp);
+      formData.append("signature", sigData.signature);
+      formData.append("folder", sigData.folder);
+
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${sigData.cloudName}/video/upload`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to upload video to media CDN.");
+      }
+
+      const result = await response.json();
+
+      // Auto-generate thumbnail poster URL from second 1 of video
+      const thumbnailUrl = result.secure_url.replace(/\.[^.]+$/, ".jpg?so_1.0");
+
+      return {
+        url: result.secure_url,
+        publicId: result.public_id,
+        thumbnailUrl,
+      };
+    }
+
+    // 3. Local Development: Stream to Backend /uploads/products/videos
+    const formData = new FormData();
+    formData.append("video", file);
+
+    const { data } = await apiClient.post("/media/upload-video", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total && onProgress) {
+          onProgress(
+            Math.round((progressEvent.loaded * 100) / progressEvent.total),
+          );
+        }
+      },
+    });
+
+    return data.video;
+  },
 };
