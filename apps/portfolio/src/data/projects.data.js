@@ -1,8 +1,80 @@
+// apps/portfolio/src/data/projects.data.js
+
 /**
  * Data-Driven Project Registry
- * Allows instant onboarding of new projects (Project 02, 03, 04)
+ * Authoritative registry of all flagship platforms and upcoming distributed systems
  */
 export const PROJECTS_REGISTRY = [
+  {
+    id: "nexus-commerce",
+    tier: "flagship",
+    badge: "🟢 Live in Production",
+    title:
+      "Nexus Commerce — Autonomous Multi-Currency E-Commerce & Concurrency Engine",
+    tagline:
+      "Enterprise commerce platform engineered with atomic Redis Lua 10-minute flash-sale stock locks, WebAuthn FIDO2 biometric passkeys (Face ID / Touch ID), 4-tier RBAC delegation, live GPS courier tracking radar, and resilient multi-gateway payment pipelines.",
+    category: "High-Concurrency Commerce & Telemetry",
+    status: "Production",
+    featured: true,
+    links: {
+      liveDemo: "https://nexus-commerce-frontend.vercel.app",
+      apiGateway: "https://nexus-commerce-backend.vercel.app/api/v1",
+      healthCheck: "https://nexus-commerce-backend.vercel.app/api/v1/health",
+      github:
+        "https://github.com/aimalrx200/fullstack-nexus/tree/main/apps/nexus-commerce",
+    },
+    demoCredentials: {
+      hasEvaluatorPass: true,
+      description:
+        "1-Click instant evaluator pass with 4-tier RBAC role switcher (VIP Shopper, Support Specialist, Operations Lead).",
+    },
+    architectureHighlights: [
+      {
+        title: "Atomic Redis Lua Stock Holds",
+        desc: "Race-condition-proof 10-minute checkout inventory locks using atomic Lua scripts with MongoDB OCC transaction rollback.",
+      },
+      {
+        title: "WebAuthn FIDO2 Passkeys",
+        desc: "Cryptographic hardware-bound passwordless authentication supported across iOS Touch ID, Face ID, and Windows Hello.",
+      },
+      {
+        title: "Adaptive Dual-Protocol Telemetry",
+        desc: "Bi-directional Socket.io in local development with automatic fallback to Server-Sent Events (SSE) with exponential backoff on Vercel Serverless.",
+      },
+      {
+        title: "4-Tier RBAC & Sovereignty Shield",
+        desc: "Granular authorization hierarchy separating Super Admin, Merchant Admin, Support Agent, and Shopper, guarded by immutable master owner immunity.",
+      },
+      {
+        title: "Multi-Gateway Payment Pipeline",
+        desc: "Idempotent payment processing across Stripe (3DS SCA), JazzCash HMAC-SHA256, Easypaisa Checksum IPN, and Cash on Delivery (COD).",
+      },
+      {
+        title: "Live GPS Courier Radar",
+        desc: "Real-time waypoint dispatch simulation on interactive Google Maps with automated Cash on Delivery payment settlement upon physical delivery.",
+      },
+    ],
+    techStack: [
+      "React 19",
+      "Express 5.2",
+      "Tailwind CSS v4",
+      "Upstash Redis (Lua)",
+      "MongoDB Atlas",
+      "WebAuthn (FIDO2)",
+      "Socket.io + SSE",
+      "Stripe SDK",
+      "Sharp (WebP)",
+      "Cloudinary CDN",
+      "Redux Toolkit",
+      "TanStack Query v5",
+    ],
+    metrics: [
+      { label: "Inventory Lock TTL", value: "600s (10 Mins)" },
+      { label: "Token Grace Window", value: "2,000ms" },
+      { label: "Supported Currencies", value: "USD ($) / PKR (₨)" },
+      { label: "Auth Architecture", value: "FIDO2 Passkeys + JWT" },
+    ],
+  },
   {
     id: "key-vault-manager",
     tier: "flagship",

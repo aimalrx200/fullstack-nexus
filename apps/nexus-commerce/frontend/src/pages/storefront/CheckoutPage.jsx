@@ -31,7 +31,7 @@ function CheckoutFormContent() {
   const stripe = useStripe();
   const elements = useElements();
 
-  const { items, totals, clearCart } = useCart();
+  const { cartId, items, totals, clearCart, isCartLoading } = useCart();
   const { user, isAuthenticated } = useAuth();
 
   const [step, setStep] = useState(1);
@@ -75,7 +75,6 @@ function CheckoutFormContent() {
     toast.info(`Applied address: ${addr.label || "Saved Address"}`);
   };
 
-  // ✅ Pre-Flight Validation for Step 1
   const validateDeliveryDetails = () => {
     if (!recipientName || recipientName.trim().length < 2) {
       toast.error("Please enter a valid recipient name.");
@@ -120,6 +119,11 @@ function CheckoutFormContent() {
       return;
     }
 
+    if (isCartLoading) {
+      toast.info("Updating shopping bag details, please wait...");
+      return;
+    }
+
     if (items.length === 0) {
       toast.error("Your shopping bag is empty.");
       navigate("/catalog");
@@ -140,8 +144,14 @@ function CheckoutFormContent() {
     setIsSubmitting(true);
 
     try {
+      // ⚡ Priority: 1. Actual MongoDB Cart ObjectId, 2. Guest Session ID, 3. 'active_cart'
+      const activeCartId =
+        cartId ||
+        localStorage.getItem("nexus_guest_session_id") ||
+        "active_cart";
+
       const orderPayload = {
-        cartId: localStorage.getItem("nexus_guest_session_id") || "active_cart",
+        cartId: activeCartId,
         customerEmail: email.trim().toLowerCase(),
         customerPhone: phone.trim(),
         paymentMethod,
@@ -184,7 +194,7 @@ function CheckoutFormContent() {
                 email: email.trim().toLowerCase(),
                 phone: phone.trim(),
                 address: {
-                  postal_code: postalCode.trim(), // 👈 Automatically feeds Step 1 postal code to Stripe
+                  postal_code: postalCode.trim(),
                   city: city.trim(),
                   state: state.trim(),
                   line1: street.trim(),

@@ -1,3 +1,5 @@
+// apps/nexus-commerce/backend/src/controllers/cart/cart.controller.js
+
 import { Cart, Variant, Coupon } from "#models/index.js";
 import { asyncHandler } from "#utils/asyncHandler.js";
 import currency from "currency.js";
@@ -44,7 +46,6 @@ export const calculateCartTotals = (cart) => {
       discountUSD = subtotalUSD.multiply(discountPercent / 100);
       discountPKR = subtotalPKR.multiply(discountPercent / 100);
 
-      // Apply upper cap limits if configured
       if (maxDiscountUSD && discountUSD.value > maxDiscountUSD) {
         discountUSD = currency(maxDiscountUSD);
       }
@@ -79,19 +80,21 @@ export const getCart = asyncHandler(async (req, res) => {
   const userId = req.user?.id;
   const guestSessionId = req.headers["x-guest-session-id"];
 
-  const cart = await Cart.findOne({
-    $or: [
-      { ...(userId && { userId }) },
-      { ...(guestSessionId && { guestSessionId }) },
-    ],
-  })
-    .populate("items.productId")
-    .populate("items.variantId");
+  const query = [];
+  if (userId) query.push({ userId });
+  if (guestSessionId) query.push({ guestSessionId });
+
+  const cart =
+    query.length > 0
+      ? await Cart.findOne({ $or: query })
+          .populate("items.productId")
+          .populate("items.variantId")
+      : null;
 
   if (!cart) {
     return res.status(200).json({
       success: true,
-      cart: { items: [] },
+      cart: { _id: null, items: [] },
       totals: calculateCartTotals(null),
     });
   }
@@ -103,9 +106,16 @@ export const getCart = asyncHandler(async (req, res) => {
 export const addToCart = asyncHandler(async (req, res) => {
   const { variantId, quantity = 1 } = req.body;
   const userId = req.user?.id;
-  const guestSessionId = req.headers["x-guest-session-id"];
+  const guestSessionId =
+    req.headers["x-guest-session-id"] ||
+    req.body.guestSessionId ||
+    `guest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-  const variant = await Variant.findById(variantId).populate("productId");
+  // Safe extraction if variantId is sent as an object or string
+  const cleanVariantId =
+    typeof variantId === "object" ? variantId._id || variantId.id : variantId;
+
+  const variant = await Variant.findById(cleanVariantId).populate("productId");
   if (!variant || variant.stock < quantity) {
     return res.status(400).json({
       success: false,
@@ -113,23 +123,25 @@ export const addToCart = asyncHandler(async (req, res) => {
     });
   }
 
-  let cart = await Cart.findOne({
-    $or: [
-      { ...(userId && { userId }) },
-      { ...(guestSessionId && { guestSessionId }) },
-    ],
-  });
+  const query = [];
+  if (userId) query.push({ userId });
+  if (guestSessionId) query.push({ guestSessionId });
+
+  let cart = await Cart.findOne({ $or: query });
 
   if (!cart) {
-    cart = new Cart({ userId, guestSessionId, items: [] });
+    cart = new Cart({
+      ...(userId ? { userId } : { guestSessionId }),
+      items: [],
+    });
   }
 
   const existingIndex = cart.items.findIndex(
-    (item) => item.variantId.toString() === variantId,
+    (item) => item.variantId.toString() === cleanVariantId.toString(),
   );
 
   if (existingIndex > -1) {
-    const newQty = cart.items[existingIndex].quantity + quantity;
+    const newQty = cart.items[existingIndex].quantity + Number(quantity);
     if (newQty > variant.stock) {
       return res.status(400).json({
         success: false,
@@ -141,7 +153,7 @@ export const addToCart = asyncHandler(async (req, res) => {
     cart.items.push({
       productId: variant.productId._id,
       variantId: variant._id,
-      quantity,
+      quantity: Number(quantity),
       priceAtAdditionUSD:
         variant.priceOverrideUSD || variant.productId.basePriceUSD,
       priceAtAdditionPKR:
@@ -162,22 +174,24 @@ export const updateCartItemQuantity = asyncHandler(async (req, res) => {
   const userId = req.user?.id;
   const guestSessionId = req.headers["x-guest-session-id"];
 
-  const cart = await Cart.findOne({
-    $or: [
-      { ...(userId && { userId }) },
-      { ...(guestSessionId && { guestSessionId }) },
-    ],
-  });
+  const cleanVariantId =
+    typeof variantId === "object" ? variantId._id || variantId.id : variantId;
+
+  const query = [];
+  if (userId) query.push({ userId });
+  if (guestSessionId) query.push({ guestSessionId });
+
+  const cart = await Cart.findOne({ $or: query });
 
   if (!cart)
     return res.status(404).json({ success: false, message: "Cart not found." });
 
   if (Number(quantity) <= 0) {
     cart.items = cart.items.filter(
-      (item) => item.variantId.toString() !== variantId,
+      (item) => item.variantId.toString() !== cleanVariantId.toString(),
     );
   } else {
-    const variant = await Variant.findById(variantId);
+    const variant = await Variant.findById(cleanVariantId);
     if (!variant || variant.stock < quantity) {
       return res.status(400).json({
         success: false,
@@ -185,7 +199,9 @@ export const updateCartItemQuantity = asyncHandler(async (req, res) => {
       });
     }
 
-    const item = cart.items.find((i) => i.variantId.toString() === variantId);
+    const item = cart.items.find(
+      (i) => i.variantId.toString() === cleanVariantId.toString(),
+    );
     if (item) item.quantity = Number(quantity);
   }
 
@@ -201,16 +217,18 @@ export const removeFromCart = asyncHandler(async (req, res) => {
   const userId = req.user?.id;
   const guestSessionId = req.headers["x-guest-session-id"];
 
-  const cart = await Cart.findOne({
-    $or: [
-      { ...(userId && { userId }) },
-      { ...(guestSessionId && { guestSessionId }) },
-    ],
-  });
+  const cleanVariantId =
+    typeof variantId === "object" ? variantId._id || variantId.id : variantId;
+
+  const query = [];
+  if (userId) query.push({ userId });
+  if (guestSessionId) query.push({ guestSessionId });
+
+  const cart = await Cart.findOne({ $or: query });
 
   if (cart) {
     cart.items = cart.items.filter(
-      (item) => item.variantId.toString() !== variantId,
+      (item) => item.variantId.toString() !== cleanVariantId.toString(),
     );
     await cart.save();
   }
@@ -223,9 +241,6 @@ export const removeFromCart = asyncHandler(async (req, res) => {
     .json({ success: true, cart: populated || { items: [] }, totals });
 });
 
-/**
- * Validates and applies dynamic database coupon
- */
 export const applyCoupon = asyncHandler(async (req, res) => {
   const { code } = req.body;
   const userId = req.user?.id;
@@ -266,7 +281,6 @@ export const applyCoupon = asyncHandler(async (req, res) => {
     });
   }
 
-  // Per-user usage verification
   if (userId) {
     const userUsage = coupon.usedBy.filter(
       (u) => u.userId.toString() === userId.toString(),
@@ -279,18 +293,16 @@ export const applyCoupon = asyncHandler(async (req, res) => {
     }
   }
 
-  const cart = await Cart.findOne({
-    $or: [
-      { ...(userId && { userId }) },
-      { ...(guestSessionId && { guestSessionId }) },
-    ],
-  });
+  const query = [];
+  if (userId) query.push({ userId });
+  if (guestSessionId) query.push({ guestSessionId });
+
+  const cart = await Cart.findOne({ $or: query });
 
   if (!cart || cart.items.length === 0) {
     return res.status(400).json({ success: false, message: "Cart is empty." });
   }
 
-  // Check minimum order amount threshold
   const currentSubtotalUSD = cart.items.reduce(
     (acc, i) => acc + i.priceAtAdditionUSD * i.quantity,
     0,

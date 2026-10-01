@@ -1,6 +1,9 @@
+// apps/nexus-commerce/frontend/src/redux/slices/cartSlice.js
+
 import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
+  cartId: null,
   items: [],
   appliedCoupon: null,
   totals: {
@@ -21,6 +24,7 @@ export const cartSlice = createSlice({
   reducers: {
     setCartState: (state, action) => {
       const { cart, totals } = action.payload || {};
+      state.cartId = cart?._id || state.cartId || null;
       state.items = cart?.items || [];
       state.appliedCoupon = cart?.appliedCoupon || null;
       if (totals) state.totals = totals;
@@ -35,6 +39,7 @@ export const cartSlice = createSlice({
       state.isDrawerOpen = !state.isDrawerOpen;
     },
     clearCartState: (state) => {
+      state.cartId = null;
       state.items = [];
       state.appliedCoupon = null;
       state.totals = initialState.totals;

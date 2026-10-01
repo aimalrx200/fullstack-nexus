@@ -1,3 +1,5 @@
+// apps/nexus-commerce/backend/src/services/inventoryLockService.js
+
 import mongoose from "mongoose";
 import { cacheStore, redisClient, isRedisAlive } from "#config/redis.js";
 import { Variant, InventoryHold } from "#models/index.js";
@@ -158,11 +160,11 @@ export const commitInventoryDeduction = async (cartItems, cartId) => {
         const variantId = item.variantId?._id || item.variantId;
         const quantity = item.quantity;
 
-        // Atomic OCC condition: stock must be >= required quantity
+        // Atomic OCC condition: stock must be >= required quantity (Mongoose 9 returnDocument: 'after')
         const updated = await Variant.findOneAndUpdate(
           { _id: variantId, stock: { $gte: quantity } },
           { $inc: { stock: -quantity } },
-          { new: true, session },
+          { returnDocument: "after", session },
         );
 
         if (!updated) {

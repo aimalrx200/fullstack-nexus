@@ -9,9 +9,12 @@ import {
   setUserVerified,
   setInitialized,
 } from "../redux/slices/authSlice";
+import { setCartState } from "../redux/slices/cartSlice";
 import { authApi } from "../lib/api/authApi";
+import { cartApi } from "../lib/api/cartApi";
 import { queryKeys } from "../lib/api/queryKeys";
 import { AuthManager } from "../lib/auth/AuthManager";
+import { STORAGE_KEYS } from "../config/constants";
 import { toast } from "sonner";
 
 export function useAuth() {
@@ -36,6 +39,22 @@ export function useAuth() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // ⚡ Helper: Auto-merge guest cart into authenticated account
+  const triggerGuestCartMerge = useCallback(async () => {
+    const guestId = localStorage.getItem(STORAGE_KEYS.GUEST_SESSION_ID);
+    if (guestId) {
+      try {
+        const mergedData = await cartApi.mergeGuestCart(guestId);
+        if (mergedData?.cart) {
+          dispatch(setCartState(mergedData));
+          queryClient.setQueryData(queryKeys.cart.current(), mergedData);
+        }
+      } catch (err) {
+        console.warn("Guest cart auto-merge skipped:", err);
+      }
+    }
+  }, [dispatch, queryClient]);
+
   useEffect(() => {
     if (isSuccess && fetchedUser) {
       if (
@@ -45,6 +64,7 @@ export function useAuth() {
         user.role !== fetchedUser.role
       ) {
         dispatch(setCredentials(fetchedUser));
+        triggerGuestCartMerge();
       }
     } else if (isError) {
       if (user) {
@@ -54,13 +74,22 @@ export function useAuth() {
     } else if (!isLoading) {
       dispatch(setInitialized());
     }
-  }, [isSuccess, isError, isLoading, fetchedUser, user, dispatch]);
+  }, [
+    isSuccess,
+    isError,
+    isLoading,
+    fetchedUser,
+    user,
+    dispatch,
+    triggerGuestCartMerge,
+  ]);
 
   useEffect(() => {
     const unsubscribe = AuthManager.subscribe((type, payload) => {
       if (type === "AUTH_LOGIN") {
         dispatch(setCredentials(payload));
         queryClient.setQueryData(queryKeys.auth.me(), payload);
+        triggerGuestCartMerge();
       } else if (type === "AUTH_LOGOUT") {
         dispatch(clearCredentials());
         queryClient.setQueryData(queryKeys.auth.me(), null);
@@ -70,13 +99,14 @@ export function useAuth() {
     });
 
     return unsubscribe;
-  }, [dispatch, queryClient, refetchUser]);
+  }, [dispatch, queryClient, refetchUser, triggerGuestCartMerge]);
 
   const logoutMutation = useMutation({
     mutationFn: authApi.logout,
     onSuccess: () => {
       dispatch(clearCredentials());
       queryClient.setQueryData(queryKeys.auth.me(), null);
+      queryClient.invalidateQueries({ queryKey: queryKeys.cart.all });
       toast.success("Signed out successfully");
     },
     onError: () => {
@@ -90,6 +120,7 @@ export function useAuth() {
     onSuccess: (data) => {
       dispatch(setCredentials(data.user));
       queryClient.setQueryData(queryKeys.auth.me(), data.user);
+      triggerGuestCartMerge();
       toast.success(data.message || `Signed in as Demo ${data.user.role}`);
     },
   });
@@ -118,7 +149,6 @@ export function useAuth() {
         // Handled in mutation onError
       }
     }, [logoutMutation]),
-    // mutateAsync ensures the authenticated user payload is returned for RBAC routing
     demoLogin: useCallback(
       async (r) => {
         const data = await demoLoginMutation.mutateAsync(r);
@@ -130,5 +160,6 @@ export function useAuth() {
     isDemoLoggingIn: demoLoginMutation.isPending,
     markVerified: useCallback(() => dispatch(setUserVerified()), [dispatch]),
     refetchUser,
+    triggerGuestCartMerge,
   };
 }

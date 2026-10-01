@@ -1,3 +1,5 @@
+// apps/nexus-commerce/backend/src/controllers/payments/webhook.controller.js
+
 import { PaymentGatewayFactory } from "#gateways/PaymentGatewayFactory.js";
 import { Order, WebhookEvent, PaymentTransaction } from "#models/index.js";
 import {
@@ -22,7 +24,7 @@ export const handleStripeWebhook = async (req, res) => {
     return res.status(400).send(`Webhook Signature Error: ${err.message}`);
   }
 
-  // Idempotency Deduplication Gate
+  // 1. Idempotency Deduplication Gate (Guarantees at-most-once processing)
   const existing = await WebhookEvent.findOne({ eventId: event.id });
   if (existing) {
     logger.info({ msg: "Stripe webhook duplicate ignored", eventId: event.id });
@@ -33,10 +35,10 @@ export const handleStripeWebhook = async (req, res) => {
     eventId: event.id,
     gateway: "stripe",
     eventType: event.type,
-    payload: event.data.object,
+    payload: event.data?.object || event.data,
   });
 
-  // Event 1: Payment Succeeded
+  // 2. Event: Payment Succeeded (payment_intent.succeeded)
   if (event.type === "payment_intent.succeeded") {
     const paymentIntent = event.data.object;
     const { orderId, orderNumber } = paymentIntent.metadata || {};
@@ -46,6 +48,7 @@ export const handleStripeWebhook = async (req, res) => {
       order.paymentStatus = "paid";
       await order.save();
 
+      // State machine transition to confirmed
       await transitionOrderStatus({
         orderId: order._id,
         targetStatus: "confirmed",
@@ -53,8 +56,10 @@ export const handleStripeWebhook = async (req, res) => {
         triggeredBy: "stripe_webhook",
       });
 
+      // Commit physical warehouse inventory deduction atomically
       await commitInventoryDeduction(order.items);
 
+      // Record successful transaction in ledger
       await PaymentTransaction.create({
         orderId: order._id,
         orderNumber: orderNumber || order.orderNumber,
@@ -65,10 +70,16 @@ export const handleStripeWebhook = async (req, res) => {
         status: "success",
         rawGatewayResponse: paymentIntent,
       });
+
+      logger.info({
+        msg: "💳 Stripe payment processed & stock deducted atomically",
+        orderNumber: order.orderNumber,
+        paymentIntentId: paymentIntent.id,
+      });
     }
   }
 
-  // Event 2: Payment Failed
+  // 3. Event: Payment Failed (payment_intent.payment_failed)
   if (event.type === "payment_intent.payment_failed") {
     const paymentIntent = event.data.object;
     const { orderId } = paymentIntent.metadata || {};
@@ -76,8 +87,21 @@ export const handleStripeWebhook = async (req, res) => {
     const order = await Order.findById(orderId);
     if (order) {
       order.paymentStatus = "failed";
+      order.timeline.push({
+        status: "PAYMENT_FAILED",
+        note: `Stripe payment declined: ${paymentIntent.last_payment_error?.message || "Card authentication failed"}`,
+        timestamp: new Date(),
+        triggeredBy: "stripe_webhook",
+      });
       await order.save();
+
+      // Compensating action: Release temporary stock reservation
       await releaseInventoryHold(order._id.toString(), order._id.toString());
+
+      logger.warn({
+        msg: "🚨 Stripe payment failed; inventory holds released",
+        orderNumber: order.orderNumber,
+      });
     }
   }
 
@@ -99,7 +123,6 @@ export const handleJazzCashCallback = async (req, res) => {
 
   const eventId = `JC_${verification.transactionId || req.body.pp_TxnRefNo || Date.now()}`;
 
-  // Idempotency Deduplication Gate
   const existing = await WebhookEvent.findOne({ eventId });
   if (existing) {
     logger.info({ msg: "JazzCash callback duplicate ignored", eventId });
@@ -160,7 +183,6 @@ export const handleEasypaisaCallback = async (req, res) => {
 
   const eventId = `EP_${verification.transactionId || req.body.orderRefNum || Date.now()}`;
 
-  // Idempotency Deduplication Gate
   const existing = await WebhookEvent.findOne({ eventId });
   if (existing) {
     logger.info({ msg: "Easypaisa callback duplicate ignored", eventId });

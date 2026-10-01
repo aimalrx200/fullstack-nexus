@@ -1,3 +1,5 @@
+// apps/nexus-commerce/frontend/src/hooks/useCart.js
+
 import { useSelector, useDispatch } from "react-redux";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -23,6 +25,7 @@ export function useCart() {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
 
+  const cartId = useSelector((state) => state.cart.cartId);
   const items = useSelector(selectCartItems);
   const itemCount = useSelector(selectCartItemCount);
   const totals = useSelector(selectCartTotals);
@@ -31,14 +34,14 @@ export function useCart() {
   const displayTotal = useSelector(selectActiveCartDisplayTotal);
 
   // Sync Cart with Backend
-  const { isLoading: isCartLoading } = useQuery({
+  const { isLoading: isCartLoading, data: cartQueryData } = useQuery({
     queryKey: queryKeys.cart.current(),
     queryFn: async () => {
       const data = await cartApi.getCart();
       dispatch(setCartState(data));
       return data;
     },
-    staleTime: 0, // Real-time
+    staleTime: 0,
   });
 
   const addToCartMutation = useMutation({
@@ -80,6 +83,7 @@ export function useCart() {
   });
 
   return {
+    cartId: cartId || cartQueryData?.cart?._id || null,
     items,
     itemCount,
     totals,

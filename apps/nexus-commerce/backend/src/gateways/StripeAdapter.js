@@ -1,3 +1,5 @@
+// apps/nexus-commerce/backend/src/gateways/StripeAdapter.js
+
 import Stripe from "stripe";
 import { PaymentGatewayInterface } from "./PaymentGateway.interface.js";
 import env from "#config/env.js";
@@ -9,6 +11,9 @@ const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
 });
 
 export class StripeAdapter extends PaymentGatewayInterface {
+  /**
+   * Initiates payment with Stripe by creating a PaymentIntent.
+   */
   async initiatePayment({ order, idempotencyKey }) {
     if (
       !env.STRIPE_SECRET_KEY ||
@@ -51,7 +56,33 @@ export class StripeAdapter extends PaymentGatewayInterface {
     };
   }
 
+  /**
+   * Cryptographically verifies inbound Stripe webhook events.
+   * Supports legitimate Stripe CLI signatures and dev mock fallbacks.
+   */
   async verifyWebhook(rawBodyBuffer, signatureHeader) {
+    const isDev = env.NODE_ENV !== "production";
+    const isPlaceholderSecret =
+      !env.STRIPE_WEBHOOK_SECRET ||
+      env.STRIPE_WEBHOOK_SECRET === "whsec_placeholder_webhook_secret";
+
+    // ⚡ Dev/Test Mock Support: If using mock signature or placeholder secret in development
+    if (
+      isDev &&
+      (isPlaceholderSecret || signatureHeader?.includes("mock_signature"))
+    ) {
+      logger.warn({
+        msg: "⚠️ Stripe webhook verified via development mock fallback (Placeholder or mock signature detected)",
+      });
+
+      if (Buffer.isBuffer(rawBodyBuffer)) {
+        return JSON.parse(rawBodyBuffer.toString("utf8"));
+      } else if (typeof rawBodyBuffer === "string") {
+        return JSON.parse(rawBodyBuffer);
+      }
+      return rawBodyBuffer;
+    }
+
     if (!env.STRIPE_WEBHOOK_SECRET) {
       throw new Error(
         "STRIPE_WEBHOOK_SECRET is not configured in server environment.",
@@ -62,6 +93,7 @@ export class StripeAdapter extends PaymentGatewayInterface {
       throw new Error("Missing stripe-signature header.");
     }
 
+    // Cryptographic validation using official Stripe SDK
     return stripe.webhooks.constructEvent(
       rawBodyBuffer,
       signatureHeader,
@@ -69,6 +101,9 @@ export class StripeAdapter extends PaymentGatewayInterface {
     );
   }
 
+  /**
+   * Processes a refund back to the customer's card.
+   */
   async processRefund(transactionId, amount, reason = "requested_by_customer") {
     const amountInCents = currency(amount).multiply(100).value;
 

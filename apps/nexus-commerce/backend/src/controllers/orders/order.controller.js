@@ -10,6 +10,10 @@ import { enqueueJob, JOB_TYPES } from "#services/jobQueue.js";
 import currency from "currency.js";
 import { commitInventoryDeduction } from "#services/inventoryLockService.js";
 
+/**
+ * Creates a new order from an active Cart (Guest or Authenticated)
+ * POST /api/v1/orders
+ */
 export const createOrder = asyncHandler(async (req, res) => {
   const {
     cartId,
@@ -22,24 +26,40 @@ export const createOrder = asyncHandler(async (req, res) => {
   } = req.body;
 
   const userId = req.user?.id;
-  const guestSessionId =
-    req.headers["x-guest-session-id"] ||
-    (typeof cartId === "string" && cartId.startsWith("guest_") ? cartId : null);
+  const headerGuestId = req.headers["x-guest-session-id"];
+  const bodyGuestId =
+    typeof cartId === "string" && cartId.startsWith("guest_") ? cartId : null;
+  const guestSessionId = headerGuestId || bodyGuestId;
 
-  // 1. Safe Polymorphic Cart Resolution (Supports _id, guestSessionId, or authenticated userId)
+  // 1. Robust Multi-Tier Cart Lookup
+  const cartQuery = [];
+
   const isObjectId =
     typeof cartId === "string" && mongoose.Types.ObjectId.isValid(cartId);
 
-  const cartQuery = [];
-  if (isObjectId) cartQuery.push({ _id: cartId });
-  if (userId) cartQuery.push({ userId });
-  if (guestSessionId) cartQuery.push({ guestSessionId });
-  if (!isObjectId && typeof cartId === "string")
+  if (isObjectId) {
+    cartQuery.push({ _id: cartId });
+  }
+  if (userId) {
+    cartQuery.push({ userId });
+  }
+  if (guestSessionId) {
+    cartQuery.push({ guestSessionId });
+  }
+  if (!isObjectId && typeof cartId === "string" && cartId !== "active_cart") {
     cartQuery.push({ guestSessionId: cartId });
+  }
 
-  const cart = await Cart.findOne({
+  let cart = await Cart.findOne({
     $or: cartQuery.length > 0 ? cartQuery : [{ _id: null }],
   }).populate("items.productId items.variantId");
+
+  // Fallback: If user is authenticated, but their items were added as a guest
+  if ((!cart || !cart.items || cart.items.length === 0) && headerGuestId) {
+    cart = await Cart.findOne({ guestSessionId: headerGuestId }).populate(
+      "items.productId items.variantId",
+    );
+  }
 
   if (!cart || !cart.items || cart.items.length === 0) {
     return res
@@ -190,7 +210,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   // Enqueue email receipt in background
   await enqueueJob(JOB_TYPES.SEND_ORDER_RECEIPT, order);
 
-  // 3. Safely delete the cart using its verified MongoDB ObjectId
+  // Safely delete the cart using its verified MongoDB ObjectId
   await Cart.findByIdAndDelete(cart._id);
 
   return res.status(201).json({
@@ -200,6 +220,10 @@ export const createOrder = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * Retrieves a single order by ObjectId or orderNumber with permission guards
+ * GET /api/v1/orders/:orderId
+ */
 export const getOrderById = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
   const queryEmail = (req.query.email || req.headers["x-customer-email"] || "")
@@ -244,6 +268,10 @@ export const getOrderById = asyncHandler(async (req, res) => {
   return res.status(200).json({ success: true, order });
 });
 
+/**
+ * Retrieves paginated orders for the authenticated customer
+ * GET /api/v1/orders/my-orders
+ */
 export const getCustomerOrders = asyncHandler(async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
