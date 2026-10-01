@@ -7,8 +7,13 @@ import {
   releaseInventoryHold,
 } from "#services/inventoryLockService.js";
 import { transitionOrderStatus } from "#services/orderFSMService.js";
+import { broadcastOrderStatusUpdate } from "#websockets/wsBroadcaster.js";
 import { logger } from "#config/logger.js";
 
+/**
+ * Inbound Stripe Webhook Listener
+ * POST /api/v1/payments/stripe/webhook
+ */
 export const handleStripeWebhook = async (req, res) => {
   const sig = req.headers["stripe-signature"];
   const gateway = PaymentGatewayFactory.getAdapter("stripe");
@@ -24,7 +29,7 @@ export const handleStripeWebhook = async (req, res) => {
     return res.status(400).send(`Webhook Signature Error: ${err.message}`);
   }
 
-  // 1. Idempotency Deduplication Gate (Guarantees at-most-once processing)
+  // 1. Idempotency Deduplication Gate
   const existing = await WebhookEvent.findOne({ eventId: event.id });
   if (existing) {
     logger.info({ msg: "Stripe webhook duplicate ignored", eventId: event.id });
@@ -38,7 +43,7 @@ export const handleStripeWebhook = async (req, res) => {
     payload: event.data?.object || event.data,
   });
 
-  // 2. Event: Payment Succeeded (payment_intent.succeeded)
+  // 2. Event: Payment Succeeded
   if (event.type === "payment_intent.succeeded") {
     const paymentIntent = event.data.object;
     const { orderId, orderNumber } = paymentIntent.metadata || {};
@@ -46,20 +51,36 @@ export const handleStripeWebhook = async (req, res) => {
     const order = await Order.findById(orderId);
     if (order && order.paymentStatus !== "paid") {
       order.paymentStatus = "paid";
-      await order.save();
 
-      // State machine transition to confirmed
-      await transitionOrderStatus({
-        orderId: order._id,
-        targetStatus: "confirmed",
-        note: `Payment authorized via Stripe (${paymentIntent.id})`,
-        triggeredBy: "stripe_webhook",
-      });
+      // ⚡ Only transition to 'confirmed' if the order is still unfulfilled
+      if (order.fulfillmentStatus === "unfulfilled") {
+        await transitionOrderStatus({
+          orderId: order._id,
+          targetStatus: "confirmed",
+          note: `Payment authorized via Stripe (${paymentIntent.id})`,
+          triggeredBy: "stripe_webhook",
+        });
+      } else {
+        order.timeline.push({
+          status: "PAID",
+          note: `Payment authorized via Stripe (${paymentIntent.id})`,
+          timestamp: new Date(),
+          triggeredBy: "stripe_webhook",
+        });
+        await order.save();
 
-      // Commit physical warehouse inventory deduction atomically
+        broadcastOrderStatusUpdate(
+          order._id,
+          order.fulfillmentStatus,
+          order.timeline,
+          order.paymentStatus,
+        );
+      }
+
+      // Deduct warehouse stock atomically
       await commitInventoryDeduction(order.items);
 
-      // Record successful transaction in ledger
+      // Record transaction in ledger
       await PaymentTransaction.create({
         orderId: order._id,
         orderNumber: orderNumber || order.orderNumber,
@@ -79,7 +100,7 @@ export const handleStripeWebhook = async (req, res) => {
     }
   }
 
-  // 3. Event: Payment Failed (payment_intent.payment_failed)
+  // 3. Event: Payment Failed
   if (event.type === "payment_intent.payment_failed") {
     const paymentIntent = event.data.object;
     const { orderId } = paymentIntent.metadata || {};
@@ -95,7 +116,6 @@ export const handleStripeWebhook = async (req, res) => {
       });
       await order.save();
 
-      // Compensating action: Release temporary stock reservation
       await releaseInventoryHold(order._id.toString(), order._id.toString());
 
       logger.warn({
@@ -108,6 +128,10 @@ export const handleStripeWebhook = async (req, res) => {
   return res.status(200).json({ received: true });
 };
 
+/**
+ * Inbound JazzCash IPN Callback Listener
+ * POST /api/v1/payments/jazzcash/callback
+ */
 export const handleJazzCashCallback = async (req, res) => {
   const gateway = PaymentGatewayFactory.getAdapter("jazzcash");
   const verification = await gateway.verifyWebhook(req.body);
@@ -143,15 +167,33 @@ export const handleJazzCashCallback = async (req, res) => {
 
     if (order && order.paymentStatus !== "paid") {
       order.paymentStatus = "paid";
-      await order.save();
 
-      await transitionOrderStatus({
-        orderId: order._id,
-        targetStatus: "confirmed",
-        note: `Payment verified via JazzCash IPN (${verification.transactionId})`,
-        triggeredBy: "jazzcash_ipn",
-      });
+      // ⚡ Only transition to 'confirmed' if still 'unfulfilled'
+      if (order.fulfillmentStatus === "unfulfilled") {
+        await transitionOrderStatus({
+          orderId: order._id,
+          targetStatus: "confirmed",
+          note: `Payment verified via JazzCash IPN (${verification.transactionId})`,
+          triggeredBy: "jazzcash_ipn",
+        });
+      } else {
+        order.timeline.push({
+          status: "PAID",
+          note: `Payment verified via JazzCash IPN (${verification.transactionId})`,
+          timestamp: new Date(),
+          triggeredBy: "jazzcash_ipn",
+        });
+        await order.save();
 
+        broadcastOrderStatusUpdate(
+          order._id,
+          order.fulfillmentStatus,
+          order.timeline,
+          order.paymentStatus,
+        );
+      }
+
+      // Deduct warehouse stock atomically
       await commitInventoryDeduction(order.items);
 
       await PaymentTransaction.create({
@@ -164,12 +206,22 @@ export const handleJazzCashCallback = async (req, res) => {
         status: "success",
         rawGatewayResponse: req.body,
       });
+
+      logger.info({
+        msg: "💳 JazzCash payment verified & settled",
+        orderNumber: order.orderNumber,
+        transactionId: verification.transactionId,
+      });
     }
   }
 
   return res.status(200).json({ success: true });
 };
 
+/**
+ * Inbound Easypaisa IPN Callback Listener
+ * POST /api/v1/payments/easypaisa/callback
+ */
 export const handleEasypaisaCallback = async (req, res) => {
   const gateway = PaymentGatewayFactory.getAdapter("easypaisa");
   const verification = await gateway.verifyWebhook(req.body);
@@ -203,15 +255,33 @@ export const handleEasypaisaCallback = async (req, res) => {
 
     if (order && order.paymentStatus !== "paid") {
       order.paymentStatus = "paid";
-      await order.save();
 
-      await transitionOrderStatus({
-        orderId: order._id,
-        targetStatus: "confirmed",
-        note: `Payment verified via Easypaisa IPN (${verification.transactionId})`,
-        triggeredBy: "easypaisa_ipn",
-      });
+      // ⚡ Only transition to 'confirmed' if still 'unfulfilled'
+      if (order.fulfillmentStatus === "unfulfilled") {
+        await transitionOrderStatus({
+          orderId: order._id,
+          targetStatus: "confirmed",
+          note: `Payment verified via Easypaisa IPN (${verification.transactionId})`,
+          triggeredBy: "easypaisa_ipn",
+        });
+      } else {
+        order.timeline.push({
+          status: "PAID",
+          note: `Payment verified via Easypaisa IPN (${verification.transactionId})`,
+          timestamp: new Date(),
+          triggeredBy: "easypaisa_ipn",
+        });
+        await order.save();
 
+        broadcastOrderStatusUpdate(
+          order._id,
+          order.fulfillmentStatus,
+          order.timeline,
+          order.paymentStatus,
+        );
+      }
+
+      // Deduct warehouse stock atomically
       await commitInventoryDeduction(order.items);
 
       await PaymentTransaction.create({
@@ -223,6 +293,12 @@ export const handleEasypaisaCallback = async (req, res) => {
         currency: order.pricing.currency,
         status: "success",
         rawGatewayResponse: req.body,
+      });
+
+      logger.info({
+        msg: "💳 Easypaisa payment verified & settled",
+        orderNumber: order.orderNumber,
+        transactionId: verification.transactionId,
       });
     }
   }
