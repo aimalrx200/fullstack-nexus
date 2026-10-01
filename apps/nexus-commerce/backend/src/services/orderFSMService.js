@@ -72,41 +72,38 @@ export const transitionOrderStatus = async ({
     order.courier.estimatedDelivery = addDays(new Date(), isPKR ? 2 : 5);
   }
 
-  // ⚡ 5. AUTOMATIC CASH ON DELIVERY (COD) PAYMENT SETTLEMENT ON DELIVERY
-  if (
-    targetStatus === "delivered" &&
-    order.paymentMethod === "cod" &&
-    order.paymentStatus !== "paid"
-  ) {
+  // ⚡ 5. AUTOMATIC PAYMENT SETTLEMENT UPON PHYSICAL DELIVERY
+  if (targetStatus === "delivered" && order.paymentStatus !== "paid") {
     order.paymentStatus = "paid";
 
-    // Log Cash Collection in the Accounting Transaction Ledger
+    // Log Settlement in the Accounting Transaction Ledger
     await PaymentTransaction.create({
       orderId: order._id,
       orderNumber: order.orderNumber,
-      gateway: "cod",
-      gatewayTransactionId: `COD_SETTLED_${order.orderNumber}_${Date.now().toString().slice(-4)}`,
+      gateway: order.paymentMethod,
+      gatewayTransactionId: `${order.paymentMethod.toUpperCase()}_SETTLED_${order.orderNumber}_${Date.now().toString().slice(-4)}`,
       amount: order.pricing.total,
       currency: order.pricing.currency,
       status: "success",
       rawGatewayResponse: {
-        settlementType: "doorstep_cash_collection",
-        collectedBy: order.courier?.carrier || "Courier Agent",
+        settlementType: "delivery_settlement",
         settledAt: new Date().toISOString(),
+        deliveredBy: order.courier?.carrier || "Courier Agent",
       },
     });
 
     order.timeline.push({
       status: "PAID",
-      note: `Cash payment of ${order.pricing.currency === "PKR" ? "Rs " : "$"}${order.pricing.total} collected by courier rider at doorstep`,
+      note: `Payment of ${order.pricing.currency === "PKR" ? "Rs " : "$"}${order.pricing.total} verified & settled upon delivery`,
       timestamp: new Date(),
-      triggeredBy: "courier_cash_collection",
+      triggeredBy: triggeredBy || "delivery_settlement",
     });
 
     logger.info({
-      msg: "💵 COD Payment auto-settled upon successful physical delivery",
+      msg: "💵 Order Payment auto-settled upon successful delivery",
       orderNumber: order.orderNumber,
       amount: order.pricing.total,
+      gateway: order.paymentMethod,
     });
   }
 
@@ -120,7 +117,7 @@ export const transitionOrderStatus = async ({
 
   await order.save();
 
-  // ⚡ 6. Broadcast BOTH fulfillmentStatus and paymentStatus to Live Streams
+  // ⚡ 6. Broadcast BOTH fulfillmentStatus and paymentStatus to all real-time streams
   broadcastOrderStatusUpdate(
     order._id,
     targetStatus,

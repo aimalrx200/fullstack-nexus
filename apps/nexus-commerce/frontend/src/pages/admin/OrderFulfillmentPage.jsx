@@ -32,7 +32,7 @@ export function OrderFulfillmentPage() {
     minDuration: 3000,
   });
 
-  // ⚡ Live Stream: Auto-update orders list whenever an order changes status in any tab/webhook
+  // ⚡ Live Real-Time Stream Listener: Auto-updates both payment & fulfillment badges
   useRealTimeStream({
     channelType: "admin",
     events: {
@@ -45,16 +45,23 @@ export function OrderFulfillmentPage() {
               o._id === payload.orderId
                 ? {
                     ...o,
-                    fulfillmentStatus: payload.status,
+                    fulfillmentStatus: payload.status || o.fulfillmentStatus,
                     paymentStatus: payload.paymentStatus || o.paymentStatus,
+                    timeline: payload.timeline || o.timeline,
                   }
                 : o,
             ),
           };
         });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.admin.analytics(),
+        });
       },
       "order:new": () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.admin.orders() });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.admin.analytics(),
+        });
       },
     },
   });
@@ -72,6 +79,8 @@ export function OrderFulfillmentPage() {
           ),
         };
       });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.orders() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.analytics() });
       toast.success("Order status updated successfully!");
     },
   });
@@ -89,6 +98,7 @@ export function OrderFulfillmentPage() {
           ),
         };
       });
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.orders() });
       setSelectedOrderForCourier(null);
       toast.success("Courier tracking label assigned & dispatched!");
     },
@@ -121,9 +131,10 @@ export function OrderFulfillmentPage() {
                   transitionMutation.mutate({ orderId, status })
                 }
                 onOpenCourierModal={setSelectedOrderForCourier}
-                onSimulateDelivery={(orderId) =>
-                  adminApi.simulateCourierDelivery(orderId)
-                }
+                onSimulateDelivery={(orderId) => {
+                  adminApi.simulateCourierDelivery(orderId);
+                  toast.info("Live courier GPS simulation in progress...");
+                }}
                 isLoading={transitionMutation.isPending}
               />
             </div>

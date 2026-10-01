@@ -1,3 +1,5 @@
+// apps/nexus-commerce/frontend/src/components/admin/orders/OrderFulfillmentFSM.jsx
+
 import React from "react";
 import { CheckCircle2, Package, Truck, Play, AlertOctagon } from "lucide-react";
 import { Button } from "../../common/Button";
@@ -17,7 +19,7 @@ export function OrderFulfillmentFSM({
         <span className="text-xs font-semibold text-text-main">
           FSM State Machine Action Control
         </span>
-        <span className="text-[10px] font-mono text-brand-primary uppercase">
+        <span className="text-[10px] font-mono text-brand-primary uppercase font-bold">
           Current: {currentStatus}
         </span>
       </div>
@@ -61,7 +63,7 @@ export function OrderFulfillmentFSM({
           </Button>
         )}
 
-        {/* State 4: Dispatched -> Live Delivery Simulator */}
+        {/* State 4: Dispatched -> Live Delivery Simulator or Instant Delivered */}
         {currentStatus === "dispatched" && (
           <>
             <Button
@@ -82,6 +84,14 @@ export function OrderFulfillmentFSM({
               Mark Delivered
             </Button>
           </>
+        )}
+
+        {/* Completed Message when Delivered */}
+        {currentStatus === "delivered" && (
+          <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-mono">
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Order Fulfilled & Delivered</span>
+          </div>
         )}
 
         {/* Cancel Action (Saga Rollback of stock) */}

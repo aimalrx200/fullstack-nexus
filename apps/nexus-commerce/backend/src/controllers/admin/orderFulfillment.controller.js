@@ -7,6 +7,7 @@ import {
   broadcastOrderStatusUpdate,
 } from "#websockets/wsBroadcaster.js";
 import { asyncHandler } from "#utils/asyncHandler.js";
+import { logger } from "#config/logger.js";
 
 export const getAllOrders = asyncHandler(async (req, res) => {
   const {
@@ -122,7 +123,12 @@ export const assignCourierTracking = asyncHandler(async (req, res) => {
     order.courier.currentLocation,
     `Dispatched with ${carrier}`,
   );
-  broadcastOrderStatusUpdate(order._id, "dispatched", order.timeline);
+  broadcastOrderStatusUpdate(
+    order._id,
+    "dispatched",
+    order.timeline,
+    order.paymentStatus,
+  );
 
   return res.status(200).json({ success: true, order });
 });
@@ -130,7 +136,7 @@ export const assignCourierTracking = asyncHandler(async (req, res) => {
 export const simulateCourierDelivery = asyncHandler(async (req, res) => {
   const { orderId } = req.params;
 
-  const order = await Order.findById(orderId);
+  let order = await Order.findById(orderId);
   if (!order) {
     return res
       .status(404)
@@ -156,7 +162,12 @@ export const simulateCourierDelivery = asyncHandler(async (req, res) => {
       triggeredBy: "simulator",
     });
     await order.save();
-    broadcastOrderStatusUpdate(order._id, "dispatched", order.timeline);
+    broadcastOrderStatusUpdate(
+      order._id,
+      "dispatched",
+      order.timeline,
+      order.paymentStatus,
+    );
   }
 
   const origin = {
@@ -212,26 +223,19 @@ export const simulateCourierDelivery = asyncHandler(async (req, res) => {
       broadcastCourierLocation(order._id, wp.coordinates, wp.statusLabel);
 
       if (wp.step === waypoints.length) {
-        const finalOrder = await Order.findById(order._id);
-        if (finalOrder) {
-          finalOrder.fulfillmentStatus = "delivered";
-          finalOrder.courier.currentLocation = {
-            ...wp.coordinates,
-            label: wp.statusLabel,
-          };
-          finalOrder.timeline.push({
-            status: "DELIVERED",
-            note: "Package handed over to customer",
-            timestamp: new Date(),
+        // ⚡ Transition to delivered using FSM service to auto-settle payment
+        try {
+          await transitionOrderStatus({
+            orderId: order._id,
+            targetStatus: "delivered",
+            note: "Package handed over to customer (GPS Telemetry Completed)",
             triggeredBy: "courier_gps",
           });
-          await finalOrder.save();
-          // ⚡ Final live delivery broadcast
-          broadcastOrderStatusUpdate(
-            finalOrder._id,
-            "delivered",
-            finalOrder.timeline,
-          );
+        } catch (err) {
+          logger.warn({
+            msg: "GPS simulator transition notice",
+            error: err.message,
+          });
         }
       }
     }, index * 2000);
