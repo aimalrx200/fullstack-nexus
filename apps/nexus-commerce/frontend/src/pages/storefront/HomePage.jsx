@@ -7,24 +7,39 @@ import { ProductGrid } from "../../components/storefront/catalog/ProductGrid";
 import { productApi } from "../../lib/api/productApi";
 import { queryKeys } from "../../lib/api/queryKeys";
 import { Sparkles } from "lucide-react";
+import { HeroCarouselSkeleton } from "../../components/feedback/HeroCarouselSkeleton";
+import { useDelayedLoading } from "../../hooks/useDelayedLoading";
 
 export function HomePage() {
-  // 1. Fetch products marked with "Feature on Storefront Hero" (isFeatured: true)
-  const { data: featuredData } = useQuery({
+  // 1. Fetch featured products
+  const { data: featuredData, isLoading: heroSectionLoading } = useQuery({
     queryKey: queryKeys.products.list({ isFeatured: true, limit: 5 }),
     queryFn: () => productApi.getProducts({ isFeatured: true, limit: 5 }),
   });
 
-  // 2. Fetch latest catalog items for the grid
+  // 2. Fetch catalog items
   const { data: catalogData, isLoading } = useQuery({
     queryKey: queryKeys.products.list({ limit: 8 }),
     queryFn: () => productApi.getProducts({ limit: 8 }),
   });
 
+  // 3. Derive deferred loading state at the parent level
+  const showHeroSkeleton = useDelayedLoading(heroSectionLoading, {
+    delay: 150,
+    minDuration: 3000,
+  });
+
   return (
     <div className="space-y-8 animate-in fade-in">
-      {/* Dynamic Hero Carousel displaying featured products */}
-      <HeroCarousel products={featuredData?.products || []} />
+      {/* 
+        Controlled by showHeroSkeleton.
+        Will hold for 3000ms minimum if the 150ms delay threshold was passed.
+      */}
+      {showHeroSkeleton ? (
+        <HeroCarouselSkeleton />
+      ) : (
+        <HeroCarousel products={featuredData?.products || []} />
+      )}
 
       {/* Featured Collections Section */}
       <div className="space-y-4">
