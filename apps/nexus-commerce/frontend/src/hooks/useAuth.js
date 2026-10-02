@@ -29,6 +29,7 @@ export function useAuth() {
     isSuccess,
     isError,
     isLoading,
+    isFetching,
     refetch: refetchUser,
   } = useQuery({
     queryKey: queryKeys.auth.me(),
@@ -135,6 +136,8 @@ export function useAuth() {
     user,
     isAuthenticated,
     isInitialized,
+    isLoading,
+    isFetching,
     role,
     isSuperAdmin,
     isMerchantAdmin,

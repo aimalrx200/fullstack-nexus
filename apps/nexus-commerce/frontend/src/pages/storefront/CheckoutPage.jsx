@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { ShieldCheck, ArrowRight, Lock, MapPin } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../../lib/api/queryKeys";
+import { CheckoutPageSkeleton } from "../../components/feedback/CheckoutPageSkeleton";
 
 const stripePromise = loadStripe(
   import.meta.env.VITE_STRIPE_PUBLIC_KEY || "pk_test_placeholder_key",
@@ -460,6 +461,28 @@ function CheckoutFormContent() {
 }
 
 export function CheckoutPage() {
+  const { isCartLoading } = useCart();
+  const { isLoading: isAuthLoading, isInitialized } = useAuth();
+
+  // 1. One-way latch state: starts false, turns true ONCE initial load finishes
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
+
+  // 2. Check if all data dependencies are completely ready
+  const isDataReady = isInitialized && !isAuthLoading && !isCartLoading;
+
+  // 3. Render-Phase State Update
+  // Synchronously latch setHasInitiallyLoaded to true as soon as data arrives
+  if (!hasInitiallyLoaded && isDataReady) {
+    setHasInitiallyLoaded(true);
+  }
+
+  // 4. INSTANT SKELETON GATE (No delay timers)
+  // If we haven't loaded initial data yet, return skeleton IMMEDIATELY on Frame 0
+  if (!hasInitiallyLoaded) {
+    return <CheckoutPageSkeleton />;
+  }
+
+  // 5. Render full checkout page once data is ready
   return (
     <Elements stripe={stripePromise}>
       <CheckoutFormContent />

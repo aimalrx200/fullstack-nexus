@@ -34,7 +34,11 @@ export function useCart() {
   const displayTotal = useSelector(selectActiveCartDisplayTotal);
 
   // Sync Cart with Backend
-  const { isLoading: isCartLoading, data: cartQueryData } = useQuery({
+  const {
+    isLoading: isCartLoading,
+    isFetching: isCartFetching,
+    data: cartQueryData,
+  } = useQuery({
     queryKey: queryKeys.cart.current(),
     queryFn: async () => {
       const data = await cartApi.getCart();
@@ -90,7 +94,7 @@ export function useCart() {
     appliedCoupon,
     isCartDrawerOpen,
     displayTotal,
-    isCartLoading,
+    isCartLoading: isCartLoading || isCartFetching,
     openCart: () => dispatch(openCartDrawer()),
     closeCart: () => dispatch(closeCartDrawer()),
     toggleCart: () => dispatch(toggleCartDrawer()),
