@@ -29,6 +29,29 @@ export const orderApi = {
     return data;
   },
 
+  confirmStripePayment: async ({ orderId, paymentIntentId }) => {
+    const { data } = await apiClient.post("/payments/confirm-stripe", {
+      orderId,
+      paymentIntentId,
+    });
+    return data;
+  },
+
+  authorizeWalletPayment: async ({
+    orderId,
+    paymentMethod,
+    mobileNumber,
+    mpin,
+  }) => {
+    const { data } = await apiClient.post("/payments/authorize-wallet", {
+      orderId,
+      paymentMethod,
+      mobileNumber,
+      mpin,
+    });
+    return data;
+  },
+
   simulateDelivery: async (orderId) => {
     const { data } = await apiClient.post(
       `/admin/orders/${orderId}/simulate-delivery`,

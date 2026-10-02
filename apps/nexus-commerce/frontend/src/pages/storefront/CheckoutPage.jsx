@@ -14,6 +14,7 @@ import { AddressAutocomplete } from "../../components/storefront/checkout/Addres
 import { DeliveryPinMap } from "../../components/storefront/checkout/DeliveryPinMap";
 import { PhoneInputField } from "../../components/storefront/checkout/PhoneInputField";
 import { PaymentSelector } from "../../components/storefront/checkout/PaymentSelector";
+import { WalletAuthorizationModal } from "../../components/storefront/checkout/WalletAuthorizationModal";
 import { CartSummary } from "../../components/storefront/cart/CartSummary";
 import { Button } from "../../components/common/Button";
 import { useCart } from "../../hooks/useCart";
@@ -21,6 +22,8 @@ import { useAuth } from "../../hooks/useAuth";
 import { orderApi } from "../../lib/api/orderApi";
 import { toast } from "sonner";
 import { ShieldCheck, ArrowRight, Lock, MapPin } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../../lib/api/queryKeys";
 
 const stripePromise = loadStripe(
   import.meta.env.VITE_STRIPE_PUBLIC_KEY || "pk_test_placeholder_key",
@@ -28,6 +31,7 @@ const stripePromise = loadStripe(
 
 function CheckoutFormContent() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const stripe = useStripe();
   const elements = useElements();
 
@@ -37,7 +41,7 @@ function CheckoutFormContent() {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Form State
+  // Address & Contact Information State
   const [email, setEmail] = useState(user?.email || "");
   const [phone, setPhone] = useState(user?.addresses?.[0]?.phone || "");
   const [recipientName, setRecipientName] = useState(
@@ -53,8 +57,14 @@ function CheckoutFormContent() {
     user?.addresses?.[0]?.coordinates || { lat: 31.5204, lng: 74.3587 },
   );
 
+  // Gateway Selection State
   const [paymentMethod, setPaymentMethod] = useState("stripe");
   const [mobileNumber, setMobileNumber] = useState("");
+
+  // In-App Mobile Wallet MPIN Modal State
+  const [pendingWalletOrder, setPendingWalletOrder] = useState(null);
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [isAuthorizingWallet, setIsAuthorizingWallet] = useState(false);
 
   const handleAddressChange = (key, val) => {
     if (key === "street") setStreet(val);
@@ -144,7 +154,6 @@ function CheckoutFormContent() {
     setIsSubmitting(true);
 
     try {
-      // ⚡ Priority: 1. Actual MongoDB Cart ObjectId, 2. Guest Session ID, 3. 'active_cart'
       const activeCartId =
         cartId ||
         localStorage.getItem("nexus_guest_session_id") ||
@@ -169,20 +178,20 @@ function CheckoutFormContent() {
         },
       };
 
-      // Step 1: Create Order in Database
+      // 1. Create order record on the backend
       const data = await orderApi.createOrder(orderPayload);
       const createdOrder = data.order;
       const paymentInfo = data.payment;
 
-      // Step 2: Finalize Payment with Stripe
+      // 2. Route by payment method
       if (paymentMethod === "stripe") {
         if (!stripe || !elements) {
-          throw new Error("Stripe is initializing. Please try again.");
+          throw new Error("Stripe engine is initializing. Please try again.");
         }
 
         const cardElement = elements.getElement(CardElement);
         if (!cardElement) {
-          throw new Error("Card input element not found.");
+          throw new Error("Credit card input element not found.");
         }
 
         const { error: stripeError, paymentIntent } =
@@ -211,32 +220,79 @@ function CheckoutFormContent() {
         }
 
         if (paymentIntent && paymentIntent.status === "succeeded") {
+          // Confirm immediately on the backend so the order is marked 'paid' and 'confirmed'
+          await orderApi.confirmStripePayment({
+            orderId: createdOrder._id,
+            paymentIntentId: paymentIntent.id,
+          });
           toast.success("Payment authorized with Stripe 3D-Secure!");
         }
+
+        clearCart();
+        navigate(
+          `/orders/track/${createdOrder?.orderNumber || createdOrder?._id}`,
+        );
       } else if (
         paymentMethod === "jazzcash" ||
         paymentMethod === "easypaisa"
       ) {
-        toast.success(
-          `Payment request dispatched to ${mobileNumber || phone}. Please approve on your mobile app.`,
-        );
+        // Open the in-app mobile wallet MPIN authorization modal
+        setPendingWalletOrder(createdOrder);
+        setIsWalletModalOpen(true);
+        setIsSubmitting(false);
       } else if (paymentMethod === "cod") {
         toast.success("Cash on Delivery booking confirmed!");
+        clearCart();
+        navigate(
+          `/orders/track/${createdOrder?.orderNumber || createdOrder?._id}`,
+        );
       }
-
-      // Step 3: Success Navigation
-      clearCart();
-      navigate(
-        `/orders/track/${createdOrder?.orderNumber || createdOrder?._id}`,
-      );
     } catch (err) {
       toast.error(
         err?.response?.data?.message ||
           err?.message ||
           "Order placement failed",
       );
-    } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleAuthorizeWallet = async (authPayload) => {
+    setIsAuthorizingWallet(true);
+    try {
+      const res = await orderApi.authorizeWalletPayment(authPayload);
+
+      // Update cache so TrackingPage sees 'paid' immediately
+      if (res?.order) {
+        // Update by _id
+        queryClient.setQueryData(
+          queryKeys.orders.detail(res.order._id),
+          res.order,
+        );
+        // Update by orderNumber
+        queryClient.setQueryData(
+          queryKeys.orders.detail(res.order.orderNumber),
+          res.order,
+        );
+      }
+
+      toast.success(
+        `${paymentMethod === "jazzcash" ? "JazzCash" : "Easypaisa"} payment authorized!`,
+      );
+      clearCart();
+      setTimeout(() => {
+        setIsWalletModalOpen(false);
+        navigate(
+          `/orders/track/${pendingWalletOrder.orderNumber || pendingWalletOrder._id}`,
+        );
+      }, 1200);
+    } catch (err) {
+      toast.error(
+        err?.response?.data?.message ||
+          "Failed to authorize mobile wallet debit.",
+      );
+    } finally {
+      setIsAuthorizingWallet(false);
     }
   };
 
@@ -361,7 +417,7 @@ function CheckoutFormContent() {
                   onClick={handlePlaceOrder}
                   className="flex-1 font-bold shadow-lg shadow-indigo-500/25"
                 >
-                  Confirm & Authorize Payment
+                  Confirm & Place Order
                 </Button>
               </div>
             </div>
@@ -379,6 +435,26 @@ function CheckoutFormContent() {
           </div>
         </div>
       </div>
+
+      {/* In-App Mobile Wallet MPIN Authorization Modal */}
+      {isWalletModalOpen && (
+        <WalletAuthorizationModal
+          isOpen={isWalletModalOpen}
+          onClose={() => {
+            setIsWalletModalOpen(false);
+            if (pendingWalletOrder) {
+              navigate(
+                `/orders/track/${pendingWalletOrder.orderNumber || pendingWalletOrder._id}`,
+              );
+            }
+          }}
+          order={pendingWalletOrder}
+          paymentMethod={paymentMethod}
+          mobileNumber={mobileNumber || phone}
+          onAuthorize={handleAuthorizeWallet}
+          isLoading={isAuthorizingWallet}
+        />
+      )}
     </div>
   );
 }

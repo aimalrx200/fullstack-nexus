@@ -4,6 +4,8 @@ import {
   retryPayment,
   processRefund,
   getTransactionHistory,
+  confirmStripePayment,
+  authorizeWalletPayment,
 } from "#controllers/payments/payment.controller.js";
 import {
   handleStripeWebhook,
@@ -17,6 +19,8 @@ import { validate } from "#middlewares/validate.js";
 import {
   RetryPaymentSchema,
   RefundPaymentSchema,
+  ConfirmStripePaymentSchema,
+  AuthorizeWalletPaymentSchema,
 } from "#validations/payment.validation.js";
 
 const router = Router();
@@ -27,6 +31,20 @@ router.post(
   enforceIdempotency,
   validate(RetryPaymentSchema),
   retryPayment,
+);
+
+// Client Direct Stripe 3DS Payment Confirmation
+router.post(
+  "/confirm-stripe",
+  validate(ConfirmStripePaymentSchema),
+  confirmStripePayment,
+);
+
+// In-App Mobile Wallet MPIN Authorization
+router.post(
+  "/authorize-wallet",
+  validate(AuthorizeWalletPaymentSchema),
+  authorizeWalletPayment,
 );
 
 // Merchant Refund & Transaction Ledger

@@ -53,3 +53,30 @@ export const ApplyCouponSchema = z.object({
       .trim(),
   }),
 });
+
+// 4. Client Direct Stripe Payment Confirmation Schema
+export const ConfirmStripePaymentSchema = z.object({
+  body: z.object({
+    orderId: z.string().min(1, "Order ID is required."),
+    paymentIntentId: z.string().min(1, "PaymentIntent ID is required."),
+  }),
+});
+
+// 5. In-App Mobile Wallet MPIN Authorization Schema
+export const AuthorizeWalletPaymentSchema = z.object({
+  body: z.object({
+    orderId: z.string().min(1, "Order ID is required."),
+    paymentMethod: z.enum(["jazzcash", "easypaisa"]),
+    mobileNumber: z
+      .string()
+      .optional()
+      .refine((val) => !val || isPhoneValid(val, "PK"), {
+        message: "A valid Pakistani mobile account number is required.",
+      }),
+    mpin: z
+      .string()
+      .min(4, "MPIN must be at least 4 digits.")
+      .max(6, "MPIN cannot exceed 6 digits.")
+      .regex(/^\d+$/, "MPIN must contain digits only."),
+  }),
+});
