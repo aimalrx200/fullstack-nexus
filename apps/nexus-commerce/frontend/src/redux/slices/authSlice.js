@@ -1,3 +1,5 @@
+// apps/nexus-commerce/frontend/src/redux/slices/authSlice.js
+
 import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {

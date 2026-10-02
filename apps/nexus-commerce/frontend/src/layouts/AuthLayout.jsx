@@ -1,6 +1,5 @@
 // apps/nexus-commerce/frontend/src/layouts/AuthLayout.jsx
 
-import React from "react";
 import { Outlet, useLocation } from "react-router";
 import { Sparkles } from "lucide-react";
 import { PageTransition } from "../components/common/PageTransition";
@@ -29,15 +28,16 @@ export function AuthLayout() {
           </a>
         </div>
 
-        {/* Immediate Paint Container Card */}
-        <div className="p-6 sm:p-8 rounded-3xl bg-surface-card border border-border-main shadow-2xl backdrop-blur-md">
+        {/* Outer Card with Smooth Height Transition */}
+        <div className="p-6 sm:p-8 rounded-3xl bg-surface-card border border-border-main shadow-2xl backdrop-blur-md transition-all duration-300 ease-in-out">
           <PageTransition key={location.pathname}>
             <Outlet />
           </PageTransition>
         </div>
 
         <p className="text-center text-xs text-text-faint font-mono">
-          © 2026 FullStack Nexus. Enterprise Systems Monorepo.
+          © {new Date().getFullYear()} FullStack Nexus. Enterprise Systems
+          Monorepo.
         </p>
       </div>
     </div>

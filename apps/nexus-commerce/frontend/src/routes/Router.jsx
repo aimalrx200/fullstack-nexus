@@ -7,6 +7,7 @@ import { AdminLayout } from "../layouts/AdminLayout";
 import { AuthLayout } from "../layouts/AuthLayout";
 import { ProtectedRoute, RoleGuard, GuestRoute } from "../lib/auth/guards";
 import { DashboardSkeleton } from "../components/feedback/DashboardSkeleton";
+import LoginFormSkeleton from "../components/feedback/LoginFormSkeleton";
 
 // =============================================================================
 // LAZY-LOADED PAGE CHUNKS
@@ -163,7 +164,7 @@ const router = createBrowserRouter([
         children: [
           {
             element: (
-              <Suspense fallback={<div className="min-h-75" />}>
+              <Suspense fallback={<LoginFormSkeleton />}>
                 <Outlet />
               </Suspense>
             ),
