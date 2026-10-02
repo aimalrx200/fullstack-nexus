@@ -1,6 +1,5 @@
 // apps/nexus-commerce/frontend/src/pages/storefront/HomePage.jsx
 
-import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { HeroCarousel } from "../../components/storefront/catalog/HeroCarousel";
 import { ProductGrid } from "../../components/storefront/catalog/ProductGrid";
@@ -23,7 +22,7 @@ export function HomePage() {
     queryFn: () => productApi.getProducts({ limit: 8 }),
   });
 
-  // 3. Derive deferred loading state at the parent level
+  // 3. Derive deferred loading state with balanced hold time
   const showHeroSkeleton = useDelayedLoading(heroSectionLoading, {
     delay: 150,
     minDuration: 3000,
@@ -32,10 +31,12 @@ export function HomePage() {
   return (
     <div className="space-y-8 animate-in fade-in">
       {/* 
-        Controlled by showHeroSkeleton.
-        Will hold for 3000ms minimum if the 150ms delay threshold was passed.
+        GUARANTEED FRAME-0 GUARD:
+        Evaluating (heroSectionLoading || showHeroSkeleton) ensures that 
+        on initial page load, HeroCarouselSkeleton renders synchronously on Frame 0 
+        without flashing default carousel slides first.
       */}
-      {showHeroSkeleton ? (
+      {heroSectionLoading || showHeroSkeleton ? (
         <HeroCarouselSkeleton />
       ) : (
         <HeroCarousel products={featuredData?.products || []} />
