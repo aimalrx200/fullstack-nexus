@@ -8,10 +8,16 @@ export const selectCartItems = createSelector(
   (cart) => cart.items,
 );
 
-export const selectCartItemCount = createSelector(
-  [selectCart],
-  (cart) => cart.totals.itemCount || 0,
-);
+export const selectCartItemCount = createSelector([selectCart], (cart) => {
+  // If the items array is empty, force count to 0 regardless of stale totals
+  if (!cart.items || cart.items.length === 0) {
+    return 0;
+  }
+  return (
+    cart.totals?.itemCount ??
+    cart.items.reduce((acc, item) => acc + (item.quantity || 1), 0)
+  );
+});
 
 export const selectCartTotals = createSelector(
   [selectCart],

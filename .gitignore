@@ -41,6 +41,7 @@ Thumbs.db
 *.swp
 
 # Tooling Outputs
+repomix*
 repomix-output.xml
 repomix-styles.xml
 

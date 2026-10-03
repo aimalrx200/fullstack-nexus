@@ -1,7 +1,9 @@
-// apps/nexus-commerce/frontend/src/hooks/useCart.js
+// src/hooks/useCart.js
 
+import { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "./useAuth"; // <-- Import useAuth
 import {
   setCartState,
   openCartDrawer,
@@ -24,6 +26,7 @@ import { toast } from "sonner";
 export function useCart() {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
+  const { user, isAuthenticated, isInitialized } = useAuth();
 
   const cartId = useSelector((state) => state.cart.cartId);
   const items = useSelector(selectCartItems);
@@ -33,26 +36,36 @@ export function useCart() {
   const isCartDrawerOpen = useSelector(selectIsCartDrawerOpen);
   const displayTotal = useSelector(selectActiveCartDisplayTotal);
 
-  // Sync Cart with Backend
+  // Sync Cart with Backend only when auth initialization is complete
   const {
     isLoading: isCartLoading,
     isFetching: isCartFetching,
     data: cartQueryData,
   } = useQuery({
-    queryKey: queryKeys.cart.current(),
-    queryFn: async () => {
-      const data = await cartApi.getCart();
-      dispatch(setCartState(data));
-      return data;
-    },
-    staleTime: 0,
+    queryKey: [
+      ...queryKeys.cart.current(),
+      isAuthenticated ? user?._id : "guest",
+    ],
+    queryFn: () => cartApi.getCart(),
+    enabled: isInitialized, // <-- Prevent race condition on page load
+    staleTime: 1000 * 60 * 2, // 2 minutes
   });
+
+  // Keep Redux in sync with React Query data safely outside queryFn
+  useEffect(() => {
+    if (cartQueryData) {
+      dispatch(setCartState(cartQueryData));
+    }
+  }, [cartQueryData, dispatch]);
 
   const addToCartMutation = useMutation({
     mutationFn: cartApi.addToCart,
     onSuccess: (data) => {
       dispatch(setCartState(data));
-      queryClient.setQueryData(queryKeys.cart.current(), data);
+      queryClient.setQueryData(
+        [...queryKeys.cart.current(), isAuthenticated ? user?._id : "guest"],
+        data,
+      );
       toast.success("Added to shopping bag", {
         description: "Items locked for 10 minutes at checkout.",
       });
@@ -64,7 +77,10 @@ export function useCart() {
     mutationFn: cartApi.updateQuantity,
     onSuccess: (data) => {
       dispatch(setCartState(data));
-      queryClient.setQueryData(queryKeys.cart.current(), data);
+      queryClient.setQueryData(
+        [...queryKeys.cart.current(), isAuthenticated ? user?._id : "guest"],
+        data,
+      );
     },
   });
 
@@ -72,7 +88,10 @@ export function useCart() {
     mutationFn: cartApi.removeFromCart,
     onSuccess: (data) => {
       dispatch(setCartState(data));
-      queryClient.setQueryData(queryKeys.cart.current(), data);
+      queryClient.setQueryData(
+        [...queryKeys.cart.current(), isAuthenticated ? user?._id : "guest"],
+        data,
+      );
       toast.info("Item removed from bag");
     },
   });
@@ -81,7 +100,10 @@ export function useCart() {
     mutationFn: cartApi.applyCoupon,
     onSuccess: (data) => {
       dispatch(setCartState(data));
-      queryClient.setQueryData(queryKeys.cart.current(), data);
+      queryClient.setQueryData(
+        [...queryKeys.cart.current(), isAuthenticated ? user?._id : "guest"],
+        data,
+      );
       toast.success(data.message || "Coupon applied successfully!");
     },
   });
@@ -94,7 +116,7 @@ export function useCart() {
     appliedCoupon,
     isCartDrawerOpen,
     displayTotal,
-    isCartLoading: isCartLoading || isCartFetching,
+    isCartLoading: !isInitialized || isCartLoading || isCartFetching,
     openCart: () => dispatch(openCartDrawer()),
     closeCart: () => dispatch(closeCartDrawer()),
     toggleCart: () => dispatch(toggleCartDrawer()),

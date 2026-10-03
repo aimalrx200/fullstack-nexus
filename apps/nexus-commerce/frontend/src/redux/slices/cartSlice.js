@@ -27,7 +27,13 @@ export const cartSlice = createSlice({
       state.cartId = cart?._id || state.cartId || null;
       state.items = cart?.items || [];
       state.appliedCoupon = cart?.appliedCoupon || null;
-      if (totals) state.totals = totals;
+
+      const resolvedTotals = totals || cart?.totals;
+      if (resolvedTotals) {
+        state.totals = resolvedTotals;
+      } else if (!cart?.items || cart.items.length === 0) {
+        state.totals = initialState.totals;
+      }
     },
     openCartDrawer: (state) => {
       state.isDrawerOpen = true;

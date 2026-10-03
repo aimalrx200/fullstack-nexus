@@ -7,6 +7,7 @@ import { clearCredentials, setCredentials } from "../slices/authSlice";
 import { STORAGE_KEYS, THEMES } from "../../config/constants";
 import { playOrderChime, playMessageAlert } from "../../services/soundEffects";
 import { AuthManager } from "../../lib/auth/AuthManager";
+import { clearCartState } from "../slices/cartSlice";
 
 export const listenerMiddleware = createListenerMiddleware();
 
@@ -85,6 +86,7 @@ listenerMiddleware.startListening({
 listenerMiddleware.startListening({
   actionCreator: clearCredentials,
   effect: (_action, listenerApi) => {
+    listenerApi.dispatch(clearCartState());
     const prevAuth = listenerApi.getOriginalState().auth.isAuthenticated;
     if (prevAuth) {
       AuthManager.notifySessionTerminated();
