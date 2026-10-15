@@ -31,32 +31,25 @@ export const createOrder = asyncHandler(async (req, res) => {
     typeof cartId === "string" && cartId.startsWith("guest_") ? cartId : null;
   const guestSessionId = headerGuestId || bodyGuestId;
 
-  // 1. Robust Multi-Tier Cart Lookup
-  const cartQuery = [];
-
+  // 1. Strict Deterministic Cart Lookup
+  let cart = null;
   const isObjectId =
     typeof cartId === "string" && mongoose.Types.ObjectId.isValid(cartId);
 
   if (isObjectId) {
-    cartQuery.push({ _id: cartId });
-  }
-  if (userId) {
-    cartQuery.push({ userId });
-  }
-  if (guestSessionId) {
-    cartQuery.push({ guestSessionId });
-  }
-  if (!isObjectId && typeof cartId === "string" && cartId !== "active_cart") {
-    cartQuery.push({ guestSessionId: cartId });
+    cart = await Cart.findById(cartId).populate(
+      "items.productId items.variantId",
+    );
   }
 
-  let cart = await Cart.findOne({
-    $or: cartQuery.length > 0 ? cartQuery : [{ _id: null }],
-  }).populate("items.productId items.variantId");
+  if (!cart && userId) {
+    cart = await Cart.findOne({ userId }).populate(
+      "items.productId items.variantId",
+    );
+  }
 
-  // Fallback: If user is authenticated, but their items were added as a guest
-  if ((!cart || !cart.items || cart.items.length === 0) && headerGuestId) {
-    cart = await Cart.findOne({ guestSessionId: headerGuestId }).populate(
+  if (!cart && guestSessionId) {
+    cart = await Cart.findOne({ guestSessionId }).populate(
       "items.productId items.variantId",
     );
   }
@@ -101,7 +94,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       image: variant.image || product.images?.[0]?.url,
       unitPriceUSD,
       unitPricePKR,
-      quantity: item.quantity,
+      quantity: Number(item.quantity),
       totalUSD: currency(unitPriceUSD).multiply(item.quantity).value,
       totalPKR: currency(unitPricePKR).multiply(item.quantity).value,
     });
@@ -137,7 +130,8 @@ export const createOrder = asyncHandler(async (req, res) => {
 
   const order = await Order.create({
     orderNumber,
-    userId: req.user?.id,
+    userId: req.user?.id || null,
+    cartId: cart._id,
     customerEmail: customerEmail.toLowerCase().trim(),
     customerPhone,
     items: orderItems,
@@ -155,7 +149,6 @@ export const createOrder = asyncHandler(async (req, res) => {
       discountPKR: discountPKR.value,
       totalUSD: grandTotalUSD,
       totalPKR: grandTotalPKR,
-      // Charged amount
       subtotal: isPKR ? subtotalPKR.value : subtotalUSD.value,
       shippingFee: isPKR ? shippingFeePKR : shippingFeeUSD,
       discount: isPKR ? discountPKR.value : discountUSD.value,
@@ -174,8 +167,8 @@ export const createOrder = asyncHandler(async (req, res) => {
   });
 
   if (paymentMethod === "cod") {
-    // Deduct physical warehouse stock immediately for Cash on Delivery booking
-    await commitInventoryDeduction(order.items);
+    // Deduct physical warehouse stock immediately and clear inventory hold for cart
+    await commitInventoryDeduction(order.items, cart._id);
   }
 
   // Atomically increment coupon usage if applied
@@ -210,7 +203,7 @@ export const createOrder = asyncHandler(async (req, res) => {
   // Enqueue email receipt in background
   await enqueueJob(JOB_TYPES.SEND_ORDER_RECEIPT, order);
 
-  // Safely delete the cart using its verified MongoDB ObjectId
+  // Safely delete the checked-out cart document
   await Cart.findByIdAndDelete(cart._id);
 
   return res.status(201).json({

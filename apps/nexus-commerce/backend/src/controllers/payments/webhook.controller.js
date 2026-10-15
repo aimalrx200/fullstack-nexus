@@ -48,11 +48,14 @@ export const handleStripeWebhook = async (req, res) => {
     const paymentIntent = event.data.object;
     const { orderId, orderNumber } = paymentIntent.metadata || {};
 
-    const order = await Order.findById(orderId);
-    if (order && order.paymentStatus !== "paid") {
-      order.paymentStatus = "paid";
+    // Atomic compare-and-swap on paymentStatus avoids duplicate deduction races
+    const order = await Order.findOneAndUpdate(
+      { _id: orderId, paymentStatus: { $ne: "paid" } },
+      { $set: { paymentStatus: "paid" } },
+      { new: true },
+    );
 
-      // ⚡ Only transition to 'confirmed' if the order is still unfulfilled
+    if (order) {
       if (order.fulfillmentStatus === "unfulfilled") {
         await transitionOrderStatus({
           orderId: order._id,
@@ -77,10 +80,9 @@ export const handleStripeWebhook = async (req, res) => {
         );
       }
 
-      // Deduct warehouse stock atomically
-      await commitInventoryDeduction(order.items);
+      // Deduct warehouse stock and clean hold records atomically
+      await commitInventoryDeduction(order.items, order.cartId);
 
-      // Record transaction in ledger
       await PaymentTransaction.create({
         orderId: order._id,
         orderNumber: orderNumber || order.orderNumber,
@@ -106,7 +108,7 @@ export const handleStripeWebhook = async (req, res) => {
     const { orderId } = paymentIntent.metadata || {};
 
     const order = await Order.findById(orderId);
-    if (order) {
+    if (order && order.paymentStatus !== "paid") {
       order.paymentStatus = "failed";
       order.timeline.push({
         status: "PAYMENT_FAILED",
@@ -116,7 +118,7 @@ export const handleStripeWebhook = async (req, res) => {
       });
       await order.save();
 
-      await releaseInventoryHold(order._id.toString(), order._id.toString());
+      await releaseInventoryHold(order._id.toString(), order.cartId);
 
       logger.warn({
         msg: "🚨 Stripe payment failed; inventory holds released",
@@ -161,14 +163,13 @@ export const handleJazzCashCallback = async (req, res) => {
   });
 
   if (verification.isPaid) {
-    const order = await Order.findOne({
-      orderNumber: verification.orderNumber,
-    });
+    const order = await Order.findOneAndUpdate(
+      { orderNumber: verification.orderNumber, paymentStatus: { $ne: "paid" } },
+      { $set: { paymentStatus: "paid" } },
+      { new: true },
+    );
 
-    if (order && order.paymentStatus !== "paid") {
-      order.paymentStatus = "paid";
-
-      // ⚡ Only transition to 'confirmed' if still 'unfulfilled'
+    if (order) {
       if (order.fulfillmentStatus === "unfulfilled") {
         await transitionOrderStatus({
           orderId: order._id,
@@ -193,8 +194,7 @@ export const handleJazzCashCallback = async (req, res) => {
         );
       }
 
-      // Deduct warehouse stock atomically
-      await commitInventoryDeduction(order.items);
+      await commitInventoryDeduction(order.items, order.cartId);
 
       await PaymentTransaction.create({
         orderId: order._id,
@@ -249,14 +249,13 @@ export const handleEasypaisaCallback = async (req, res) => {
   });
 
   if (verification.isPaid) {
-    const order = await Order.findOne({
-      orderNumber: verification.orderNumber,
-    });
+    const order = await Order.findOneAndUpdate(
+      { orderNumber: verification.orderNumber, paymentStatus: { $ne: "paid" } },
+      { $set: { paymentStatus: "paid" } },
+      { new: true },
+    );
 
-    if (order && order.paymentStatus !== "paid") {
-      order.paymentStatus = "paid";
-
-      // ⚡ Only transition to 'confirmed' if still 'unfulfilled'
+    if (order) {
       if (order.fulfillmentStatus === "unfulfilled") {
         await transitionOrderStatus({
           orderId: order._id,
@@ -281,8 +280,7 @@ export const handleEasypaisaCallback = async (req, res) => {
         );
       }
 
-      // Deduct warehouse stock atomically
-      await commitInventoryDeduction(order.items);
+      await commitInventoryDeduction(order.items, order.cartId);
 
       await PaymentTransaction.create({
         orderId: order._id,

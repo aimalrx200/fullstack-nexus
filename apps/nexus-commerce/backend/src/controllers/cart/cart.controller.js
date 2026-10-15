@@ -76,72 +76,90 @@ export const calculateCartTotals = (cart) => {
   };
 };
 
-export const getCart = asyncHandler(async (req, res) => {
+/**
+ * Deterministically resolves the active cart query.
+ * Authenticated users must query ONLY by userId to prevent random guest cart collisions.
+ */
+const resolveCartQuery = (req) => {
   const userId = req.user?.id;
-  const guestSessionId = req.headers["x-guest-session-id"];
+  const guestSessionId =
+    req.headers["x-guest-session-id"] || req.body?.guestSessionId;
 
-  const query = [];
-  if (userId) query.push({ userId });
-  if (guestSessionId) query.push({ guestSessionId });
+  if (userId) {
+    return { query: { userId }, isGuest: false, guestSessionId: null };
+  }
 
-  const cart =
-    query.length > 0
-      ? await Cart.findOne({ $or: query })
-          .populate("items.productId")
-          .populate("items.variantId")
-      : null;
+  const resolvedGuestId =
+    guestSessionId ||
+    `guest_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+  return {
+    query: { guestSessionId: resolvedGuestId },
+    isGuest: true,
+    guestSessionId: resolvedGuestId,
+  };
+};
+
+export const getCart = asyncHandler(async (req, res) => {
+  const { query, guestSessionId, isGuest } = resolveCartQuery(req);
+
+  const cart = await Cart.findOne(query)
+    .populate("items.productId")
+    .populate("items.variantId");
+
+  if (isGuest && guestSessionId) {
+    res.setHeader("x-guest-session-id", guestSessionId);
+  }
 
   if (!cart) {
     return res.status(200).json({
       success: true,
+      guestSessionId: isGuest ? guestSessionId : null,
       cart: { _id: null, items: [] },
       totals: calculateCartTotals(null),
     });
   }
 
   const totals = calculateCartTotals(cart);
-  return res.status(200).json({ success: true, cart, totals });
+  return res.status(200).json({
+    success: true,
+    guestSessionId: isGuest ? guestSessionId : null,
+    cart,
+    totals,
+  });
 });
 
 export const addToCart = asyncHandler(async (req, res) => {
   const { variantId, quantity = 1 } = req.body;
-  const userId = req.user?.id;
-  const guestSessionId =
-    req.headers["x-guest-session-id"] ||
-    req.body.guestSessionId ||
-    `guest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const numQuantity = Math.max(1, Number(quantity) || 1);
+  const { query, isGuest, guestSessionId } = resolveCartQuery(req);
 
-  // Safe extraction if variantId is sent as an object or string
   const cleanVariantId =
     typeof variantId === "object" ? variantId._id || variantId.id : variantId;
 
   const variant = await Variant.findById(cleanVariantId).populate("productId");
-  if (!variant || variant.stock < quantity) {
+  if (!variant || variant.stock < numQuantity) {
     return res.status(400).json({
       success: false,
       message: "Requested quantity exceeds available stock.",
     });
   }
 
-  const query = [];
-  if (userId) query.push({ userId });
-  if (guestSessionId) query.push({ guestSessionId });
-
-  let cart = await Cart.findOne({ $or: query });
+  let cart = await Cart.findOne(query);
 
   if (!cart) {
     cart = new Cart({
-      ...(userId ? { userId } : { guestSessionId }),
+      ...(req.user?.id ? { userId: req.user.id } : { guestSessionId }),
       items: [],
     });
   }
 
   const existingIndex = cart.items.findIndex(
-    (item) => item.variantId.toString() === cleanVariantId.toString(),
+    (item) => item.variantId?.toString() === cleanVariantId.toString(),
   );
 
   if (existingIndex > -1) {
-    const newQty = cart.items[existingIndex].quantity + Number(quantity);
+    const newQty = cart.items[existingIndex].quantity + numQuantity;
     if (newQty > variant.stock) {
       return res.status(400).json({
         success: false,
@@ -153,7 +171,7 @@ export const addToCart = asyncHandler(async (req, res) => {
     cart.items.push({
       productId: variant.productId._id,
       variantId: variant._id,
-      quantity: Number(quantity),
+      quantity: numQuantity,
       priceAtAdditionUSD:
         variant.priceOverrideUSD || variant.productId.basePriceUSD,
       priceAtAdditionPKR:
@@ -165,34 +183,40 @@ export const addToCart = asyncHandler(async (req, res) => {
   const populated = await cart.populate("items.productId items.variantId");
   const totals = calculateCartTotals(populated);
 
-  return res.status(200).json({ success: true, cart: populated, totals });
+  if (isGuest && guestSessionId) {
+    res.setHeader("x-guest-session-id", guestSessionId);
+  }
+
+  return res.status(200).json({
+    success: true,
+    guestSessionId: isGuest ? guestSessionId : null,
+    cart: populated,
+    totals,
+  });
 });
 
 export const updateCartItemQuantity = asyncHandler(async (req, res) => {
   const { variantId } = req.params;
   const { quantity } = req.body;
-  const userId = req.user?.id;
-  const guestSessionId = req.headers["x-guest-session-id"];
+  const numQuantity = Number(quantity);
+  const { query } = resolveCartQuery(req);
 
   const cleanVariantId =
     typeof variantId === "object" ? variantId._id || variantId.id : variantId;
 
-  const query = [];
-  if (userId) query.push({ userId });
-  if (guestSessionId) query.push({ guestSessionId });
+  const cart = await Cart.findOne(query);
 
-  const cart = await Cart.findOne({ $or: query });
-
-  if (!cart)
+  if (!cart) {
     return res.status(404).json({ success: false, message: "Cart not found." });
+  }
 
-  if (Number(quantity) <= 0) {
+  if (numQuantity <= 0) {
     cart.items = cart.items.filter(
-      (item) => item.variantId.toString() !== cleanVariantId.toString(),
+      (item) => item.variantId?.toString() !== cleanVariantId.toString(),
     );
   } else {
     const variant = await Variant.findById(cleanVariantId);
-    if (!variant || variant.stock < quantity) {
+    if (!variant || variant.stock < numQuantity) {
       return res.status(400).json({
         success: false,
         message: "Requested quantity exceeds available stock.",
@@ -200,9 +224,9 @@ export const updateCartItemQuantity = asyncHandler(async (req, res) => {
     }
 
     const item = cart.items.find(
-      (i) => i.variantId.toString() === cleanVariantId.toString(),
+      (i) => i.variantId?.toString() === cleanVariantId.toString(),
     );
-    if (item) item.quantity = Number(quantity);
+    if (item) item.quantity = numQuantity;
   }
 
   await cart.save();
@@ -214,21 +238,16 @@ export const updateCartItemQuantity = asyncHandler(async (req, res) => {
 
 export const removeFromCart = asyncHandler(async (req, res) => {
   const { variantId } = req.params;
-  const userId = req.user?.id;
-  const guestSessionId = req.headers["x-guest-session-id"];
+  const { query } = resolveCartQuery(req);
 
   const cleanVariantId =
     typeof variantId === "object" ? variantId._id || variantId.id : variantId;
 
-  const query = [];
-  if (userId) query.push({ userId });
-  if (guestSessionId) query.push({ guestSessionId });
-
-  const cart = await Cart.findOne({ $or: query });
+  const cart = await Cart.findOne(query);
 
   if (cart) {
     cart.items = cart.items.filter(
-      (item) => item.variantId.toString() !== cleanVariantId.toString(),
+      (item) => item.variantId?.toString() !== cleanVariantId.toString(),
     );
     await cart.save();
   }
@@ -243,8 +262,8 @@ export const removeFromCart = asyncHandler(async (req, res) => {
 
 export const applyCoupon = asyncHandler(async (req, res) => {
   const { code } = req.body;
+  const { query } = resolveCartQuery(req);
   const userId = req.user?.id;
-  const guestSessionId = req.headers["x-guest-session-id"];
 
   const cleanCode = code?.toUpperCase().trim();
   const coupon = await Coupon.findOne({ code: cleanCode, isActive: true });
@@ -293,11 +312,7 @@ export const applyCoupon = asyncHandler(async (req, res) => {
     }
   }
 
-  const query = [];
-  if (userId) query.push({ userId });
-  if (guestSessionId) query.push({ guestSessionId });
-
-  const cart = await Cart.findOne({ $or: query });
+  const cart = await Cart.findOne(query);
 
   if (!cart || cart.items.length === 0) {
     return res.status(400).json({ success: false, message: "Cart is empty." });
@@ -354,15 +369,21 @@ export const mergeGuestCart = asyncHandler(async (req, res) => {
     const guestCart = await Cart.findOne({ guestSessionId });
     if (guestCart && guestCart.items.length > 0) {
       for (const guestItem of guestCart.items) {
+        const guestVariantId = guestItem.variantId.toString();
         const existingIndex = userCart.items.findIndex(
-          (item) =>
-            item.variantId.toString() === guestItem.variantId.toString(),
+          (item) => item.variantId?.toString() === guestVariantId,
         );
 
         if (existingIndex > -1) {
           userCart.items[existingIndex].quantity += guestItem.quantity;
         } else {
-          userCart.items.push(guestItem);
+          userCart.items.push({
+            productId: guestItem.productId,
+            variantId: guestItem.variantId,
+            quantity: guestItem.quantity,
+            priceAtAdditionUSD: guestItem.priceAtAdditionUSD,
+            priceAtAdditionPKR: guestItem.priceAtAdditionPKR,
+          });
         }
       }
       await userCart.save();

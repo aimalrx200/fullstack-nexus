@@ -1,6 +1,6 @@
 // apps/nexus-commerce/frontend/src/pages/storefront/CheckoutPage.jsx
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -67,6 +67,19 @@ function CheckoutFormContent() {
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isAuthorizingWallet, setIsAuthorizingWallet] = useState(false);
 
+  // Stored in ref and generated only inside event handler (keeps render 100% pure)
+  const idempotencyKeyRef = useRef(null);
+
+  const getOrCreateIdempotencyKey = () => {
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `idem_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    }
+    return idempotencyKeyRef.current;
+  };
+
   const handleAddressChange = (key, val) => {
     if (key === "street") setStreet(val);
     if (key === "city") setCity(val);
@@ -125,6 +138,8 @@ function CheckoutFormContent() {
   };
 
   const handlePlaceOrder = async () => {
+    if (isSubmitting) return;
+
     if (!validateDeliveryDetails()) {
       setStep(1);
       return;
@@ -153,6 +168,7 @@ function CheckoutFormContent() {
     }
 
     setIsSubmitting(true);
+    const idempotencyKey = getOrCreateIdempotencyKey();
 
     try {
       const activeCartId =
@@ -166,6 +182,7 @@ function CheckoutFormContent() {
         customerPhone: phone.trim(),
         paymentMethod,
         mobileNumber: (mobileNumber || phone).trim(),
+        idempotencyKey,
         shippingAddress: {
           recipientName: recipientName.trim(),
           phone: phone.trim(),
@@ -179,12 +196,14 @@ function CheckoutFormContent() {
         },
       };
 
-      // 1. Create order record on the backend
-      const data = await orderApi.createOrder(orderPayload);
+      // 1. Create initial order record on the backend with idempotency enforcement
+      const data = await orderApi.createOrder(orderPayload, {
+        headers: { "x-idempotency-key": idempotencyKey },
+      });
       const createdOrder = data.order;
       const paymentInfo = data.payment;
 
-      // 2. Route by payment method
+      // 2. Handle Stripe Gateway
       if (paymentMethod === "stripe") {
         if (!stripe || !elements) {
           throw new Error("Stripe engine is initializing. Please try again.");
@@ -221,14 +240,40 @@ function CheckoutFormContent() {
         }
 
         if (paymentIntent && paymentIntent.status === "succeeded") {
-          // Confirm immediately on the backend so the order is marked 'paid' and 'confirmed'
-          await orderApi.confirmStripePayment({
+          // Immediately confirm on backend and get the updated order object
+          const confirmRes = await orderApi.confirmStripePayment({
             orderId: createdOrder._id,
             paymentIntentId: paymentIntent.id,
           });
+
+          // Resolve final paid order representation
+          const paidOrder = confirmRes?.order || {
+            ...createdOrder,
+            paymentStatus: "paid",
+            fulfillmentStatus:
+              confirmRes?.order?.fulfillmentStatus || "confirmed",
+          };
+
+          // ⚡ CRITICAL FIX: Synchronize React Query cache so TrackingPage sees 'paid' immediately
+          queryClient.setQueryData(
+            queryKeys.orders.detail(createdOrder._id),
+            paidOrder,
+          );
+          queryClient.setQueryData(
+            queryKeys.orders.detail(createdOrder.orderNumber),
+            paidOrder,
+          );
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.orders.detail(createdOrder._id),
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.orders.detail(createdOrder.orderNumber),
+          });
+
           toast.success("Payment authorized with Stripe 3D-Secure!");
         }
 
+        idempotencyKeyRef.current = null;
         clearCart();
         navigate(
           `/orders/track/${createdOrder?.orderNumber || createdOrder?._id}`,
@@ -237,11 +282,21 @@ function CheckoutFormContent() {
         paymentMethod === "jazzcash" ||
         paymentMethod === "easypaisa"
       ) {
-        // Open the in-app mobile wallet MPIN authorization modal
         setPendingWalletOrder(createdOrder);
         setIsWalletModalOpen(true);
         setIsSubmitting(false);
       } else if (paymentMethod === "cod") {
+        // Cache COD confirmed order immediately
+        queryClient.setQueryData(
+          queryKeys.orders.detail(createdOrder._id),
+          createdOrder,
+        );
+        queryClient.setQueryData(
+          queryKeys.orders.detail(createdOrder.orderNumber),
+          createdOrder,
+        );
+
+        idempotencyKeyRef.current = null;
         toast.success("Cash on Delivery booking confirmed!");
         clearCart();
         navigate(
@@ -263,14 +318,11 @@ function CheckoutFormContent() {
     try {
       const res = await orderApi.authorizeWalletPayment(authPayload);
 
-      // Update cache so TrackingPage sees 'paid' immediately
       if (res?.order) {
-        // Update by _id
         queryClient.setQueryData(
           queryKeys.orders.detail(res.order._id),
           res.order,
         );
-        // Update by orderNumber
         queryClient.setQueryData(
           queryKeys.orders.detail(res.order.orderNumber),
           res.order,
@@ -280,6 +332,7 @@ function CheckoutFormContent() {
       toast.success(
         `${paymentMethod === "jazzcash" ? "JazzCash" : "Easypaisa"} payment authorized!`,
       );
+      idempotencyKeyRef.current = null;
       clearCart();
       setTimeout(() => {
         setIsWalletModalOpen(false);
@@ -414,6 +467,7 @@ function CheckoutFormContent() {
                   variant="luxury"
                   size="lg"
                   icon={ShieldCheck}
+                  disabled={isSubmitting || items.length === 0}
                   isLoading={isSubmitting}
                   onClick={handlePlaceOrder}
                   className="flex-1 font-bold shadow-lg shadow-indigo-500/25"
@@ -464,25 +518,17 @@ export function CheckoutPage() {
   const { isCartLoading } = useCart();
   const { isLoading: isAuthLoading, isInitialized } = useAuth();
 
-  // 1. One-way latch state: starts false, turns true ONCE initial load finishes
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
-
-  // 2. Check if all data dependencies are completely ready
   const isDataReady = isInitialized && !isAuthLoading && !isCartLoading;
 
-  // 3. Render-Phase State Update
-  // Synchronously latch setHasInitiallyLoaded to true as soon as data arrives
   if (!hasInitiallyLoaded && isDataReady) {
     setHasInitiallyLoaded(true);
   }
 
-  // 4. INSTANT SKELETON GATE (No delay timers)
-  // If we haven't loaded initial data yet, return skeleton IMMEDIATELY on Frame 0
   if (!hasInitiallyLoaded) {
     return <CheckoutPageSkeleton />;
   }
 
-  // 5. Render full checkout page once data is ready
   return (
     <Elements stripe={stripePromise}>
       <CheckoutFormContent />

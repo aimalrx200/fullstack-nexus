@@ -42,6 +42,11 @@ const orderSchema = new mongoose.Schema(
       ref: "User",
       index: true,
     },
+    cartId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Cart",
+      index: true,
+    },
     customerEmail: {
       type: String,
       required: true,

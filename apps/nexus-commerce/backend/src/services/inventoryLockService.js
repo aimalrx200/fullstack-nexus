@@ -60,7 +60,6 @@ export const acquireInventoryHold = async ({
 
   if (isRedisAlive()) {
     try {
-      // Ensure Redis knows current physical stock
       await cacheStore.setex(
         stockKey,
         INVENTORY_HOLD_TTL_SECONDS * 2,
@@ -119,9 +118,13 @@ export const acquireInventoryHold = async ({
 };
 
 export const releaseInventoryHold = async (sessionId, cartId) => {
-  const query = {
-    $or: [{ ...(sessionId && { sessionId }) }, { ...(cartId && { cartId }) }],
-  };
+  const conditions = [];
+  if (sessionId) conditions.push({ sessionId });
+  if (cartId) conditions.push({ cartId });
+
+  if (conditions.length === 0) return;
+
+  const query = { $or: conditions };
   const holds = await InventoryHold.find(query);
   if (holds.length === 0) return;
 
@@ -149,22 +152,25 @@ export const releaseInventoryHold = async (sessionId, cartId) => {
 /**
  * Commits stock deduction atomically across all line items using MongoDB Transactions.
  * Reverts all item updates if any item fails due to insufficient stock.
+ * Cleans up any active InventoryHold records to avoid double deduction in reconciler.
  */
-export const commitInventoryDeduction = async (cartItems, cartId) => {
+export const commitInventoryDeduction = async (cartItems, cartId = null) => {
   const session = await mongoose.startSession();
   const updatedVariants = [];
+  const variantIds = [];
 
   try {
     await session.withTransaction(async () => {
       for (const item of cartItems) {
         const variantId = item.variantId?._id || item.variantId;
-        const quantity = item.quantity;
+        const quantity = Number(item.quantity);
+        variantIds.push(variantId);
 
-        // Atomic OCC condition: stock must be >= required quantity (Mongoose 9 returnDocument: 'after')
+        // Atomic OCC condition: stock must be >= required quantity
         const updated = await Variant.findOneAndUpdate(
           { _id: variantId, stock: { $gte: quantity } },
           { $inc: { stock: -quantity } },
-          { returnDocument: "after", session },
+          { new: true, session },
         );
 
         if (!updated) {
@@ -176,9 +182,17 @@ export const commitInventoryDeduction = async (cartItems, cartId) => {
         updatedVariants.push(updated);
       }
 
-      // Clear any hold records attached to this checkout session/cart
-      if (cartId) {
-        await InventoryHold.deleteMany({ cartId }, { session });
+      // Explicitly purge active inventory hold records for this cart/items
+      const holdCleanupQuery = [];
+      if (cartId && mongoose.Types.ObjectId.isValid(cartId)) {
+        holdCleanupQuery.push({ cartId });
+      }
+      if (variantIds.length > 0) {
+        holdCleanupQuery.push({ variantId: { $in: variantIds } });
+      }
+
+      if (holdCleanupQuery.length > 0) {
+        await InventoryHold.deleteMany({ $or: holdCleanupQuery }, { session });
       }
     });
 
@@ -192,12 +206,13 @@ export const commitInventoryDeduction = async (cartItems, cartId) => {
     }
 
     logger.info({
-      msg: "✅ Atomic inventory deduction committed successfully",
+      msg: "Atomic inventory deduction committed and hold records cleared successfully",
       itemCount: cartItems.length,
+      cartId,
     });
   } catch (err) {
     logger.error({
-      msg: "❌ Atomic inventory deduction transaction failed and rolled back",
+      msg: "Atomic inventory deduction transaction failed and rolled back",
       error: err.message,
     });
     throw err;

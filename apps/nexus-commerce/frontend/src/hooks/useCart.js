@@ -1,9 +1,9 @@
 // src/hooks/useCart.js
 
-import { useEffect } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "./useAuth"; // <-- Import useAuth
+import { useAuth } from "./useAuth";
 import {
   setCartState,
   openCartDrawer,
@@ -23,6 +23,20 @@ import { cartApi } from "../lib/api/cartApi";
 import { queryKeys } from "../lib/api/queryKeys";
 import { toast } from "sonner";
 
+const EMPTY_CART_RESPONSE = {
+  success: true,
+  cart: { _id: null, items: [] },
+  totals: {
+    subtotalUSD: 0,
+    subtotalPKR: 0,
+    discountUSD: 0,
+    discountPKR: 0,
+    totalUSD: 0,
+    totalPKR: 0,
+    itemCount: 0,
+  },
+};
+
 export function useCart() {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
@@ -36,22 +50,25 @@ export function useCart() {
   const isCartDrawerOpen = useSelector(selectIsCartDrawerOpen);
   const displayTotal = useSelector(selectActiveCartDisplayTotal);
 
+  // Memoize query key so reference is stable across renders
+  const cartQueryKey = useMemo(
+    () => [...queryKeys.cart.current(), isAuthenticated ? user?._id : "guest"],
+    [isAuthenticated, user?._id],
+  );
+
   // Sync Cart with Backend only when auth initialization is complete
   const {
     isLoading: isCartLoading,
     isFetching: isCartFetching,
     data: cartQueryData,
   } = useQuery({
-    queryKey: [
-      ...queryKeys.cart.current(),
-      isAuthenticated ? user?._id : "guest",
-    ],
+    queryKey: cartQueryKey,
     queryFn: () => cartApi.getCart(),
-    enabled: isInitialized, // <-- Prevent race condition on page load
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    enabled: isInitialized,
+    staleTime: 1000 * 60 * 2,
   });
 
-  // Keep Redux in sync with React Query data safely outside queryFn
+  // Keep Redux in sync with React Query safely
   useEffect(() => {
     if (cartQueryData) {
       dispatch(setCartState(cartQueryData));
@@ -62,10 +79,7 @@ export function useCart() {
     mutationFn: cartApi.addToCart,
     onSuccess: (data) => {
       dispatch(setCartState(data));
-      queryClient.setQueryData(
-        [...queryKeys.cart.current(), isAuthenticated ? user?._id : "guest"],
-        data,
-      );
+      queryClient.setQueryData(cartQueryKey, data);
       toast.success("Added to shopping bag", {
         description: "Items locked for 10 minutes at checkout.",
       });
@@ -77,10 +91,7 @@ export function useCart() {
     mutationFn: cartApi.updateQuantity,
     onSuccess: (data) => {
       dispatch(setCartState(data));
-      queryClient.setQueryData(
-        [...queryKeys.cart.current(), isAuthenticated ? user?._id : "guest"],
-        data,
-      );
+      queryClient.setQueryData(cartQueryKey, data);
     },
   });
 
@@ -88,10 +99,7 @@ export function useCart() {
     mutationFn: cartApi.removeFromCart,
     onSuccess: (data) => {
       dispatch(setCartState(data));
-      queryClient.setQueryData(
-        [...queryKeys.cart.current(), isAuthenticated ? user?._id : "guest"],
-        data,
-      );
+      queryClient.setQueryData(cartQueryKey, data);
       toast.info("Item removed from bag");
     },
   });
@@ -100,13 +108,20 @@ export function useCart() {
     mutationFn: cartApi.applyCoupon,
     onSuccess: (data) => {
       dispatch(setCartState(data));
-      queryClient.setQueryData(
-        [...queryKeys.cart.current(), isAuthenticated ? user?._id : "guest"],
-        data,
-      );
+      queryClient.setQueryData(cartQueryKey, data);
       toast.success(data.message || "Coupon applied successfully!");
     },
   });
+
+  /**
+   * Resets both Redux and TanStack Query caches synchronously.
+   * Prevents resurrecting purchased items upon storefront navigation.
+   */
+  const clearCart = useCallback(() => {
+    dispatch(clearCartState());
+    queryClient.setQueryData(cartQueryKey, EMPTY_CART_RESPONSE);
+    queryClient.invalidateQueries({ queryKey: queryKeys.cart.current() });
+  }, [dispatch, queryClient, cartQueryKey]);
 
   return {
     cartId: cartId || cartQueryData?.cart?._id || null,
@@ -120,7 +135,7 @@ export function useCart() {
     openCart: () => dispatch(openCartDrawer()),
     closeCart: () => dispatch(closeCartDrawer()),
     toggleCart: () => dispatch(toggleCartDrawer()),
-    clearCart: () => dispatch(clearCartState()),
+    clearCart,
     addToCart: (variantId, quantity = 1) =>
       addToCartMutation.mutate({ variantId, quantity }),
     updateQuantity: (variantId, quantity) =>
