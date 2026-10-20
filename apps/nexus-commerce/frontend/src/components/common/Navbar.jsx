@@ -168,9 +168,7 @@ export function Navbar({ onOpenAuthModal }) {
             </button>
 
             {/* User Account / Auth Section */}
-            {!isInitialized ? (
-              <div className="w-20 h-9 rounded-xl bg-surface-elevated/70 border border-border-subtle animate-pulse" />
-            ) : isAuthenticated ? (
+            {isAuthenticated ? (
               <div className="relative">
                 <button
                   type="button"
