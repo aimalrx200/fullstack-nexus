@@ -1,4 +1,5 @@
-import React from "react";
+// apps/nexus-commerce/frontend/src/components/common/CurrencySwitcher.jsx
+
 import { useCurrency } from "../../hooks/useCurrency";
 import { CURRENCIES } from "../../config/constants";
 

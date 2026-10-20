@@ -13,33 +13,86 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 export function CatalogPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [selectedCategory, setSelectedCategory] = useState(
-    searchParams.get("category") || "All",
-  );
-  const [searchQuery, setSearchQuery] = useState(
-    searchParams.get("search") || "",
-  );
-  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
-  const [sortBy, setSortBy] = useState("newest");
-  const [page, setPage] = useState(1);
+  // 1. DERIVE state directly from URL (Single Source of Truth)
+  const selectedCategory = searchParams.get("category") || "All";
+  const debouncedSearch = searchParams.get("search") || "";
+  const sortBy = searchParams.get("sort") || "newest";
+  const page = Number(searchParams.get("page")) || 1;
 
-  // 300ms Search Debounce
+  // 2. Local state only for the instant-feedback search typing box
+  const [searchQuery, setSearchQuery] = useState(debouncedSearch);
+
+  // 3. Debounce URL update when user types in the search box
   useEffect(() => {
     const handler = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-      setPage(1); // Reset to page 1 on new search
+      const currentParam = searchParams.get("search") || "";
+      const trimmed = searchQuery.trim();
+
+      // Only update URL if search string actually changed
+      if (currentParam !== trimmed) {
+        setSearchParams(
+          (prev) => {
+            const next = new URLSearchParams(prev);
+            if (trimmed) {
+              next.set("search", trimmed);
+            } else {
+              next.delete("search");
+            }
+            next.delete("page"); // Reset to page 1 on new search
+            return next;
+          },
+          { replace: true },
+        );
+      }
     }, 300);
+
     return () => clearTimeout(handler);
-  }, [searchQuery]);
+  }, [searchQuery, searchParams, setSearchParams]);
 
-  // Sync state to URL search parameters
-  useEffect(() => {
-    const params = {};
-    if (selectedCategory !== "All") params.category = selectedCategory;
-    if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
-    setSearchParams(params, { replace: true });
-  }, [selectedCategory, debouncedSearch, setSearchParams]);
+  // 4. Parameter update handlers
+  const handleSelectCategory = (cat) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (cat === "All") {
+        next.delete("category");
+      } else {
+        next.set("category", cat);
+      }
+      next.delete("page"); // Reset page when category changes
+      return next;
+    });
+  };
 
+  const handleSortChange = (newSort) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (newSort === "newest") {
+        next.delete("sort");
+      } else {
+        next.set("sort", newSort);
+      }
+      return next;
+    });
+  };
+
+  const handlePageChange = (newPage) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (newPage <= 1) {
+        next.delete("page");
+      } else {
+        next.set("page", String(newPage));
+      }
+      return next;
+    });
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setSearchParams({}, { replace: true });
+  };
+
+  // 5. Query execution
   const { data, isLoading, isFetching } = useQuery({
     queryKey: queryKeys.products.list({
       category: selectedCategory,
@@ -51,7 +104,7 @@ export function CatalogPage() {
     queryFn: () =>
       productApi.getProducts({
         category: selectedCategory !== "All" ? selectedCategory : undefined,
-        search: debouncedSearch.trim() || undefined,
+        search: debouncedSearch || undefined,
         sort: sortBy,
         page,
         limit: 12,
@@ -63,13 +116,14 @@ export function CatalogPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
+      {/* Page Header */}
       <div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-text-main tracking-tight">
-          Product Discovery & Catalog
+          Explore Products
         </h1>
-        <p className="text-xs text-text-muted mt-1">
-          Showing real-time stock levels, multi-currency pricing, and flash-sale
-          holds.
+        <p className="text-xs sm:text-sm text-text-muted mt-1">
+          Browse our curated collection of premium electronics, clothing, and
+          everyday essentials.
         </p>
       </div>
 
@@ -78,26 +132,18 @@ export function CatalogPage() {
         categories={
           data?.categories || [
             "Electronics",
-            "Apparel",
+            "Clothing",
             "Footwear",
             "Accessories",
           ]
         }
         selectedCategory={selectedCategory}
-        onSelectCategory={(cat) => {
-          setSelectedCategory(cat);
-          setPage(1);
-        }}
+        onSelectCategory={handleSelectCategory}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         sortBy={sortBy}
-        onSortChange={setSortBy}
-        onReset={() => {
-          setSelectedCategory("All");
-          setSearchQuery("");
-          setSortBy("newest");
-          setPage(1);
-        }}
+        onSortChange={handleSortChange}
+        onReset={handleResetFilters}
       />
 
       {/* Product Grid */}
@@ -111,20 +157,16 @@ export function CatalogPage() {
         <ProductGrid
           products={data?.products || []}
           isLoading={isLoading}
-          onResetFilters={() => {
-            setSelectedCategory("All");
-            setSearchQuery("");
-            setPage(1);
-          }}
+          onResetFilters={handleResetFilters}
         />
       </div>
 
       {/* Pagination Bar */}
       {pagination && pagination.pages > 1 && (
-        <div className="pt-6 border-t border-border-subtle flex items-center justify-between">
-          <span className="text-xs font-mono text-text-muted">
+        <div className="pt-6 border-t border-border-subtle flex flex-col sm:flex-row items-center justify-between gap-4">
+          <span className="text-xs font-medium text-text-muted">
             Showing Page {pagination.page} of {pagination.pages} (
-            {pagination.total} products)
+            {pagination.total} items)
           </span>
 
           <div className="flex items-center gap-2">
@@ -133,7 +175,7 @@ export function CatalogPage() {
               size="sm"
               icon={ChevronLeft}
               disabled={page <= 1 || isFetching}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              onClick={() => handlePageChange(page - 1)}
             >
               Previous
             </Button>
@@ -141,7 +183,7 @@ export function CatalogPage() {
               variant="secondary"
               size="sm"
               disabled={!pagination.hasMore || isFetching}
-              onClick={() => setPage((p) => p + 1)}
+              onClick={() => handlePageChange(page + 1)}
             >
               <span>Next</span>
               <ChevronRight className="w-4 h-4 ml-1" />
