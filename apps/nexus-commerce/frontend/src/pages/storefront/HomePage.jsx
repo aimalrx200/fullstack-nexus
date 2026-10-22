@@ -25,7 +25,7 @@ export function HomePage() {
   // 3. Derive deferred loading state with balanced hold time
   const showHeroSkeleton = useDelayedLoading(heroSectionLoading, {
     delay: 150,
-    minDuration: 3000,
+    minDuration: 1000,
   });
 
   return (

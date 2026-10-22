@@ -1,4 +1,6 @@
-import React, { useEffect, useRef } from "react";
+// apps/nexus-commerce/frontend/src/pages/auth/VerifyEmailPage.jsx
+
+import { useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
@@ -13,7 +15,7 @@ export function VerifyEmailPage() {
   const { markVerified } = useAuth();
   const hasMarkedVerified = useRef(false);
 
-  const { data, isLoading, isError, error, isSuccess } = useQuery({
+  const { isLoading, isError, error, isSuccess } = useQuery({
     queryKey: ["verify-email", token],
     queryFn: () => authApi.verifyEmail(token),
     enabled: Boolean(token),
@@ -29,18 +31,21 @@ export function VerifyEmailPage() {
     }
   }, [isSuccess, markVerified]);
 
+  // Clean, consumer-friendly messaging without exposing backend terminology
   const errorMessage = !token
-    ? "Verification token is missing from the URL link."
-    : error?.response?.data?.message ||
-      "Invalid or expired verification token.";
+    ? "This verification link appears to be incomplete."
+    : error?.response?.data?.message?.toLowerCase().includes("token")
+      ? "This verification link has expired or has already been used."
+      : error?.response?.data?.message ||
+        "We were unable to verify your email. The link may have expired.";
 
   return (
     <div className="text-center py-8 space-y-4">
       {isLoading && (
         <div className="flex flex-col items-center gap-2">
           <Loader2 className="w-8 h-8 animate-spin text-brand-primary" />
-          <p className="text-xs text-text-muted font-mono">
-            Verifying cryptographic token...
+          <p className="text-sm text-text-muted">
+            Verifying your email address...
           </p>
         </div>
       )}
@@ -52,15 +57,16 @@ export function VerifyEmailPage() {
           </div>
           <div className="space-y-1">
             <h3 className="text-base font-bold text-text-main">
-              {data?.message || "Email Verified Successfully!"}
+              Email Confirmed!
             </h3>
-            <p className="text-xs text-text-muted">
-              Your account is now verified. You can now receive real-time order
-              invoices and courier alerts.
+            <p className="text-xs text-text-muted max-w-sm mx-auto leading-relaxed">
+              Your email is confirmed. You will now receive live order tracking
+              updates, delivery notifications, and receipts directly in your
+              inbox.
             </p>
           </div>
           <Button variant="primary" size="md" onClick={() => navigate("/")}>
-            Go to Storefront
+            Start Shopping
           </Button>
         </div>
       )}
@@ -72,7 +78,7 @@ export function VerifyEmailPage() {
           </div>
           <div className="space-y-1">
             <h3 className="text-base font-bold text-text-main">
-              Verification Failed
+              Unable to Verify Email
             </h3>
             <p className="text-xs text-rose-400/90 leading-relaxed max-w-xs mx-auto">
               {errorMessage}

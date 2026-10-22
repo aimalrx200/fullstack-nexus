@@ -4,11 +4,11 @@ import { useState, useEffect, useRef } from "react";
 
 /**
  * Prevents skeleton flashing on fast queries (<150ms)
- * and guarantees a minimum visible duration (3000ms) to prevent strobe flickers.
+ * and guarantees a minimum visible duration (1000ms) to prevent strobe flickers.
  */
 export function useDelayedLoading(
   isLoading,
-  { delay = 150, minDuration = 3000 } = {},
+  { delay = 150, minDuration = 1000 } = {},
 ) {
   const [shouldShow, setShouldShow] = useState(false);
   const startTimeRef = useRef(null);
