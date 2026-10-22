@@ -1,68 +1,66 @@
+// apps/portfolio/src/components/telemetry/LiveGatewayPing.jsx
+
 import { useState, useEffect } from "react";
-import { Zap } from "lucide-react";
 
 export function LiveGatewayPing() {
-  const [latency, setLatency] = useState(null);
   const [status, setStatus] = useState("measuring"); // 'measuring' | 'online' | 'degraded'
 
   useEffect(() => {
     let isMounted = true;
 
-    const measurePing = async () => {
-      const startTime = performance.now();
+    const checkServiceHealth = async () => {
       try {
         const targetUrl = "https://fullstack-nexus-backend.vercel.app/api/v1";
         await fetch(targetUrl, { method: "HEAD", mode: "no-cors" });
-        const roundTripMs = Math.round(performance.now() - startTime);
 
         if (isMounted) {
-          setLatency(roundTripMs);
           setStatus("online");
         }
       } catch {
         if (isMounted) {
-          setLatency(84);
           setStatus("degraded");
         }
       }
     };
 
-    measurePing();
-    const interval = setInterval(measurePing, 15000);
+    checkServiceHealth();
+    const interval = setInterval(checkServiceHealth, 20000);
     return () => {
       isMounted = false;
       clearInterval(interval);
     };
   }, []);
 
-  const statusColor =
-    status === "online"
-      ? "bg-[#00ff66]"
-      : status === "degraded"
-        ? "bg-[#ffb700]"
-        : "bg-[#00f0ff]";
+  const config = {
+    measuring: {
+      dotColor: "bg-amber-400",
+      text: "Checking status...",
+    },
+    online: {
+      dotColor: "bg-emerald-500",
+      text: "All Systems Operational",
+    },
+    degraded: {
+      dotColor: "bg-amber-400",
+      text: "Experiencing Delays",
+    },
+  };
+
+  const current = config[status];
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-[#232334] bg-[#0a0a10]/90 text-[11px] font-mono text-[#737890]">
+    <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-surface-border bg-surface-card/60 text-xs text-text-muted transition-colors">
       <span className="relative flex h-2 w-2">
         <span
-          className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${statusColor}`}
+          className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${current.dotColor}`}
         />
         <span
-          className={`relative inline-flex rounded-full h-2 w-2 ${statusColor}`}
+          className={`relative inline-flex rounded-full h-2 w-2 ${current.dotColor}`}
         />
       </span>
 
-      <span className="text-[#f0f3ff] font-medium">Gateway:</span>
-      <span
-        className={status === "online" ? "text-[#00ff66]" : "text-[#ffb700]"}
-      >
-        {status === "online" ? "Live (Vercel Serverless)" : "Degraded / Cached"}
-      </span>
-      <span className="text-[#232334]">|</span>
-      <span className="text-[#00f0ff] flex items-center gap-0.5">
-        <Zap className="w-3 h-3 text-[#00f0ff]" />
-        {latency ? `${latency}ms` : "Pinging..."}
+      <span className="font-medium text-text-main text-[11px] sm:text-xs">
+        {current.text}
       </span>
     </div>
   );

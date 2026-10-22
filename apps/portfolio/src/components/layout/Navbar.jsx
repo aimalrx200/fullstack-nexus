@@ -1,5 +1,7 @@
+// apps/portfolio/src/components/layout/Navbar.jsx
+
 import { useState, useEffect } from "react";
-import { Shield, Command } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
 import { LiveGatewayPing } from "../telemetry/LiveGatewayPing";
 import { GithubIcon } from "../common/Icons";
 
@@ -14,56 +16,56 @@ export function Navbar({ onOpenPalette }) {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-40 transition-all duration-200 ${
+      className={`fixed top-0 left-0 right-0 z-40 border-b transition-[background-color,border-color,padding,box-shadow] duration-200 ${
         scrolled
-          ? "cyber-glass border-b border-[#232334] py-3 shadow-2xl"
-          : "bg-transparent py-5"
+          ? "bg-surface-card/80 backdrop-blur-md border-surface-border py-3 shadow-lg"
+          : "bg-transparent border-transparent py-4"
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
-        {/* Brand & Monorepo Badge */}
-        <a href="#" className="flex items-center gap-2.5 group">
-          <div className="h-8 w-8 rounded-lg bg-[#ff6b00]/10 border border-[#ff6b00]/40 flex items-center justify-center text-[#ff6b00] group-hover:scale-105 transition-transform">
-            <Shield className="w-4 h-4" />
+        {/* Brand & Identity */}
+        <a href="#" className="flex items-center gap-3 group">
+          <div className="h-9 w-9 rounded-xl bg-brand-primary/10 border border-brand-primary/30 flex items-center justify-center text-brand-primary group-hover:scale-105 transition-transform">
+            <Sparkles className="w-4 h-4" />
           </div>
           <div>
-            <span className="font-mono text-xs font-bold tracking-wider text-[#f0f3ff] uppercase flex items-center gap-1.5">
-              FULLSTACK NEXUS
-              <span className="text-10px text-[#ff6b00] font-normal">v2.0</span>
+            <span className="text-sm font-bold tracking-tight text-text-main">
+              Nexus
             </span>
-            <p className="text-10px font-mono text-[#737890]">
-              Aimal Khan // Engineer
-            </p>
+            <p className="text-xs text-text-subtle">Project Showcase</p>
           </div>
         </a>
 
-        {/* Live Telemetry Ping */}
+        {/* Live Systems Status */}
         <div className="hidden lg:flex items-center">
           <LiveGatewayPing />
         </div>
 
-        {/* Navigation & Command Palette Trigger */}
+        {/* Navigation & Actions */}
         <div className="flex items-center gap-3">
+          {/* Quick Search */}
           <button
             type="button"
             onClick={onOpenPalette}
-            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#232334] bg-[#0a0a10]/80 text-xs font-mono text-[#737890] hover:text-[#f0f3ff] hover:border-[#ff6b00]/50 transition-colors cursor-pointer"
+            className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-lg border border-surface-border bg-surface-card/60 text-xs text-text-subtle hover:text-text-main hover:border-brand-primary/40 transition-colors cursor-pointer"
+            aria-label="Quick Search"
           >
-            <Command className="w-3.5 h-3.5 text-[#ff6b00]" />
-            <span>Command Palette</span>
-            <kbd className="px-1.5 py-0.5 rounded bg-[#141424] text-10px text-[#f0f3ff]">
+            <Search className="w-3.5 h-3.5 text-brand-primary" />
+            <span>Search</span>
+            <kbd className="px-1.5 py-0.5 rounded bg-surface-hover text-[11px] font-sans font-medium text-text-main border border-surface-border">
               ⌘K
             </kbd>
           </button>
 
+          {/* GitHub Source Link */}
           <a
             href="https://github.com/aimalrx200/fullstack-nexus"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#ff6b00]/10 border border-[#ff6b00]/40 text-[#ff6b00] hover:bg-[#ff6b00]/20 text-xs font-mono font-bold uppercase tracking-wider transition-all"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-brand-primary/10 border border-brand-primary/30 text-brand-primary hover:bg-brand-primary/20 text-xs font-semibold transition-all"
           >
             <GithubIcon className="w-3.5 h-3.5" />
-            <span>Monorepo</span>
+            <span>View Code</span>
           </a>
         </div>
       </div>

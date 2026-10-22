@@ -1,189 +1,159 @@
-import { useState } from "react";
+// apps/portfolio/src/components/projects/ProjectRegistryGrid.jsx
+
+import { useMemo } from "react";
 import { PROJECTS_REGISTRY } from "../../data/projects.data";
-import { ExternalLink, Zap, ArrowRight } from "lucide-react";
+import { ExternalLink, ArrowRight, CheckCircle2 } from "lucide-react";
 import { GithubIcon } from "../common/Icons";
 
+// Whitelist only the two active projects in your monorepo
+const VALID_PROJECT_IDS = ["nexus-commerce", "key-vault-manager", "key-vault"];
+
 export function ProjectRegistryGrid({ onOpenDeepDive }) {
-  const [filter, setFilter] = useState("ALL");
-
-  const categories = [
-    "ALL",
-    "Security & Distributed Systems",
-    "Distributed Systems & Streaming",
-    "AI Infrastructure & Vector Search",
-  ];
-
-  const projectsList = Array.isArray(PROJECTS_REGISTRY)
-    ? PROJECTS_REGISTRY
-    : [];
-
-  const filteredProjects = projectsList.filter((p) => {
-    if (filter === "ALL") return true;
-    return p.category === filter;
-  });
+  // Filter exclusively for Nexus Commerce and Key Vault Manager
+  const activeProjects = useMemo(() => {
+    const list = Array.isArray(PROJECTS_REGISTRY) ? PROJECTS_REGISTRY : [];
+    return list.filter((p) => {
+      const id = p.id?.toLowerCase() || "";
+      const title = p.title?.toLowerCase() || "";
+      return (
+        VALID_PROJECT_IDS.includes(id) ||
+        title.includes("nexus") ||
+        title.includes("vault")
+      );
+    });
+  }, []);
 
   return (
-    <section id="projects" className="py-20 border-t border-[#232334]">
+    <section
+      id="projects"
+      className="py-20 border-t border-surface-border bg-surface-app"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {/* Section Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
-          <div>
-            <span className="text-[#ff6b00] font-mono text-xs font-bold uppercase tracking-wider">
-              PORTFOLIO REGISTRY &amp; SHOWCASE
-            </span>
-            <h2 className="text-3xl font-bold text-[#f0f3ff] mt-1">
-              Production Systems &amp; Project Pipeline
-            </h2>
+        <div className="mb-12">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-primary/30 bg-brand-primary/10 text-brand-primary text-xs font-semibold uppercase tracking-wider mb-3">
+            <span>Featured Work</span>
           </div>
-
-          {/* Filter Pills */}
-          <div className="flex flex-wrap gap-1.5 font-mono text-xs">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setFilter(cat)}
-                className={`px-3 py-1.5 rounded-md border transition-all cursor-pointer ${
-                  filter === cat
-                    ? "bg-[#ff6b00]/15 border-[#ff6b00] text-[#ff6b00] font-bold"
-                    : "border-[#232334] bg-[#0a0a10] text-[#737890] hover:text-[#f0f3ff]"
-                }`}
-              >
-                {cat === "ALL" ? "All Projects" : cat.split(" ")[0]}
-              </button>
-            ))}
-          </div>
+          <h2 className="text-3xl sm:text-4xl font-bold text-text-main tracking-tight">
+            Featured Projects &amp; Live Demos
+          </h2>
+          <p className="text-sm text-text-subtle mt-2 max-w-2xl leading-relaxed">
+            Explore live production applications featuring responsive
+            interfaces, secure access, and real-time experiences.
+          </p>
         </div>
 
-        {/* Projects Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {filteredProjects.map((project) => {
-            const isFlagship = project.tier === "flagship";
-
-            return (
-              <div
-                key={project.id}
-                className={`cyber-glass rounded-xl p-6 flex flex-col justify-between cyber-glass-hover transition-all relative ${
-                  isFlagship
-                    ? "lg:col-span-2 border-[#ff6b00]/30 shadow-[0_0_30px_rgba(255,107,0,0.1)]"
-                    : "border-[#232334]"
-                }`}
-              >
-                <div>
-                  {/* Badge & Category */}
-                  <div className="flex items-center justify-between gap-2 mb-4 font-mono text-[11px]">
-                    <span
-                      className={`px-2.5 py-1 rounded font-bold uppercase ${
-                        isFlagship
-                          ? "bg-[#00ff66]/10 text-[#00ff66] border border-[#00ff66]/30"
-                          : "bg-[#00f0ff]/10 text-[#00f0ff] border border-[#00f0ff]/30"
-                      }`}
-                    >
+        {/* 2-Column Showcase Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {activeProjects.map((project) => (
+            <div
+              key={project.id}
+              className="cyber-glass rounded-2xl p-6 sm:p-8 border border-surface-border flex flex-col justify-between cyber-glass-hover transition-all"
+            >
+              <div>
+                {/* Category & Badge */}
+                <div className="flex items-center justify-between gap-2 mb-4 text-xs">
+                  {project.badge && (
+                    <span className="px-2.5 py-0.5 rounded-full font-semibold uppercase text-[11px] bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
                       {project.badge}
                     </span>
-                    <span className="text-[#737890]">{project.category}</span>
-                  </div>
-
-                  {/* Title & Tagline */}
-                  <h3 className="text-xl font-bold text-[#f0f3ff] tracking-tight">
-                    {project.title}
-                  </h3>
-                  <p className="text-xs font-mono text-[#737890] mt-3 leading-relaxed">
-                    {project.tagline}
-                  </p>
-
-                  {/* Flagship Evaluator Highlight */}
-                  {isFlagship && project.demoCredentials && (
-                    <div className="my-5 p-3 rounded-lg border border-[#ff6b00]/30 bg-[#ff6b00]/5 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 text-xs font-mono text-[#ff6b00]">
-                        <Zap className="w-4 h-4 fill-current" />
-                        <span className="font-bold">
-                          1-Click Evaluator Demo Access Enabled
-                        </span>
-                      </div>
-                      <a
-                        href={project.links?.liveDemo || "#"}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-3 py-1 rounded bg-[#ff6b00] text-black font-mono text-[11px] font-bold uppercase hover:bg-[#ff8533] transition-colors shrink-0"
-                      >
-                        Instant Launch ➔
-                      </a>
-                    </div>
                   )}
-
-                  {/* Architecture Bullets */}
-                  <div className="mt-4 space-y-2 font-mono text-xs">
-                    {project.architectureHighlights?.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-start gap-2 text-[#f0f3ff]"
-                      >
-                        <span className="text-[#ff6b00] font-bold">›</span>
-                        <div>
-                          <strong className="text-[#f0f3ff]">
-                            {item.title}:
-                          </strong>{" "}
-                          <span className="text-[#737890]">{item.desc}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  {project.category && (
+                    <span className="text-text-subtle text-[11px]">
+                      {project.category}
+                    </span>
+                  )}
                 </div>
 
-                {/* Tech Tags & Footer Links */}
-                <div className="mt-6 pt-4 border-t border-[#232334]">
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {project.techStack?.map((tech) => (
+                {/* Project Title & Tagline */}
+                <h3 className="text-xl sm:text-2xl font-bold text-text-main tracking-tight">
+                  {project.title}
+                </h3>
+                <p className="text-sm text-text-subtle mt-2 leading-relaxed">
+                  {project.tagline || project.description}
+                </p>
+
+                {/* Key Features Highlights */}
+                {project.architectureHighlights?.length > 0 && (
+                  <div className="mt-5 space-y-2.5">
+                    {project.architectureHighlights
+                      .slice(0, 3)
+                      .map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-start gap-2.5 text-xs text-text-main"
+                        >
+                          <CheckCircle2 className="w-4 h-4 text-brand-primary shrink-0 mt-0.5" />
+                          <span className="leading-snug">
+                            <strong>{item.title}:</strong>{" "}
+                            <span className="text-text-subtle">
+                              {item.desc}
+                            </span>
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Technologies & Actions Footer */}
+              <div className="mt-8 pt-5 border-t border-surface-border">
+                {/* Tech Chips */}
+                {project.techStack?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-5">
+                    {project.techStack.map((tech) => (
                       <span
                         key={tech}
-                        className="px-2 py-0.5 rounded bg-[#141424] border border-[#232334] text-10px font-mono text-[#737890]"
+                        className="px-2.5 py-0.5 rounded-md bg-surface-hover border border-surface-border text-[11px] text-text-subtle"
                       >
                         {tech}
                       </span>
                     ))}
                   </div>
+                )}
 
-                  <div className="flex items-center justify-between gap-3 font-mono text-xs">
-                    {isFlagship ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => onOpenDeepDive(project)}
-                          className="text-[#ff6b00] hover:underline flex items-center gap-1 font-bold cursor-pointer"
-                        >
-                          <span>Deep-Dive Specs</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                        <div className="flex items-center gap-3">
-                          <a
-                            href={project.links?.github || "#"}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[#737890] hover:text-[#f0f3ff] flex items-center gap-1"
-                          >
-                            <GithubIcon className="w-3.5 h-3.5" /> Source
-                          </a>
-                          <a
-                            href={project.links?.liveDemo || "#"}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[#00ff66] hover:underline flex items-center gap-1 font-bold"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" /> Live Demo
-                          </a>
-                        </div>
-                      </>
-                    ) : (
-                      <span className="text-[#737890] text-[11px] italic">
-                        Architecture in Progress in fullstack-nexus monorepo
-                      </span>
+                {/* Action Links */}
+                <div className="flex items-center justify-between gap-3 text-xs">
+                  {onOpenDeepDive && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenDeepDive(project)}
+                      className="text-text-subtle hover:text-text-main flex items-center gap-1 font-medium transition-colors cursor-pointer"
+                    >
+                      <span>Overview</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+
+                  <div className="flex items-center gap-3 ml-auto">
+                    {project.links?.github && (
+                      <a
+                        href={project.links.github}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-text-subtle hover:text-text-main flex items-center gap-1.5 transition-colors px-2 py-1 rounded"
+                      >
+                        <GithubIcon className="w-3.5 h-3.5" />
+                        <span>Source</span>
+                      </a>
+                    )}
+
+                    {project.links?.liveDemo && (
+                      <a
+                        href={project.links.liveDemo}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-brand-primary text-black font-semibold hover:bg-brand-primary-hover transition-colors shadow-sm"
+                      >
+                        <span>Live Demo</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
                     )}
                   </div>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
     </section>

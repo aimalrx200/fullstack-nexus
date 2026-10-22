@@ -1,54 +1,80 @@
+// apps/portfolio/src/components/skills/TechRadar.jsx
+
 import { SKILLS_CATEGORIES } from "../../data/skills.data";
-import { CheckCircle2, ShieldCheck, Cpu, Code2, Server } from "lucide-react";
+import { Sparkles, Code2, Server, ShieldCheck, Database } from "lucide-react";
 
 export function TechRadar() {
-  const icons = [Server, ShieldCheck, Code2, Cpu];
+  const icons = [Code2, Server, Database, ShieldCheck];
+
+  const categories = Array.isArray(SKILLS_CATEGORIES) ? SKILLS_CATEGORIES : [];
 
   return (
-    <section id="skills" className="py-20 border-t border-[#232334]">
+    <section
+      id="skills"
+      className="py-20 border-t border-surface-border bg-surface-app"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        {/* Section Header */}
         <div className="mb-12">
-          <span className="text-[#ff6b00] font-mono text-xs font-bold uppercase tracking-wider">
-            TECHNICAL MASTERY & DOMAINS
-          </span>
-          <h2 className="text-3xl font-bold text-[#f0f3ff] mt-1">
-            System Engineering Capabilities
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-primary/30 bg-brand-primary/10 text-brand-primary text-xs font-semibold uppercase tracking-wider mb-3">
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Skills &amp; Expertise</span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-bold text-text-main tracking-tight">
+            Tools &amp; Technologies
           </h2>
+          <p className="text-sm text-text-subtle mt-2 max-w-2xl leading-relaxed">
+            A comprehensive look at the modern frameworks, databases, and
+            development tools used to build fast, dependable, and responsive web
+            products.
+          </p>
         </div>
 
+        {/* Skills Category Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {SKILLS_CATEGORIES.map((cat, idx) => {
-            const Icon = icons[idx] || Server;
+          {categories.map((cat, idx) => {
+            const Icon = icons[idx % icons.length] || Code2;
 
             return (
               <div
                 key={cat.name}
-                className="cyber-glass rounded-xl p-6 border border-[#232334]"
+                className="cyber-glass rounded-2xl p-6 sm:p-7 border border-surface-border flex flex-col justify-between cyber-glass-hover transition-all"
               >
-                <div className="flex items-center gap-2.5 mb-2">
-                  <div className="p-2 rounded bg-[#ff6b00]/10 text-[#ff6b00]">
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <h3 className="font-bold text-base text-[#f0f3ff]">
-                    {cat.name}
-                  </h3>
-                </div>
-                <p className="text-xs font-mono text-[#737890] mb-5">
-                  {cat.description}
-                </p>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 font-mono text-xs">
-                  {cat.skills.map((skill) => (
-                    <div
-                      key={skill.name}
-                      className="p-2.5 rounded bg-[#030305]/80 border border-[#232334] flex items-center justify-between"
-                    >
-                      <span className="text-[#f0f3ff]">{skill.name}</span>
-                      <span className="text-10px px-1.5 py-0.5 rounded bg-[#ff6b00]/10 text-[#ff6b00] font-bold">
-                        {skill.level}
-                      </span>
+                <div>
+                  {/* Category Header */}
+                  <div className="flex items-center gap-3 mb-2.5">
+                    <div className="p-2.5 rounded-xl bg-brand-primary/10 border border-brand-primary/20 text-brand-primary">
+                      <Icon className="w-4 h-4" />
                     </div>
-                  ))}
+                    <h3 className="font-bold text-base sm:text-lg text-text-main">
+                      {cat.name}
+                    </h3>
+                  </div>
+
+                  {cat.description && (
+                    <p className="text-xs text-text-subtle mb-6 leading-relaxed">
+                      {cat.description}
+                    </p>
+                  )}
+
+                  {/* Skills Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {cat.skills?.map((skill) => (
+                      <div
+                        key={skill.name}
+                        className="px-3.5 py-2.5 rounded-xl bg-surface-card border border-surface-border flex items-center justify-between transition-colors hover:border-brand-primary/30"
+                      >
+                        <span className="text-xs font-medium text-text-main">
+                          {skill.name}
+                        </span>
+                        {skill.level && (
+                          <span className="text-[11px] px-2 py-0.5 rounded-md bg-brand-primary/10 text-brand-primary font-semibold">
+                            {skill.level}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             );
