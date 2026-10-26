@@ -3,34 +3,24 @@
 export function Footer() {
   const currentYear = new Date().getFullYear();
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
   return (
-    <footer className="py-8 border-t border-surface-border bg-surface-app text-xs text-text-muted">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-        {/* Clean, brand-focused copyright */}
-        <p>© {currentYear} Nexus. All rights reserved.</p>
+    <footer className="w-full py-4 sm:py-5 border-t border-surface-border/60 bg-surface-app text-xs text-text-subtle shrink-0">
+      <div className="w-full px-4 sm:px-6 lg:px-8 grid grid-cols-1 sm:grid-cols-3 items-center gap-2 sm:gap-0">
+        {/* Left: Spacer to ensure the center remains mathematically centered */}
+        <div className="hidden sm:block" aria-hidden="true" />
 
-        {/* Clutter-free actions */}
-        <div className="flex items-center gap-5">
-          <a
-            href="https://github.com/aimalrx200/fullstack-nexus"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-text-main transition-colors"
-          >
-            GitHub
-          </a>
-          <span className="text-surface-border">·</span>
-          <button
-            type="button"
-            onClick={scrollToTop}
-            className="hover:text-text-main transition-colors cursor-pointer"
-          >
-            Back to top ↑
-          </button>
+        {/* Center: Copyright */}
+        <div className="flex items-center justify-center text-center">
+          <p className="text-[11px] sm:text-xs text-text-subtle font-mono">
+            © {currentYear} Nexus Systems. All rights reserved.
+          </p>
+        </div>
+
+        {/* Right: Signature without "by" */}
+        <div className="flex items-center justify-center sm:justify-end">
+          <span className="font-mono text-text-subtle text-[11px] sm:text-xs">
+            Aimal Khan
+          </span>
         </div>
       </div>
     </footer>

@@ -1,61 +1,22 @@
 // apps/portfolio/src/App.jsx
 
-import { useState, useEffect } from "react";
 import { Navbar } from "./components/layout/Navbar";
-import { HeroSection } from "./components/hero/HeroSection";
-import { SystemTopology } from "./components/architecture/SystemTopology";
-import { ProjectRegistryGrid } from "./components/projects/ProjectRegistryGrid";
-import { VaultDeepDiveModal } from "./components/projects/VaultDeepDiveModal";
-import { TechRadar } from "./components/skills/TechRadar";
-import { ContactSection } from "./components/contact/ContactSection";
+import { PerspectiveCarousel } from "./components/projects/PerspectiveCarousel";
 import { Footer } from "./components/layout/Footer";
-import { CommandPalette } from "./components/command-palette/CommandPalette";
 
 export function App() {
-  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
-  const [selectedDeepDive, setSelectedDeepDive] = useState(null);
-
-  // Global Cmd+K / Ctrl+K keyboard shortcut
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setIsPaletteOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  const handleOpenTopology = () => {
-    document.getElementById("topology")?.scrollIntoView({ behavior: "smooth" });
-  };
-
   return (
-    <div className="min-h-screen bg-surface-app text-text-main flex flex-col font-sans-main">
-      <Navbar onOpenPalette={() => setIsPaletteOpen(true)} />
+    <div className="min-h-dvh w-full bg-surface-app text-text-main flex flex-col justify-between font-sans-main overflow-x-hidden selection:bg-neutral-800 selection:text-neutral-100 antialiased">
+      {/* 1. Header / Navbar */}
+      <Navbar />
 
-      <main className="flex-1">
-        <HeroSection onOpenTopology={handleOpenTopology} />
-        <SystemTopology />
-        <ProjectRegistryGrid onOpenDeepDive={setSelectedDeepDive} />
-        <TechRadar />
-        <ContactSection />
+      {/* 2. Main Stage: dynamic vertical padding and safe flex centering */}
+      <main className="flex-1 w-full flex flex-col items-center justify-center pt-14 sm:pt-16 pb-2 px-2 sm:px-6 min-h-0">
+        <PerspectiveCarousel />
       </main>
 
+      {/* 3. Footer */}
       <Footer />
-
-      {/* Modals */}
-      <CommandPalette
-        isOpen={isPaletteOpen}
-        onClose={() => setIsPaletteOpen(false)}
-      />
-
-      <VaultDeepDiveModal
-        isOpen={Boolean(selectedDeepDive)}
-        onClose={() => setSelectedDeepDive(null)}
-        project={selectedDeepDive}
-      />
     </div>
   );
 }

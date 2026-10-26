@@ -1,23 +1,36 @@
 /* apps/portfolio/src/styles/theme.css */
 
 @theme {
-  --color-brand-primary: #ff6b00;
-  --color-brand-primary-hover: #ff8533;
-  --color-brand-secondary: #00f0ff;
+  /* Minimalist Brand Accent (Clean Emerald / Neutral) */
+  --color-brand-primary: #10b981;
+  --color-brand-primary-hover: #059669;
+  --color-brand-secondary: #3b82f6;
 
-  --color-surface-app: #030305;
-  --color-surface-card: rgba(10, 10, 16, 0.85);
-  --color-surface-hover: #141424;
-  --color-surface-border: #232334;
+  /* Surfaces: Deep Minimal Dark Canvas */
+  --color-surface-app: #09090b;
+  --color-surface-card: #121215;
+  --color-surface-hover: #18181b;
+  --color-surface-border: #27272a;
 
-  --color-text-main: #f0f3ff;
-  --color-text-subtle: #737890;
+  /* Typography: High-contrast, clean neutral scales */
+  --color-text-main: #fafafa;
+  --color-text-subtle: #a1a1aa;
+  --color-text-muted: #71717a;
 
-  --color-status-success: #00ff66;
-  --color-status-warning: #ffb700;
-  --color-status-danger: #ff0055;
+  /* Status Colors */
+  --color-status-success: #10b981;
+  --color-status-warning: #f59e0b;
+  --color-status-danger: #ef4444;
 
+  /* Modern Editorial Typography (No typewriter/terminal fonts) */
+  --font-sans:
+    "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
   --font-sans-main:
-    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+
+  /* Replaces typewriter mono with sleek tabular data typography */
+  --font-mono:
+    "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
