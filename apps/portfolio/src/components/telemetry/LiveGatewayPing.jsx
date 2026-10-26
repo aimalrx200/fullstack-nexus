@@ -49,8 +49,13 @@ export function LiveGatewayPing() {
   const current = config[status];
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-surface-border bg-surface-card/60 text-xs text-text-muted transition-colors">
-      <span className="relative flex h-2 w-2">
+    <div
+      className="inline-flex items-center gap-2 px-2.5 sm:px-3 py-1 rounded-full border border-surface-border/70 bg-surface-card/60 text-xs transition-colors shrink-0"
+      title={`System Health: ${current.text}`}
+      aria-label={`System Health: ${current.text}`}
+    >
+      {/* Pulsing Status Dot (Always visible) */}
+      <span className="relative flex h-2 w-2 shrink-0">
         <span
           className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${current.dotColor}`}
         />
@@ -59,7 +64,8 @@ export function LiveGatewayPing() {
         />
       </span>
 
-      <span className="font-medium text-text-main text-[11px] sm:text-xs">
+      {/* Status Text (Hidden on mobile to eliminate overlap; reveals on tablet/desktop) */}
+      <span className="hidden md:inline font-medium text-text-main text-[11px] whitespace-nowrap">
         {current.text}
       </span>
     </div>

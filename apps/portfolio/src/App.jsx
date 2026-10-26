@@ -1,3 +1,5 @@
+// apps/portfolio/src/App.jsx
+
 import { useState, useEffect } from "react";
 import { Navbar } from "./components/layout/Navbar";
 import { HeroSection } from "./components/hero/HeroSection";
