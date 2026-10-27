@@ -1,6 +1,6 @@
 // apps/portfolio/src/components/projects/PerspectiveCarousel.jsx
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo, useCallback } from "react";
 import { GithubIcon } from "../common/Icons";
 import { ProjectVisual } from "./ProjectVisual";
 
@@ -54,11 +54,100 @@ const REEL_PROJECTS = [
   },
 ];
 
-// Clean Card Face with vector schematic visualization
-function CardFace({ project, isActive, thumbnailHeight }) {
+const HALF_THICKNESS = 10; // 20px total slab thickness
+
+// 1. Memoized 3D Lateral Walls (Never re-renders during rotations)
+const CardChassis = memo(function CardChassis() {
+  return (
+    <>
+      {/* LEFT WALL */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          left: `-${HALF_THICKNESS}px`,
+          width: `${HALF_THICKNESS * 2}px`,
+          top: "16px",
+          bottom: "16px",
+          transform: "rotateY(-90deg)",
+          background:
+            "linear-gradient(180deg, #32323e 0%, #1e1e26 40%, #101016 100%)",
+          borderLeft: "1px solid rgba(255,255,255,0.22)",
+          borderRight: "1px solid rgba(255,255,255,0.1)",
+          boxShadow: "inset 0 0 6px rgba(0,0,0,0.6)",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* RIGHT WALL */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          right: `-${HALF_THICKNESS}px`,
+          width: `${HALF_THICKNESS * 2}px`,
+          top: "16px",
+          bottom: "16px",
+          transform: "rotateY(90deg)",
+          background:
+            "linear-gradient(180deg, #32323e 0%, #1e1e26 40%, #101016 100%)",
+          borderRight: "1px solid rgba(255,255,255,0.22)",
+          borderLeft: "1px solid rgba(255,255,255,0.1)",
+          boxShadow: "inset 0 0 6px rgba(0,0,0,0.6)",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* TOP WALL */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          top: `-${HALF_THICKNESS}px`,
+          height: `${HALF_THICKNESS * 2}px`,
+          left: "16px",
+          right: "16px",
+          transform: "rotateX(90deg)",
+          background:
+            "linear-gradient(90deg, #252530 0%, #383846 50%, #252530 100%)",
+          borderTop: "1px solid rgba(255,255,255,0.35)",
+          borderBottom: "1px solid rgba(255,255,255,0.15)",
+          boxShadow: "0 0 12px rgba(255,255,255,0.06)",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* BOTTOM WALL */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          bottom: `-${HALF_THICKNESS}px`,
+          height: `${HALF_THICKNESS * 2}px`,
+          left: "16px",
+          right: "16px",
+          transform: "rotateX(-90deg)",
+          background: "#08080c",
+          borderBottom: "1px solid rgba(0,0,0,0.8)",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* SOLID INTERNAL MASS */}
+      <div
+        className="absolute inset-0 rounded-2xl bg-[#0e0e13] border border-white/8 pointer-events-none"
+        style={{ transform: "translateZ(0px)" }}
+        aria-hidden="true"
+      />
+    </>
+  );
+});
+
+// 2. Memoized Front Face Content
+const CardFace = memo(function CardFace({
+  project,
+  isActive,
+  thumbnailHeight,
+}) {
   return (
     <div className="w-full h-full flex flex-col justify-between overflow-hidden bg-[#121216] rounded-2xl select-none">
-      {/* Top: Screenshot / Schematic Stage */}
+      {/* Top: Media Area */}
       <div
         className="w-full shrink-0 overflow-hidden border-b border-white/8"
         style={{ height: `${thumbnailHeight}px` }}
@@ -66,7 +155,7 @@ function CardFace({ project, isActive, thumbnailHeight }) {
         <ProjectVisual projectId={project.id} />
       </div>
 
-      {/* Middle: Title & Description */}
+      {/* Middle: Content */}
       <div className="p-4 sm:p-5 lg:p-6 flex-1 flex flex-col justify-center min-h-0 bg-[#121216]">
         {project.isLive && (
           <div className="flex items-center gap-1.5 mb-1.5 shrink-0">
@@ -121,7 +210,24 @@ function CardFace({ project, isActive, thumbnailHeight }) {
       </div>
     </div>
   );
-}
+});
+
+// 3. Lightweight Inward-Facing Backplate (Saves 50% DOM & image memory)
+const CardBackFace = memo(function CardBackFace({ title }) {
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-[#0c0c10] rounded-2xl select-none border border-white/6 text-center">
+      <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center text-text-subtle/40 mb-2 font-mono text-xs">
+        ✦
+      </div>
+      <span className="font-mono text-xs tracking-wider uppercase text-text-subtle/50 truncate max-w-50">
+        {title}
+      </span>
+      <span className="text-[10px] font-mono text-text-subtle/30 mt-1">
+        SYSTEM CORE
+      </span>
+    </div>
+  );
+});
 
 export function PerspectiveCarousel() {
   const [stepCount, setStepCount] = useState(0);
@@ -140,7 +246,10 @@ export function PerspectiveCarousel() {
     isShortScreen: false,
   });
 
+  // Throttled Resize with requestAnimationFrame
   useEffect(() => {
+    let rAFId = null;
+
     const calculateGeometry = () => {
       const vw = window.innerWidth;
       const vh = window.innerHeight;
@@ -149,7 +258,6 @@ export function PerspectiveCarousel() {
       const reservedVertical = isShort ? 120 : 160;
       const availableHeight = Math.max(vh - reservedVertical, 220);
 
-      // Card Height & Width
       const targetCardHeight = availableHeight * (isShort ? 0.7 : 0.64);
       const cardHeight = Math.round(
         Math.min(Math.max(targetCardHeight, 230), 580),
@@ -164,7 +272,6 @@ export function PerspectiveCarousel() {
 
       const thumbnailHeight = Math.round(cardHeight * 0.44);
 
-      // Perspective & Orbit Radius
       let dynamicRadius;
       if (vw < 640) {
         dynamicRadius = Math.min(cardWidth * 1.2, vw * 0.44);
@@ -187,20 +294,31 @@ export function PerspectiveCarousel() {
       });
     };
 
+    const handleResize = () => {
+      if (rAFId) cancelAnimationFrame(rAFId);
+      rAFId = requestAnimationFrame(calculateGeometry);
+    };
+
     calculateGeometry();
-    window.addEventListener("resize", calculateGeometry);
-    return () => window.removeEventListener("resize", calculateGeometry);
+    window.addEventListener("resize", handleResize, { passive: true });
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      if (rAFId) cancelAnimationFrame(rAFId);
+    };
   }, [totalCards, angleStep]);
 
-  const handlePrev = () => setStepCount((prev) => prev - 1);
-  const handleNext = () => setStepCount((prev) => prev + 1);
+  const handlePrev = useCallback(() => setStepCount((prev) => prev - 1), []);
+  const handleNext = useCallback(() => setStepCount((prev) => prev + 1), []);
 
-  const rotateTo = (targetIdx) => {
-    let diff = (targetIdx - activeIndex) % totalCards;
-    if (diff > totalCards / 2) diff -= totalCards;
-    if (diff < -totalCards / 2) diff += totalCards;
-    setStepCount((prev) => prev + diff);
-  };
+  const rotateTo = useCallback(
+    (targetIdx) => {
+      let diff = (targetIdx - activeIndex) % totalCards;
+      if (diff > totalCards / 2) diff -= totalCards;
+      if (diff < -totalCards / 2) diff += totalCards;
+      setStepCount((prev) => prev + diff);
+    },
+    [activeIndex, totalCards],
+  );
 
   const handleTouchStart = (e) => {
     touchStartX.current = e.touches[0].clientX;
@@ -216,12 +334,9 @@ export function PerspectiveCarousel() {
     touchStartX.current = null;
   };
 
-  // Card thickness constant: 20px total slab depth
-  const HALF_THICKNESS = 10; // ±10px along Z
-
   return (
     <section className="relative w-full max-w-full flex-1 flex flex-col items-center justify-center select-none overflow-x-clip my-auto py-2 sm:py-4">
-      {/* 3D Ring Viewport: perspective-origin elevated to 38% to reveal top thickness */}
+      {/* 3D Ring Viewport */}
       <div
         className="relative w-full flex items-center justify-center"
         style={{
@@ -233,14 +348,16 @@ export function PerspectiveCarousel() {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Revolving Cylinder Ring */}
+        {/* Revolving Cylinder Ring with GPU Compositor Acceleration */}
         <div
-          className="relative transition-transform duration-420 ease-[cubic-bezier(0.16,1,0.3,1)]"
+          className="relative ease-[cubic-bezier(0.16,1,0.3,1)]"
           style={{
             width: `${dimensions.cardWidth}px`,
             height: `${dimensions.cardHeight}px`,
             transformStyle: "preserve-3d",
             transform: `translateZ(-${dimensions.radius}px) rotateY(${-stepCount * angleStep}deg)`,
+            transition: "transform 420ms cubic-bezier(0.16,1,0.3,1)",
+            willChange: "transform",
           }}
         >
           {REEL_PROJECTS.map((project, idx) => {
@@ -262,99 +379,23 @@ export function PerspectiveCarousel() {
               <div
                 key={project.id}
                 onClick={() => rotateTo(idx)}
-                className="absolute inset-0 cursor-pointer transition-all duration-420 ease-[cubic-bezier(0.16,1,0.3,1)] rounded-2xl"
+                className="absolute inset-0 cursor-pointer rounded-2xl"
                 style={{
                   transformStyle: "preserve-3d",
                   transform: `rotateY(${cardSpokeAngle}deg) translateZ(${dimensions.radius}px) scale(${scale})`,
                   opacity,
                   zIndex,
+                  transition:
+                    "transform 420ms cubic-bezier(0.16,1,0.3,1), opacity 420ms ease",
+                  willChange: "transform, opacity",
                 }}
               >
-                {/* ========================================================= */}
-                {/* TRUE 3D PHYSICAL EXTRUDED BOX (20px Solid Lateral Walls)  */}
-                {/* ========================================================= */}
+                {/* 1. Memoized 3D Lateral Walls (Solid 20px Box) */}
+                <CardChassis />
 
-                {/* 1. LEFT WALL (Visible on right-leaning cards) */}
+                {/* 2. FRONT FACE */}
                 <div
-                  className="absolute pointer-events-none"
-                  style={{
-                    left: `-${HALF_THICKNESS}px`,
-                    width: `${HALF_THICKNESS * 2}px`,
-                    top: "16px",
-                    bottom: "16px",
-                    transform: "rotateY(-90deg)",
-                    background:
-                      "linear-gradient(180deg, #32323e 0%, #1e1e26 40%, #101016 100%)",
-                    borderLeft: "1px solid rgba(255,255,255,0.22)",
-                    borderRight: "1px solid rgba(255,255,255,0.1)",
-                    boxShadow: "inset 0 0 6px rgba(0,0,0,0.6)",
-                  }}
-                  aria-hidden="true"
-                />
-
-                {/* 2. RIGHT WALL (Visible on left-leaning cards) */}
-                <div
-                  className="absolute pointer-events-none"
-                  style={{
-                    right: `-${HALF_THICKNESS}px`,
-                    width: `${HALF_THICKNESS * 2}px`,
-                    top: "16px",
-                    bottom: "16px",
-                    transform: "rotateY(90deg)",
-                    background:
-                      "linear-gradient(180deg, #32323e 0%, #1e1e26 40%, #101016 100%)",
-                    borderRight: "1px solid rgba(255,255,255,0.22)",
-                    borderLeft: "1px solid rgba(255,255,255,0.1)",
-                    boxShadow: "inset 0 0 6px rgba(0,0,0,0.6)",
-                  }}
-                  aria-hidden="true"
-                />
-
-                {/* 3. TOP WALL (Catches key light from above on ALL cards) */}
-                <div
-                  className="absolute pointer-events-none"
-                  style={{
-                    top: `-${HALF_THICKNESS}px`,
-                    height: `${HALF_THICKNESS * 2}px`,
-                    left: "16px",
-                    right: "16px",
-                    transform: "rotateX(90deg)",
-                    background:
-                      "linear-gradient(90deg, #252530 0%, #383846 50%, #252530 100%)",
-                    borderTop: "1px solid rgba(255,255,255,0.35)",
-                    borderBottom: "1px solid rgba(255,255,255,0.15)",
-                    boxShadow: "0 0 12px rgba(255,255,255,0.06)",
-                  }}
-                  aria-hidden="true"
-                />
-
-                {/* 4. BOTTOM WALL (Under-chassis shadow) */}
-                <div
-                  className="absolute pointer-events-none"
-                  style={{
-                    bottom: `-${HALF_THICKNESS}px`,
-                    height: `${HALF_THICKNESS * 2}px`,
-                    left: "16px",
-                    right: "16px",
-                    transform: "rotateX(-90deg)",
-                    background: "#08080c",
-                    borderBottom: "1px solid rgba(0,0,0,0.8)",
-                  }}
-                  aria-hidden="true"
-                />
-
-                {/* 5. SOLID INTERNAL MASS (Seals interior corners) */}
-                <div
-                  className="absolute inset-0 rounded-2xl bg-[#0e0e13] border border-white/8 pointer-events-none"
-                  style={{ transform: "translateZ(0px)" }}
-                  aria-hidden="true"
-                />
-
-                {/* ========================================================= */}
-                {/* FRONT FACE (Elevated by +10px along Z)                    */}
-                {/* ========================================================= */}
-                <div
-                  className={`absolute inset-0 rounded-2xl border transition-all duration-420 bg-[#121216] ${
+                  className={`absolute inset-0 rounded-2xl border bg-[#121216] ${
                     isActive
                       ? "border-white/20 shadow-[0_28px_70px_rgba(0,0,0,0.95),0_0_30px_rgba(16,185,129,0.08),inset_0_1px_0_0_rgba(255,255,255,0.2)]"
                       : "border-white/8 hover:border-white/15 shadow-[-8px_0_20px_rgba(0,0,0,0.8),inset_0_1px_0_0_rgba(255,255,255,0.1)]"
@@ -363,6 +404,8 @@ export function PerspectiveCarousel() {
                     transform: `translateZ(${HALF_THICKNESS}px)`,
                     backfaceVisibility: "hidden",
                     WebkitBackfaceVisibility: "hidden",
+                    transition:
+                      "border-color 300ms ease, box-shadow 300ms ease",
                   }}
                 >
                   <CardFace
@@ -372,22 +415,16 @@ export function PerspectiveCarousel() {
                   />
                 </div>
 
-                {/* ========================================================= */}
-                {/* BACK FACE (Inward facing by -10px along Z)                */}
-                {/* ========================================================= */}
+                {/* 3. LIGHTWEIGHT BACK FACE (Inward facing plate) */}
                 <div
-                  className="absolute inset-0 rounded-2xl border border-white/8 hover:border-white/15 bg-[#121216] shadow-[-8px_0_20px_rgba(0,0,0,0.8)] transition-all duration-420"
+                  className="absolute inset-0 rounded-2xl bg-[#0c0c10] shadow-[-8px_0_20px_rgba(0,0,0,0.8)]"
                   style={{
                     transform: `rotateY(180deg) translateZ(${HALF_THICKNESS}px)`,
                     backfaceVisibility: "hidden",
                     WebkitBackfaceVisibility: "hidden",
                   }}
                 >
-                  <CardFace
-                    project={project}
-                    isActive={false}
-                    thumbnailHeight={dimensions.thumbnailHeight}
-                  />
+                  <CardBackFace title={project.title} />
                 </div>
               </div>
             );
@@ -400,7 +437,7 @@ export function PerspectiveCarousel() {
         <button
           type="button"
           onClick={handlePrev}
-          className="h-8 w-8 sm:h-9 sm:w-9 rounded-full border border-surface-border bg-surface-card hover:bg-surface-hover flex items-center justify-center text-text-main transition-all text-xs sm:text-sm cursor-pointer active:scale-95 shadow-sm"
+          className="h-8 w-8 sm:h-9 sm:w-9 rounded-full border border-surface-border bg-surface-card hover:bg-surface-hover flex items-center justify-center text-text-main transition-colors text-xs sm:text-sm cursor-pointer active:scale-95 shadow-sm"
           aria-label="Previous project"
         >
           ←
@@ -412,7 +449,7 @@ export function PerspectiveCarousel() {
               key={i}
               type="button"
               onClick={() => rotateTo(i)}
-              className={`h-1.5 rounded-full transition-all duration-420 cursor-pointer ${
+              className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
                 i === activeIndex
                   ? "w-5 sm:w-6 bg-text-main"
                   : "w-1.5 bg-surface-border hover:bg-text-subtle"
@@ -425,7 +462,7 @@ export function PerspectiveCarousel() {
         <button
           type="button"
           onClick={handleNext}
-          className="h-8 w-8 sm:h-9 sm:w-9 rounded-full border border-surface-border bg-surface-card hover:bg-surface-hover flex items-center justify-center text-text-main transition-all text-xs sm:text-sm cursor-pointer active:scale-95 shadow-sm"
+          className="h-8 w-8 sm:h-9 sm:w-9 rounded-full border border-surface-border bg-surface-card hover:bg-surface-hover flex items-center justify-center text-text-main transition-colors text-xs sm:text-sm cursor-pointer active:scale-95 shadow-sm"
           aria-label="Next project"
         >
           →
