@@ -57,17 +57,17 @@ const REEL_PROJECTS = [
 // Clean Card Face with vector schematic visualization
 function CardFace({ project, isActive, thumbnailHeight }) {
   return (
-    <div className="w-full h-full flex flex-col justify-between overflow-hidden bg-surface-card rounded-2xl select-none">
-      {/* Top: Vector Schematic Stage */}
+    <div className="w-full h-full flex flex-col justify-between overflow-hidden bg-[#121216] rounded-2xl select-none">
+      {/* Top: Screenshot / Schematic Stage */}
       <div
-        className="w-full shrink-0 overflow-hidden border-b border-surface-border/60"
+        className="w-full shrink-0 overflow-hidden border-b border-white/8"
         style={{ height: `${thumbnailHeight}px` }}
       >
         <ProjectVisual projectId={project.id} />
       </div>
 
       {/* Middle: Title & Description */}
-      <div className="p-4 sm:p-5 lg:p-6 flex-1 flex flex-col justify-center min-h-0 bg-surface-card">
+      <div className="p-4 sm:p-5 lg:p-6 flex-1 flex flex-col justify-center min-h-0 bg-[#121216]">
         {project.isLive && (
           <div className="flex items-center gap-1.5 mb-1.5 shrink-0">
             <span className="relative flex h-1.5 w-1.5">
@@ -90,7 +90,7 @@ function CardFace({ project, isActive, thumbnailHeight }) {
       </div>
 
       {/* Bottom: Action Links */}
-      <div className="px-4 sm:px-5 lg:px-6 py-2.5 sm:py-3 border-t border-surface-border/60 shrink-0 flex items-center justify-between text-xs sm:text-xs lg:text-sm bg-surface-card font-mono">
+      <div className="px-4 sm:px-5 lg:px-6 py-2.5 sm:py-3 border-t border-white/8 shrink-0 flex items-center justify-between text-xs sm:text-xs lg:text-sm bg-[#121216] font-mono">
         {isActive ? (
           <>
             <a
@@ -149,13 +149,12 @@ export function PerspectiveCarousel() {
       const reservedVertical = isShort ? 120 : 160;
       const availableHeight = Math.max(vh - reservedVertical, 220);
 
-      // 1. Card Height: 60-68% of available vertical height (scales to 580px on large displays)
+      // Card Height & Width
       const targetCardHeight = availableHeight * (isShort ? 0.7 : 0.64);
       const cardHeight = Math.round(
         Math.min(Math.max(targetCardHeight, 230), 580),
       );
 
-      // 2. Card Width: Scales with both height and screen width (allows up to 450px on widescreen)
       const targetWidthFromVw = vw < 640 ? vw * 0.78 : Math.min(vw * 0.22, 450);
       const cardWidth = Math.round(
         vw < 640
@@ -165,10 +164,7 @@ export function PerspectiveCarousel() {
 
       const thumbnailHeight = Math.round(cardHeight * 0.44);
 
-      // 3. Perspective & Orbit Radius:
-      // Foreshortened horizontal span of 5 cards with 72° spokes:
-      // Span ≈ 1.414 * R + 0.74 * cardWidth
-      // Target spanning ~88% of screen width on desktop
+      // Perspective & Orbit Radius
       let dynamicRadius;
       if (vw < 640) {
         dynamicRadius = Math.min(cardWidth * 1.2, vw * 0.44);
@@ -196,13 +192,8 @@ export function PerspectiveCarousel() {
     return () => window.removeEventListener("resize", calculateGeometry);
   }, [totalCards, angleStep]);
 
-  const handlePrev = () => {
-    setStepCount((prev) => prev - 1);
-  };
-
-  const handleNext = () => {
-    setStepCount((prev) => prev + 1);
-  };
+  const handlePrev = () => setStepCount((prev) => prev - 1);
+  const handleNext = () => setStepCount((prev) => prev + 1);
 
   const rotateTo = (targetIdx) => {
     let diff = (targetIdx - activeIndex) % totalCards;
@@ -225,14 +216,18 @@ export function PerspectiveCarousel() {
     touchStartX.current = null;
   };
 
+  // Card thickness constant: 20px total slab depth
+  const HALF_THICKNESS = 10; // ±10px along Z
+
   return (
     <section className="relative w-full max-w-full flex-1 flex flex-col items-center justify-center select-none overflow-x-clip my-auto py-2 sm:py-4">
-      {/* 3D Ring Viewport */}
+      {/* 3D Ring Viewport: perspective-origin elevated to 38% to reveal top thickness */}
       <div
         className="relative w-full flex items-center justify-center"
         style={{
           height: `${Math.round(dimensions.cardHeight * 1.08 + 20)}px`,
           perspective: `${dimensions.perspective}px`,
+          perspectiveOrigin: "50% 38%",
           touchAction: "pan-y",
         }}
         onTouchStart={handleTouchStart}
@@ -275,22 +270,97 @@ export function PerspectiveCarousel() {
                   zIndex,
                 }}
               >
-                {/* 3D Core Slab */}
+                {/* ========================================================= */}
+                {/* TRUE 3D PHYSICAL EXTRUDED BOX (20px Solid Lateral Walls)  */}
+                {/* ========================================================= */}
+
+                {/* 1. LEFT WALL (Visible on right-leaning cards) */}
                 <div
-                  className="absolute inset-0 rounded-2xl bg-[#060608] border border-surface-border/80 pointer-events-none"
+                  className="absolute pointer-events-none"
+                  style={{
+                    left: `-${HALF_THICKNESS}px`,
+                    width: `${HALF_THICKNESS * 2}px`,
+                    top: "16px",
+                    bottom: "16px",
+                    transform: "rotateY(-90deg)",
+                    background:
+                      "linear-gradient(180deg, #32323e 0%, #1e1e26 40%, #101016 100%)",
+                    borderLeft: "1px solid rgba(255,255,255,0.22)",
+                    borderRight: "1px solid rgba(255,255,255,0.1)",
+                    boxShadow: "inset 0 0 6px rgba(0,0,0,0.6)",
+                  }}
+                  aria-hidden="true"
+                />
+
+                {/* 2. RIGHT WALL (Visible on left-leaning cards) */}
+                <div
+                  className="absolute pointer-events-none"
+                  style={{
+                    right: `-${HALF_THICKNESS}px`,
+                    width: `${HALF_THICKNESS * 2}px`,
+                    top: "16px",
+                    bottom: "16px",
+                    transform: "rotateY(90deg)",
+                    background:
+                      "linear-gradient(180deg, #32323e 0%, #1e1e26 40%, #101016 100%)",
+                    borderRight: "1px solid rgba(255,255,255,0.22)",
+                    borderLeft: "1px solid rgba(255,255,255,0.1)",
+                    boxShadow: "inset 0 0 6px rgba(0,0,0,0.6)",
+                  }}
+                  aria-hidden="true"
+                />
+
+                {/* 3. TOP WALL (Catches key light from above on ALL cards) */}
+                <div
+                  className="absolute pointer-events-none"
+                  style={{
+                    top: `-${HALF_THICKNESS}px`,
+                    height: `${HALF_THICKNESS * 2}px`,
+                    left: "16px",
+                    right: "16px",
+                    transform: "rotateX(90deg)",
+                    background:
+                      "linear-gradient(90deg, #252530 0%, #383846 50%, #252530 100%)",
+                    borderTop: "1px solid rgba(255,255,255,0.35)",
+                    borderBottom: "1px solid rgba(255,255,255,0.15)",
+                    boxShadow: "0 0 12px rgba(255,255,255,0.06)",
+                  }}
+                  aria-hidden="true"
+                />
+
+                {/* 4. BOTTOM WALL (Under-chassis shadow) */}
+                <div
+                  className="absolute pointer-events-none"
+                  style={{
+                    bottom: `-${HALF_THICKNESS}px`,
+                    height: `${HALF_THICKNESS * 2}px`,
+                    left: "16px",
+                    right: "16px",
+                    transform: "rotateX(-90deg)",
+                    background: "#08080c",
+                    borderBottom: "1px solid rgba(0,0,0,0.8)",
+                  }}
+                  aria-hidden="true"
+                />
+
+                {/* 5. SOLID INTERNAL MASS (Seals interior corners) */}
+                <div
+                  className="absolute inset-0 rounded-2xl bg-[#0e0e13] border border-white/8 pointer-events-none"
                   style={{ transform: "translateZ(0px)" }}
                   aria-hidden="true"
                 />
 
-                {/* FRONT FACE */}
+                {/* ========================================================= */}
+                {/* FRONT FACE (Elevated by +10px along Z)                    */}
+                {/* ========================================================= */}
                 <div
-                  className={`absolute inset-0 rounded-2xl border transition-all duration-420 bg-surface-card ${
+                  className={`absolute inset-0 rounded-2xl border transition-all duration-420 bg-[#121216] ${
                     isActive
-                      ? "border-surface-border shadow-[0_20px_50px_rgba(0,0,0,0.85),-6px_0_12px_rgba(0,0,0,0.6)]"
-                      : "border-surface-border/60 hover:border-surface-border shadow-[-4px_0_12px_rgba(0,0,0,0.7)]"
+                      ? "border-white/20 shadow-[0_28px_70px_rgba(0,0,0,0.95),0_0_30px_rgba(16,185,129,0.08),inset_0_1px_0_0_rgba(255,255,255,0.2)]"
+                      : "border-white/8 hover:border-white/15 shadow-[-8px_0_20px_rgba(0,0,0,0.8),inset_0_1px_0_0_rgba(255,255,255,0.1)]"
                   }`}
                   style={{
-                    transform: "translateZ(3px)",
+                    transform: `translateZ(${HALF_THICKNESS}px)`,
                     backfaceVisibility: "hidden",
                     WebkitBackfaceVisibility: "hidden",
                   }}
@@ -302,11 +372,13 @@ export function PerspectiveCarousel() {
                   />
                 </div>
 
-                {/* BACK FACE */}
+                {/* ========================================================= */}
+                {/* BACK FACE (Inward facing by -10px along Z)                */}
+                {/* ========================================================= */}
                 <div
-                  className="absolute inset-0 rounded-2xl border border-surface-border/60 hover:border-surface-border bg-surface-card shadow-[-4px_0_12px_rgba(0,0,0,0.7)] transition-all duration-420"
+                  className="absolute inset-0 rounded-2xl border border-white/8 hover:border-white/15 bg-[#121216] shadow-[-8px_0_20px_rgba(0,0,0,0.8)] transition-all duration-420"
                   style={{
-                    transform: "rotateY(180deg) translateZ(3px)",
+                    transform: `rotateY(180deg) translateZ(${HALF_THICKNESS}px)`,
                     backfaceVisibility: "hidden",
                     WebkitBackfaceVisibility: "hidden",
                   }}
