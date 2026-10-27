@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { GithubIcon } from "../common/Icons";
+import { ProjectVisual } from "./ProjectVisual";
 
 const REEL_PROJECTS = [
   {
@@ -53,65 +54,16 @@ const REEL_PROJECTS = [
   },
 ];
 
-function LiveScreenshot({ url, title }) {
-  const [hasError, setHasError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const screenshotSrc = url
-    ? `https://api.microlink.io/?url=${encodeURIComponent(
-        url,
-      )}&screenshot=true&meta=false&embed=screenshot.url`
-    : null;
-
-  if (hasError || !screenshotSrc) {
-    return (
-      <div className="w-full h-full bg-surface-app flex flex-col items-center justify-center p-3 text-center border-b border-surface-border/60">
-        <svg
-          viewBox="0 0 24 24"
-          className="w-5 h-5 stroke-current fill-none stroke-[1.5] text-text-subtle/50 mb-1"
-        >
-          <rect width="18" height="18" x="3" y="3" rx="2" />
-          <path d="m3 9 18 0M9 21V9" />
-        </svg>
-        <span className="text-[11px] text-text-subtle/70 truncate max-w-45">
-          {title}
-        </span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative w-full h-full overflow-hidden bg-surface-app border-b border-surface-border/60">
-      {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-surface-app animate-pulse">
-          <span className="text-[9px] uppercase tracking-wider text-text-subtle">
-            Fetching snapshot...
-          </span>
-        </div>
-      )}
-      <img
-        src={screenshotSrc}
-        alt={`${title} live snapshot`}
-        loading="lazy"
-        onLoad={() => setIsLoading(false)}
-        onError={() => setHasError(true)}
-        className={`w-full h-full object-cover object-top transition-opacity duration-300 ${
-          isLoading ? "opacity-0" : "opacity-100"
-        }`}
-      />
-    </div>
-  );
-}
-
+// Clean Card Face with vector schematic visualization
 function CardFace({ project, isActive, thumbnailHeight }) {
   return (
     <div className="w-full h-full flex flex-col justify-between overflow-hidden bg-surface-card rounded-2xl select-none">
-      {/* Top: Screenshot Area */}
+      {/* Top: Vector Schematic Stage */}
       <div
-        className="w-full shrink-0 overflow-hidden"
+        className="w-full shrink-0 overflow-hidden border-b border-surface-border/60"
         style={{ height: `${thumbnailHeight}px` }}
       >
-        <LiveScreenshot url={project.liveUrl} title={project.title} />
+        <ProjectVisual projectId={project.id} />
       </div>
 
       {/* Middle: Title & Description */}
@@ -197,13 +149,13 @@ export function PerspectiveCarousel() {
       const reservedVertical = isShort ? 120 : 160;
       const availableHeight = Math.max(vh - reservedVertical, 220);
 
-      // 1. Card Height: Takes up 60-68% of available vertical height (scales up to 580px on large displays)
+      // 1. Card Height: 60-68% of available vertical height (scales to 580px on large displays)
       const targetCardHeight = availableHeight * (isShort ? 0.7 : 0.64);
       const cardHeight = Math.round(
         Math.min(Math.max(targetCardHeight, 230), 580),
       );
 
-      // 2. Card Width: Scales with BOTH height and viewport width (allows up to 450px on widescreen)
+      // 2. Card Width: Scales with both height and screen width (allows up to 450px on widescreen)
       const targetWidthFromVw = vw < 640 ? vw * 0.78 : Math.min(vw * 0.22, 450);
       const cardWidth = Math.round(
         vw < 640
@@ -214,14 +166,14 @@ export function PerspectiveCarousel() {
       const thumbnailHeight = Math.round(cardHeight * 0.44);
 
       // 3. Perspective & Orbit Radius:
-      // With perspective D ≈ 2.1 * R, the foreshortened horizontal span of 5 cards (72° spokes) is:
+      // Foreshortened horizontal span of 5 cards with 72° spokes:
       // Span ≈ 1.414 * R + 0.74 * cardWidth
-      // We target the outer edges of the side cards to span ~88% of the viewport width.
+      // Target spanning ~88% of screen width on desktop
       let dynamicRadius;
       if (vw < 640) {
         dynamicRadius = Math.min(cardWidth * 1.2, vw * 0.44);
       } else {
-        const targetSpan = vw * 0.88; // Span 88% of full screen width
+        const targetSpan = vw * 0.88;
         const computedRadius = (targetSpan - 0.74 * cardWidth) / 1.414;
         dynamicRadius = Math.max(computedRadius, cardWidth * 1.4);
       }
