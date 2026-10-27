@@ -4,6 +4,11 @@
 @import "./styles/theme.css";
 
 @layer base {
+  :root {
+    /* 1. Signals to the rendering engine not to force-invert colors */
+    color-scheme: only dark;
+  }
+
   * {
     border-color: var(--color-surface-border);
   }
@@ -13,6 +18,7 @@
     font-family: var(--font-sans-main);
     background-color: var(--color-surface-app);
     color: var(--color-text-main);
+    color-scheme: only dark;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;

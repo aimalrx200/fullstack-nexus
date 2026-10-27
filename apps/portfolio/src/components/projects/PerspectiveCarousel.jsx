@@ -9,7 +9,7 @@ const REEL_PROJECTS = [
     title: "Nexus Commerce",
     description:
       "Distributed e-commerce engine engineered for high-concurrency flash sales with Redis inventory locking, order FSM, and WebAuthn passkeys.",
-    liveUrl: "https://nexus-commerce.vercel.app",
+    liveUrl: "https://nexus-commerce-frontend.vercel.app",
     codeUrl:
       "https://github.com/aimalrx200/fullstack-nexus/tree/main/apps/nexus-commerce",
     isLive: true,
@@ -19,7 +19,7 @@ const REEL_PROJECTS = [
     title: "Key Vault Manager",
     description:
       "Zero-trust cryptographic secrets platform featuring envelope encryption, machine identity tokens, and tamper-evident audit logs.",
-    liveUrl: "https://key-vault.vercel.app",
+    liveUrl: "https://fullstack-nexus-frontend.vercel.app",
     codeUrl:
       "https://github.com/aimalrx200/fullstack-nexus/tree/main/apps/key-vault-manager",
     isLive: true,
@@ -103,7 +103,6 @@ function LiveScreenshot({ url, title }) {
   );
 }
 
-// Reusable Solid Black Card Face with uniform rounded corners
 function CardFace({ project, isActive, thumbnailHeight }) {
   return (
     <div className="w-full h-full flex flex-col justify-between overflow-hidden bg-surface-card rounded-2xl select-none">
@@ -116,30 +115,30 @@ function CardFace({ project, isActive, thumbnailHeight }) {
       </div>
 
       {/* Middle: Title & Description */}
-      <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-center min-h-0 bg-surface-card">
+      <div className="p-4 sm:p-5 lg:p-6 flex-1 flex flex-col justify-center min-h-0 bg-surface-card">
         {project.isLive && (
-          <div className="flex items-center gap-1.5 mb-1 sm:mb-1.5 shrink-0">
+          <div className="flex items-center gap-1.5 mb-1.5 shrink-0">
             <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
             </span>
-            <span className="text-[9px] sm:text-[10px] font-medium tracking-wider text-emerald-400">
-              LIVE
+            <span className="text-[10px] sm:text-xs font-medium tracking-wider text-emerald-400 font-mono">
+              LIVE SYSTEM
             </span>
           </div>
         )}
 
-        <h3 className="text-xs sm:text-base font-semibold tracking-tight text-text-main truncate">
+        <h3 className="text-sm sm:text-base lg:text-lg font-semibold tracking-tight text-text-main truncate">
           {project.title}
         </h3>
 
-        <p className="text-[11px] sm:text-xs text-text-subtle leading-relaxed mt-1 line-clamp-2 sm:line-clamp-3">
+        <p className="text-xs sm:text-xs lg:text-sm text-text-subtle leading-relaxed mt-1.5 line-clamp-2 sm:line-clamp-3">
           {project.description}
         </p>
       </div>
 
       {/* Bottom: Action Links */}
-      <div className="px-3.5 sm:px-4 py-2 sm:py-2.5 border-t border-surface-border/60 shrink-0 flex items-center justify-between text-[10px] sm:text-xs bg-surface-card font-mono">
+      <div className="px-4 sm:px-5 lg:px-6 py-2.5 sm:py-3 border-t border-surface-border/60 shrink-0 flex items-center justify-between text-xs sm:text-xs lg:text-sm bg-surface-card font-mono">
         {isActive ? (
           <>
             <a
@@ -156,14 +155,14 @@ function CardFace({ project, isActive, thumbnailHeight }) {
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="text-text-subtle hover:text-text-main transition-colors flex items-center gap-1"
+              className="text-text-subtle hover:text-text-main transition-colors flex items-center gap-1.5"
             >
-              <GithubIcon className="w-3 h-3 opacity-80" />
+              <GithubIcon className="w-3.5 h-3.5 opacity-80" />
               Code ↗
             </a>
           </>
         ) : (
-          <span className="text-text-subtle/70 text-[9px] sm:text-[10px] flex items-center justify-end w-full">
+          <span className="text-text-subtle/70 text-[10px] sm:text-xs flex items-center justify-end w-full">
             <span>Click to focus ↗</span>
           </span>
         )}
@@ -181,11 +180,11 @@ export function PerspectiveCarousel() {
   const activeIndex = ((stepCount % totalCards) + totalCards) % totalCards;
 
   const [dimensions, setDimensions] = useState({
-    cardWidth: 260,
-    cardHeight: 350,
-    thumbnailHeight: 155,
-    radius: 390,
-    perspective: 1300,
+    cardWidth: 320,
+    cardHeight: 420,
+    thumbnailHeight: 180,
+    radius: 650,
+    perspective: 1400,
     isShortScreen: false,
   });
 
@@ -195,38 +194,47 @@ export function PerspectiveCarousel() {
       const vh = window.innerHeight;
 
       const isShort = vh < 650;
-      const reservedVertical = isShort ? 130 : 170;
+      const reservedVertical = isShort ? 120 : 160;
       const availableHeight = Math.max(vh - reservedVertical, 220);
 
-      const targetCardHeight = availableHeight * (isShort ? 0.68 : 0.56);
-      const cardHeight = Math.min(Math.max(targetCardHeight, 210), 520);
+      // 1. Card Height: Takes up 60-68% of available vertical height (scales up to 580px on large displays)
+      const targetCardHeight = availableHeight * (isShort ? 0.7 : 0.64);
+      const cardHeight = Math.round(
+        Math.min(Math.max(targetCardHeight, 230), 580),
+      );
 
-      const maxAllowedWidth = vw < 640 ? vw * 0.76 : 380;
-      const cardWidth = Math.min(
-        Math.max(cardHeight * 0.72, 160),
-        maxAllowedWidth,
+      // 2. Card Width: Scales with BOTH height and viewport width (allows up to 450px on widescreen)
+      const targetWidthFromVw = vw < 640 ? vw * 0.78 : Math.min(vw * 0.22, 450);
+      const cardWidth = Math.round(
+        vw < 640
+          ? Math.min(vw * 0.78, 290)
+          : Math.min(Math.max(cardHeight * 0.72, targetWidthFromVw), 450),
       );
 
       const thumbnailHeight = Math.round(cardHeight * 0.44);
 
-      const countFactor = Math.max(totalCards, 4);
-      const dynamicRadius =
-        vw < 640
-          ? Math.min(cardWidth * 1.25, 250)
-          : Math.max(
-              cardWidth * 1.4,
-              ((countFactor * cardWidth) / (2 * Math.PI)) * 1.15,
-            );
+      // 3. Perspective & Orbit Radius:
+      // With perspective D ≈ 2.1 * R, the foreshortened horizontal span of 5 cards (72° spokes) is:
+      // Span ≈ 1.414 * R + 0.74 * cardWidth
+      // We target the outer edges of the side cards to span ~88% of the viewport width.
+      let dynamicRadius;
+      if (vw < 640) {
+        dynamicRadius = Math.min(cardWidth * 1.2, vw * 0.44);
+      } else {
+        const targetSpan = vw * 0.88; // Span 88% of full screen width
+        const computedRadius = (targetSpan - 0.74 * cardWidth) / 1.414;
+        dynamicRadius = Math.max(computedRadius, cardWidth * 1.4);
+      }
 
-      const radius = Math.min(Math.max(dynamicRadius, 190), 640);
-      const perspective = Math.max(radius * 2.6, 950);
+      const radius = Math.round(Math.max(dynamicRadius, 210));
+      const perspective = Math.round(Math.max(radius * 2.1, 1100));
 
       setDimensions({
-        cardWidth: Math.round(cardWidth),
-        cardHeight: Math.round(cardHeight),
+        cardWidth,
+        cardHeight,
         thumbnailHeight,
-        radius: Math.round(radius),
-        perspective: Math.round(perspective),
+        radius,
+        perspective,
         isShortScreen: isShort,
       });
     };
@@ -234,7 +242,7 @@ export function PerspectiveCarousel() {
     calculateGeometry();
     window.addEventListener("resize", calculateGeometry);
     return () => window.removeEventListener("resize", calculateGeometry);
-  }, [totalCards]);
+  }, [totalCards, angleStep]);
 
   const handlePrev = () => {
     setStepCount((prev) => prev - 1);
@@ -271,7 +279,7 @@ export function PerspectiveCarousel() {
       <div
         className="relative w-full flex items-center justify-center"
         style={{
-          height: `${Math.round(dimensions.cardHeight * 1.1 + 24)}px`,
+          height: `${Math.round(dimensions.cardHeight * 1.08 + 20)}px`,
           perspective: `${dimensions.perspective}px`,
           touchAction: "pan-y",
         }}
@@ -299,8 +307,8 @@ export function PerspectiveCarousel() {
             const isActive = absAngle < 35;
             const depthFactor = (Math.cos((norm * Math.PI) / 180) + 1) / 2;
 
-            const opacity = isActive ? 1 : 0.85 + depthFactor * 0.15;
-            const scale = isActive ? 1.05 : 0.88 + depthFactor * 0.1;
+            const opacity = isActive ? 1 : 0.82 + depthFactor * 0.18;
+            const scale = isActive ? 1.04 : 0.88 + depthFactor * 0.1;
             const zIndex = isActive ? 50 : Math.round(depthFactor * 30) + 1;
 
             return (
@@ -311,18 +319,18 @@ export function PerspectiveCarousel() {
                 style={{
                   transformStyle: "preserve-3d",
                   transform: `rotateY(${cardSpokeAngle}deg) translateZ(${dimensions.radius}px) scale(${scale})`,
-                  opacity: opacity,
-                  zIndex: zIndex,
+                  opacity,
+                  zIndex,
                 }}
               >
-                {/* 3D Physical Extruded Core Slab (Black) */}
+                {/* 3D Core Slab */}
                 <div
                   className="absolute inset-0 rounded-2xl bg-[#060608] border border-surface-border/80 pointer-events-none"
                   style={{ transform: "translateZ(0px)" }}
                   aria-hidden="true"
                 />
 
-                {/* FRONT FACE (Solid Black Card) */}
+                {/* FRONT FACE */}
                 <div
                   className={`absolute inset-0 rounded-2xl border transition-all duration-420 bg-surface-card ${
                     isActive
@@ -342,7 +350,7 @@ export function PerspectiveCarousel() {
                   />
                 </div>
 
-                {/* BACK FACE (Solid Black Card Facing Inward) */}
+                {/* BACK FACE */}
                 <div
                   className="absolute inset-0 rounded-2xl border border-surface-border/60 hover:border-surface-border bg-surface-card shadow-[-4px_0_12px_rgba(0,0,0,0.7)] transition-all duration-420"
                   style={{
