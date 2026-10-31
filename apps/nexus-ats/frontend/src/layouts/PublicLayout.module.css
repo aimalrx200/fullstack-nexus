@@ -1,0 +1,167 @@
+.layoutWrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* Header & Navbar */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+  backdrop-filter: blur(12px);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.navContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.brandLink {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  text-decoration: none;
+}
+
+.brandIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background-color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.brandText {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.appName {
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--text-primary);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.companyName {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Nav Controls */
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.themeToggle {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.themeToggle:hover {
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+.portalBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.portalBtn:hover {
+  border-color: var(--border-default);
+  background-color: var(--bg-surface-hover);
+}
+
+/* Main Content Area */
+.main {
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Footer */
+.footer {
+  border-top: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  padding: 24px 14px;
+  margin-top: 60px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.footerContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.copyright {
+  color: var(--text-muted);
+}
+
+.footerLinks {
+  display: flex;
+  gap: 16px;
+  color: var(--text-secondary);
+}
+
+.footerLinks a:hover {
+  color: var(--text-primary);
+}
+
+/* Mobile Adjustments */
+@media (max-width: 480px) {
+  .companyName {
+    display: none; /* Keeps navbar compact on mobile */
+  }
+}

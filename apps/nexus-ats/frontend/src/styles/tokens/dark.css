@@ -1,0 +1,45 @@
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) {
+  /* Tells Chromium, Opera & WebKit this is a native dark theme (disables force-dark inversion) */
+  color-scheme: dark;
+
+  /* Backgrounds */
+  --bg-app: #090d16;
+  --bg-surface: #0f172a;
+  --bg-surface-elevated: #1e293b;
+  --bg-surface-hover: #1e293b;
+  --bg-subtle: #141e33;
+
+  /* Text & Content */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-inverse: #0f172a;
+
+  /* Borders & Dividers */
+  --border-subtle: #1e293b;
+  --border-default: #334155;
+  --border-focus: #6366f1;
+
+  /* Brand / Primary Accents (Indigo) */
+  --primary: #6366f1;
+  --primary-hover: #4f46e5;
+  --primary-subtle: rgba(99, 102, 241, 0.15);
+  --primary-foreground: #ffffff;
+
+  /* Semantic Status Colors */
+  --success: #10b981;
+  --success-subtle: rgba(16, 185, 129, 0.15);
+  --warning: #f59e0b;
+  --warning-subtle: rgba(245, 158, 11, 0.15);
+  --danger: #ef4444;
+  --danger-subtle: rgba(239, 68, 68, 0.15);
+  --info: #0ea5e9;
+  --info-subtle: rgba(14, 165, 233, 0.15);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+}

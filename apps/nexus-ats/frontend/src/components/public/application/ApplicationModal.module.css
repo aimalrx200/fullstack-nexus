@@ -1,0 +1,363 @@
+/* 1. Full-screen scroll overlay */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background-color: rgba(9, 13, 22, 0.75);
+  backdrop-filter: blur(6px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  box-sizing: border-box;
+}
+
+/* 2. Container: Vertically and horizontally centers the modal */
+.container {
+  min-height: 100%;
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 12px;
+  box-sizing: border-box;
+}
+
+/* 3. Base Modal Card */
+.modal {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  min-width: 0;
+  margin: auto;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  padding: 28px 24px;
+  box-sizing: border-box;
+  animation: modalEnter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Dedicated Confirmation Modal Variant */
+.confirmationModal {
+  max-width: 440px;
+  text-align: center;
+  padding: 36px 24px 28px 24px;
+}
+
+/* Header Row for Form View */
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+  width: 100%;
+  min-width: 0;
+}
+
+.headerText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.title {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+/* Close Button (top-right) */
+.closeButton {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  transition: var(--transition);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.closeButton:hover {
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+.closeButtonTopRight {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+/* Form Styles */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  word-break: break-word;
+}
+
+.optional {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.input {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  outline: none;
+  transition: var(--transition);
+  font-size: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.input:focus {
+  border-color: var(--primary);
+}
+
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 12px;
+  border: 2px dashed var(--border-default);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface-elevated);
+  cursor: pointer;
+  transition: var(--transition);
+  text-align: center;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.dropzone:hover {
+  border-color: var(--primary);
+}
+
+.dropzoneText {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.dropzoneHint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.fileSelected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--success);
+  font-size: 13px;
+  font-weight: 600;
+  word-break: break-all;
+  max-width: 100%;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* =========================================================
+   Confirmation View Design & Typography
+   ========================================================= */
+.successIconWrapper {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--radius-full);
+  background-color: var(--success-subtle);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px auto;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.successTitle {
+  font-size: 21px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 0 0 10px 0;
+}
+
+.jobPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 auto 14px auto;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.jobPillDot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--success);
+  flex-shrink: 0;
+}
+
+.successText {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 360px;
+  margin: 0 auto 24px auto;
+}
+
+.successActions {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.doneBtn {
+  min-width: 200px;
+  justify-content: center;
+  box-sizing: border-box !important;
+}
+
+/* =========================================================
+   Standard Mobile Breakpoint (<= 480px)
+   ========================================================= */
+@media (max-width: 480px) {
+  .container {
+    padding: 16px 8px;
+  }
+
+  .modal {
+    padding: 20px 16px;
+    border-radius: var(--radius-md);
+  }
+
+  .confirmationModal {
+    padding: 28px 16px 22px 16px;
+  }
+
+  .actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .actionBtn,
+  .doneBtn {
+    width: 100% !important;
+    max-width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+/* =========================================================
+   Ultra-Compact Breakpoint (320px - 360px)
+   ========================================================= */
+@media (max-width: 360px) {
+  .container {
+    padding: 10px 6px;
+  }
+
+  .confirmationModal {
+    padding: 24px 14px 18px 14px;
+  }
+
+  .successIconWrapper {
+    width: 52px;
+    height: 52px;
+    margin-bottom: 12px;
+  }
+
+  .successTitle {
+    font-size: 18px;
+  }
+
+  .successText {
+    font-size: 13px;
+    margin-bottom: 18px;
+  }
+
+  .jobPill {
+    font-size: 11px;
+    padding: 4px 10px;
+  }
+}
