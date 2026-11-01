@@ -7,6 +7,18 @@
 
     <title>Nexus ATS | Modern Hiring & Talent Management</title>
 
+    <!-- Synchronous theme initializer to prevent theme strobe / FOUC -->
+    <script>
+      (function () {
+        try {
+          var savedTheme = localStorage.getItem("nexus_theme") || "dark";
+          document.documentElement.setAttribute("data-theme", savedTheme);
+        } catch (e) {
+          document.documentElement.setAttribute("data-theme", "dark");
+        }
+      })();
+    </script>
+
     <!-- Prevents Opera / Chrome mobile from force-inverting or overriding custom dark styles -->
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#090d16" />

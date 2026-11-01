@@ -1,23 +1,18 @@
-import { useState, useEffect } from "react";
+// apps/nexus-ats/frontend/src/layouts/PublicLayout.jsx
+
+import { useDispatch, useSelector } from "react-redux";
 import { Outlet, Link } from "react-router";
 import { Briefcase, Sun, Moon, ShieldCheck } from "lucide-react";
+import { toggleTheme, selectThemeMode } from "@/redux/slices/themeSlice";
 import { APP_CONFIG } from "@/config/constants";
 import styles from "./PublicLayout.module.css";
 
 export default function PublicLayout() {
-  // 1. Lazy state initialization eliminates the ESLint cascading render error
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem("nexus_ats_theme") || "dark";
-  });
+  const dispatch = useDispatch();
+  const theme = useSelector(selectThemeMode);
 
-  // 2. Synchronize DOM whenever theme changes
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("nexus_ats_theme", theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  const handleToggleTheme = () => {
+    dispatch(toggleTheme());
   };
 
   return (
@@ -43,9 +38,10 @@ export default function PublicLayout() {
             {/* Theme Toggle Button */}
             <button
               type="button"
-              onClick={toggleTheme}
+              onClick={handleToggleTheme}
               title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
               className={styles.themeToggle}
+              aria-label="Toggle theme mode"
             >
               {theme === "dark" ? (
                 <Sun size={15} color="#f59e0b" />

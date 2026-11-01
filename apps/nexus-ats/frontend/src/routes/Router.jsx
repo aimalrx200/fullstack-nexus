@@ -1,25 +1,105 @@
+// apps/nexus-ats/frontend/src/routes/Router.jsx
+
 import { createBrowserRouter, Navigate } from "react-router";
+import RootLayout from "./RootLayout";
 import PublicLayout from "@/layouts/PublicLayout";
-import JobBoardPage from "@/pages/public/JobBoardPage";
-import JobDetailPage from "@/pages/public/JobDetailPage";
+import RecruiterLayout from "@/layouts/RecruiterLayout";
+import { ProtectedRoute, GuestRoute } from "@/lib/auth/guards";
+import { ROUTES } from "./routes";
 
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <PublicLayout />,
+    element: <RootLayout />,
     children: [
+      /* Public Candidate Experience */
       {
-        index: true,
-        element: <JobBoardPage />,
+        element: <PublicLayout />,
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const { default: JobBoardPage } =
+                await import("@/pages/public/JobBoardPage");
+              return { Component: JobBoardPage };
+            },
+          },
+          {
+            path: "jobs/:slug",
+            lazy: async () => {
+              const { default: JobDetailPage } =
+                await import("@/pages/public/JobDetailPage");
+              return { Component: JobDetailPage };
+            },
+          },
+        ],
       },
+
+      /* Recruiter Authentication (Guest Only) */
       {
-        path: "jobs/:slug",
-        element: <JobDetailPage />,
+        path: ROUTES.LOGIN,
+        element: (
+          <GuestRoute>
+            <PublicLayout />
+          </GuestRoute>
+        ),
+        children: [
+          {
+            index: true,
+            lazy: async () => {
+              const { default: LoginPage } =
+                await import("@/pages/auth/LoginPage");
+              return { Component: LoginPage };
+            },
+          },
+        ],
+      },
+
+      /* Protected Recruiter Portal */
+      {
+        path: ROUTES.ADMIN.ROOT,
+        element: (
+          <ProtectedRoute>
+            <RecruiterLayout />
+          </ProtectedRoute>
+        ),
+        children: [
+          {
+            index: true,
+            element: <Navigate to={ROUTES.ADMIN.PIPELINE} replace />,
+          },
+          {
+            path: "pipeline",
+            lazy: async () => {
+              const { default: PipelinePage } =
+                await import("@/pages/admin/PipelinePage");
+              return { Component: PipelinePage };
+            },
+          },
+          {
+            path: "jobs",
+            lazy: async () => {
+              const { default: JobManagerPage } =
+                await import("@/pages/admin/JobManagerPage");
+              return { Component: JobManagerPage };
+            },
+          },
+          {
+            path: "dashboard",
+            lazy: async () => {
+              const { default: AdminDashboardPage } =
+                await import("@/pages/admin/AdminDashboardPage");
+              return { Component: AdminDashboardPage };
+            },
+          },
+        ],
+      },
+
+      /* Catch-all 404 Fallback */
+      {
+        path: "*",
+        element: <Navigate to="/" replace />,
       },
     ],
-  },
-  {
-    path: "*",
-    element: <Navigate to="/" replace />,
   },
 ]);

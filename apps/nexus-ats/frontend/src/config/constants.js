@@ -1,3 +1,5 @@
+// apps/nexus-ats/frontend/src/config/constants.js
+
 export const APP_CONFIG = {
   companyName: "Nexus Technologies",
   appName: "Nexus ATS",
