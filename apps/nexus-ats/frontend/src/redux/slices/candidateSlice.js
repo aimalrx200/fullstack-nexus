@@ -48,6 +48,7 @@ const candidateSlice = createSlice({
         id: `cand_${Date.now()}`,
         stage: "applied",
         score: 0,
+        rating: 0,
         tags: ["New Applicant"],
         notes: [],
         timeline: [
@@ -72,7 +73,10 @@ const candidateSlice = createSlice({
           id: `note_${Date.now()}`,
           author: author || "Recruiter",
           text,
-          createdAt: new Date().toISOString(),
+          createdAt: new Date()
+            .toISOString()
+            .replace("T", " ")
+            .substring(0, 16),
         });
       }
     },
@@ -81,6 +85,23 @@ const candidateSlice = createSlice({
       const candidate = state.items.find((c) => c.id === candidateId);
       if (candidate) {
         candidate.score = score;
+        candidate.rating = score;
+        if (!candidate.scorecard) {
+          candidate.scorecard = {
+            technical: score,
+            communication: score,
+            systemDesign: score,
+            recommendation: score >= 4 ? "Hire" : "Review Required",
+          };
+        } else {
+          candidate.scorecard.technical = score;
+          candidate.scorecard.recommendation =
+            score >= 4
+              ? "Strong Hire"
+              : score === 3
+                ? "Hire"
+                : "Review Required";
+        }
       }
     },
     setPipelineSearchQuery: (state, action) => {

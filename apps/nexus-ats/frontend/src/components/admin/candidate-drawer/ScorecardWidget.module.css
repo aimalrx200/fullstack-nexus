@@ -1,0 +1,161 @@
+/* apps/nexus-ats/frontend/src/components/admin/candidate-drawer/ScorecardWidget.module.css */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.ratingCard {
+  background-color: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ratingHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sectionTitle {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.recommendationBadge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+}
+
+.recStrongHire {
+  background-color: var(--success-subtle);
+  color: var(--success);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.recHire {
+  background-color: var(--primary-subtle);
+  color: var(--primary);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.recReview {
+  background-color: var(--warning-subtle);
+  color: var(--warning);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.recDoNotHire {
+  background-color: var(--danger-subtle);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.starsRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.starBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.starBtn:hover {
+  transform: scale(1.15);
+}
+
+.starFilled {
+  color: var(--warning);
+  fill: var(--warning);
+}
+
+.starEmpty {
+  color: var(--border-default);
+}
+
+.ratingHint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.criteriaGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.criteriaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.criteriaLabel {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.criteriaMeter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.barTrack {
+  width: 90px;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background-color: var(--primary);
+}
+
+/* Criteria fill widths mapped without inline styles */
+.fill1 {
+  width: 20%;
+}
+.fill2 {
+  width: 40%;
+}
+.fill3 {
+  width: 60%;
+}
+.fill4 {
+  width: 80%;
+}
+.fill5 {
+  width: 100%;
+}
+
+.criteriaScore {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  width: 24px;
+  text-align: right;
+}
