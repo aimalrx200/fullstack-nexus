@@ -26,12 +26,13 @@ const REEL_PROJECTS = [
     isLive: true,
   },
   {
-    id: "nexus-stream",
-    title: "Nexus Stream",
+    id: "nexus-ats",
+    title: "Nexus ATS",
     description:
-      "Low-latency WebSocket telemetry router broadcasting live courier coordinates, order feeds, and real-time audio chimes.",
-    liveUrl: "https://fullstack-nexus-backend.vercel.app/api/v1",
-    codeUrl: "https://github.com/aimalrx200/fullstack-nexus",
+      "High-velocity talent suite featuring drag-and-drop Kanban pipelines, candidate dossier evaluation drawers, multi-tab session synchronization, and recruiting funnel analytics.",
+    liveUrl: "https://nexus-ats-frontend.vercel.app",
+    codeUrl:
+      "https://github.com/aimalrx200/fullstack-nexus/tree/main/apps/nexus-ats",
     isLive: true,
   },
   {

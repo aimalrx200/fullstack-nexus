@@ -1,3 +1,5 @@
+/* apps/nexus-ats/frontend/src/components/public/application/ApplicationModal.module.css */
+
 /* 1. Full-screen scroll overlay */
 .overlay {
   position: fixed;
@@ -143,6 +145,10 @@
   word-break: break-word;
 }
 
+.requiredAsterisk {
+  color: var(--danger);
+}
+
 .optional {
   font-size: 12px;
   font-weight: 400;
@@ -191,6 +197,14 @@
 
 .dropzone:hover {
   border-color: var(--primary);
+}
+
+.fileInputHidden {
+  display: none;
+}
+
+.uploadCloudIcon {
+  color: var(--primary);
 }
 
 .dropzoneText {

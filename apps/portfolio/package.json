@@ -18,9 +18,11 @@
     "tailwindcss": "^4.3.2"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.5",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "postcss": "^8.5.32",
     "vite": "^8.1.4"
   }
 }

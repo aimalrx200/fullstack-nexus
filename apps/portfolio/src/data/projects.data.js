@@ -123,4 +123,67 @@ export const PROJECTS_REGISTRY = [
       { label: "Demo Access", value: "1-Click Instant Login" },
     ],
   },
+  {
+    id: "nexus-ats",
+    tier: "flagship",
+    badge: "Live Demo",
+    title: "Nexus ATS — High-Velocity Talent Acquisition & Hiring Suite",
+    tagline:
+      "A modern hiring platform pairing a public job board with an interactive recruiter Kanban pipeline, candidate dossier drawer, job requisition creator, and funnel analytics.",
+    category: "HR Tech & Workflow Automation",
+    status: "Active",
+    featured: true,
+    links: {
+      liveDemo: "https://nexus-ats-frontend.vercel.app",
+      github:
+        "https://github.com/aimalrx200/fullstack-nexus/tree/main/apps/nexus-ats",
+    },
+    demoCredentials: {
+      hasEvaluatorPass: true,
+      description:
+        "Instant 1-click demo login as Lead Technical Recruiter to explore the pipeline and review candidates.",
+    },
+    architectureHighlights: [
+      {
+        title: "Interactive Drag-and-Drop Kanban",
+        desc: "Smooth candidate stage progression with optimistic UI updates, zero layout shift (CLS), and multi-criteria filter bars.",
+      },
+      {
+        title: "Deep Candidate Dossier Drawer",
+        desc: "Sliding inspection portal with 4-tab dossier navigation, 1–5 star competency scorecards, recruiter feedback notes, and resume previews.",
+      },
+      {
+        title: "Closed-Loop Public Intake",
+        desc: "Instant candidate enrollment—applications submitted via the public careers portal immediately populate the recruiter's 'New Applied' column.",
+      },
+      {
+        title: "Requisition Management & Creator",
+        desc: "Full role lifecycle tools to create, publish, pause, or archive openings with automatic slug generation and department filters.",
+      },
+      {
+        title: "Recruiting Analytics Dashboard",
+        desc: "Executive hiring funnel charts, department hiring velocity, and evaluator sentiment distribution built with Recharts.",
+      },
+      {
+        title: "Cross-Tab Authentication Sync",
+        desc: "BroadcastChannel-backed session bus synchronizing sign-in, sign-out, and session states across multiple browser tabs in real time.",
+      },
+    ],
+    techStack: [
+      "React 19",
+      "React Router v7",
+      "Redux Toolkit",
+      "@hello-pangea/dnd",
+      "Recharts",
+      "Sonner",
+      "CSS Modules",
+      "BroadcastChannel API",
+    ],
+    metrics: [
+      { label: "Pipeline UI", value: "Drag & Drop Kanban" },
+      { label: "Candidate Review", value: "4-Tab Dossier Drawer" },
+      { label: "Funnel Telemetry", value: "Recharts Analytics" },
+      { label: "Session Sync", value: "Multi-Tab Broadcast" },
+    ],
+  },
 ];

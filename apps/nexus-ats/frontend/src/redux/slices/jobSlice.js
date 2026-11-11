@@ -28,6 +28,7 @@ const jobSlice = createSlice({
         status: "active",
         createdAt: new Date().toISOString(),
         applicantsCount: 0,
+        applicantCount: 0,
         ...action.payload,
       };
       state.items.unshift(newJob);
@@ -37,6 +38,13 @@ const jobSlice = createSlice({
       const target = state.items.find((j) => j.id === jobId);
       if (target) {
         target.status = status;
+      }
+    },
+    incrementApplicantCount: (state, action) => {
+      const target = state.items.find((j) => j.id === action.payload);
+      if (target) {
+        target.applicantCount = (target.applicantCount || 0) + 1;
+        target.applicantsCount = (target.applicantsCount || 0) + 1;
       }
     },
     setDepartmentFilter: (state, action) => {
@@ -55,6 +63,7 @@ export const {
   setSelectedJobId,
   createJob,
   updateJobStatus,
+  incrementApplicantCount,
   setDepartmentFilter,
   setTypeFilter,
   setJobSearchQuery,

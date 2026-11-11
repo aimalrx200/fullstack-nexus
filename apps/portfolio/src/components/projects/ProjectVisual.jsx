@@ -30,6 +30,20 @@ export function ProjectVisual({ projectId }) {
         </div>
       );
 
+    case "nexus-ats":
+      return (
+        <div className="relative w-full h-full bg-[#0a0a0d] overflow-hidden group">
+          <img
+            src="/projects-preview-images/nexus-ats.webp"
+            alt="Nexus ATS live talent pipeline and Kanban interface"
+            draggable={false}
+            className="w-full h-full object-cover object-top select-none transition-transform duration-500 ease-out group-hover:scale-105"
+          />
+          {/* Subtle bottom vignette to blend seamlessly into card border */}
+          <div className="absolute inset-0 bg-linear-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+        </div>
+      );
+
     case "nexus-stream":
       return (
         <svg

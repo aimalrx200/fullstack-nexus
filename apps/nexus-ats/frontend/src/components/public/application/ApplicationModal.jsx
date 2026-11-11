@@ -1,11 +1,22 @@
+// apps/nexus-ats/frontend/src/components/public/application/ApplicationModal.jsx
+
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
+import { useDispatch } from "react-redux";
 import { X, UploadCloud, CheckCircle2, FileText } from "lucide-react";
+import { toast } from "sonner";
+import { addCandidate } from "@/redux/slices/candidateSlice";
+import { incrementApplicantCount } from "@/redux/slices/jobSlice";
 import { APP_CONFIG } from "@/config/constants";
 import Button from "@/components/common/Button";
 import styles from "./ApplicationModal.module.css";
 
+const DEFAULT_DUMMY_PDF =
+  "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
+
 export default function ApplicationModal({ job, isOpen, onClose }) {
+  const dispatch = useDispatch();
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -58,6 +69,46 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    const today = new Date().toISOString().split("T")[0];
+    const experienceDefaults = {
+      Junior: 1,
+      "Mid-Level": 3,
+      Senior: 5,
+      "Staff / Lead": 8,
+    };
+
+    const newCandidate = {
+      jobId: job.id,
+      jobTitle: job.title,
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone.trim() || undefined,
+      location: job.location || "Remote",
+      avatar: "",
+      stage: "applied",
+      rating: 0,
+      score: 0,
+      appliedDate: today,
+      experienceYears: experienceDefaults[job.experienceLevel] || 3,
+      expectedSalary: job.salaryRange || "Negotiable",
+      resumeUrl: file ? URL.createObjectURL(file) : DEFAULT_DUMMY_PDF,
+      portfolioUrl: formData.websiteOrProfile.trim() || undefined,
+      tags: [job.department, "Inbound Applicant"],
+      scorecard: {
+        technical: 0,
+        communication: 0,
+        systemDesign: 0,
+        recommendation: "Review Required",
+      },
+      notes: [],
+    };
+
+    // Dispatch candidate insertion & increment job applicant count in store
+    dispatch(addCandidate(newCandidate));
+    dispatch(incrementApplicantCount(job.id));
+
+    toast.success(`Application received for ${job.title}!`);
     setIsSubmitted(true);
   };
 
@@ -77,7 +128,8 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
             className={styles.modal}
             role="dialog"
             aria-modal="true"
-            onClick={(e) => e.stopPropagation()} // Prevents clicks inside the form from closing modal
+            aria-label={`Apply for ${job.title}`}
+            onClick={(e) => e.stopPropagation()}
           >
             <div className={styles.headerRow}>
               <div className={styles.headerText}>
@@ -100,7 +152,7 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
               {/* Full Name */}
               <div className={styles.formGroup}>
                 <label className={styles.label}>
-                  Full Name <span style={{ color: "var(--danger)" }}>*</span>
+                  Full Name <span className={styles.requiredAsterisk}>*</span>
                 </label>
                 <input
                   type="text"
@@ -118,7 +170,7 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
               <div className={styles.formGroup}>
                 <label className={styles.label}>
                   Email Address{" "}
-                  <span style={{ color: "var(--danger)" }}>*</span>
+                  <span className={styles.requiredAsterisk}>*</span>
                 </label>
                 <input
                   type="email"
@@ -172,7 +224,8 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
               {/* Resume Dropzone */}
               <div className={styles.formGroup}>
                 <label className={styles.label}>
-                  Resume (PDF) <span style={{ color: "var(--danger)" }}>*</span>
+                  Resume (PDF){" "}
+                  <span className={styles.requiredAsterisk}>*</span>
                 </label>
                 <label className={styles.dropzone}>
                   <input
@@ -180,7 +233,7 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
                     accept=".pdf"
                     required
                     onChange={handleFileChange}
-                    style={{ display: "none" }}
+                    className={styles.fileInputHidden}
                   />
                   {file ? (
                     <div className={styles.fileSelected}>
@@ -189,7 +242,10 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
                     </div>
                   ) : (
                     <>
-                      <UploadCloud size={22} color="var(--primary)" />
+                      <UploadCloud
+                        size={22}
+                        className={styles.uploadCloudIcon}
+                      />
                       <span className={styles.dropzoneText}>
                         Choose PDF resume or drag it here
                       </span>
@@ -226,7 +282,8 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
             className={`${styles.modal} ${styles.confirmationModal}`}
             role="dialog"
             aria-modal="true"
-            onClick={(e) => e.stopPropagation()} // Prevents clicks inside confirmation from closing modal
+            aria-label="Application Submitted"
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Top right close button */}
             <button
@@ -248,7 +305,7 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
 
             {/* Role Context Pill */}
             <div className={styles.jobPill}>
-              <span className={styles.jobPillDot}></span>
+              <span className={styles.jobPillDot} />
               <span>{job.title}</span>
             </div>
 

@@ -4,6 +4,7 @@ import { createBrowserRouter, Navigate } from "react-router";
 import RootLayout from "./RootLayout";
 import PublicLayout from "@/layouts/PublicLayout";
 import RecruiterLayout from "@/layouts/RecruiterLayout";
+import RouteErrorBoundary from "@/components/common/RouteErrorBoundary";
 import { ProtectedRoute, GuestRoute } from "@/lib/auth/guards";
 import { ROUTES } from "./routes";
 
@@ -11,6 +12,7 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: <RootLayout />,
+    errorElement: <RouteErrorBoundary />,
     children: [
       /* Public Candidate Experience */
       {
@@ -30,6 +32,15 @@ export const router = createBrowserRouter([
               const { default: JobDetailPage } =
                 await import("@/pages/public/JobDetailPage");
               return { Component: JobDetailPage };
+            },
+          },
+          /* Catch-all 404 Experience */
+          {
+            path: "*",
+            lazy: async () => {
+              const { default: NotFoundPage } =
+                await import("@/pages/public/NotFoundPage");
+              return { Component: NotFoundPage };
             },
           },
         ],
@@ -93,12 +104,6 @@ export const router = createBrowserRouter([
             },
           },
         ],
-      },
-
-      /* Catch-all 404 Fallback */
-      {
-        path: "*",
-        element: <Navigate to="/" replace />,
       },
     ],
   },

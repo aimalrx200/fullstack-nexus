@@ -10,4 +10,5 @@ export const ROUTES = {
     JOBS: "/admin/jobs",
     DASHBOARD: "/admin/dashboard",
   },
+  NOT_FOUND: "*",
 };
