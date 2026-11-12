@@ -1,4 +1,6 @@
-import { app } from "../src/app.js";
+// apps/nexus-ats/backend/api/index.js
+
+import app from "../src/app.js";
 import { connectDB } from "../src/config/db.js";
 
 export default async function handler(req, res) {
