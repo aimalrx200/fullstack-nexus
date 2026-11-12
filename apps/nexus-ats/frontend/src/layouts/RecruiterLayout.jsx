@@ -70,9 +70,14 @@ export default function RecruiterLayout() {
 
   const navItems = [
     {
+      to: "/admin/dashboard",
+      label: "Overview & Analytics",
+      icon: BarChart3,
+    },
+    {
       to: "/admin/pipeline",
       label: "Talent Pipeline",
-      icon: Kanban, // <-- Uses Kanban
+      icon: Kanban,
       count: candidates.length,
     },
     {
@@ -80,11 +85,6 @@ export default function RecruiterLayout() {
       label: "Job Requisitions",
       icon: Briefcase,
       count: jobs.length,
-    },
-    {
-      to: "/admin/dashboard",
-      label: "Overview & Analytics",
-      icon: BarChart3,
     },
   ];
 
@@ -127,7 +127,7 @@ export default function RecruiterLayout() {
         }`}
       >
         <div className={styles.sidebarHeader}>
-          <Link to="/admin/pipeline" className={styles.brand}>
+          <Link to="/admin/dashboard" className={styles.brand}>
             <div className={styles.brandIcon}>
               <ShieldCheck size={20} />
             </div>
@@ -223,16 +223,6 @@ export default function RecruiterLayout() {
           </div>
 
           <div className={styles.topbarRight}>
-            {/* Quick View Public Careers Link */}
-            <Link
-              to="/"
-              className={styles.publicPortalLink}
-              title="View Public Careers Board"
-            >
-              <ExternalLink size={14} />
-              <span>Public Board</span>
-            </Link>
-
             {/* Dark/Light Theme Toggle */}
             <button
               type="button"

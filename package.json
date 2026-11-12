@@ -9,7 +9,8 @@
     "apps/key-vault-manager/backend",
     "apps/nexus-commerce/frontend",
     "apps/nexus-commerce/backend",
-    "apps/nexus-ats/frontend"
+    "apps/nexus-ats/frontend",
+    "apps/nexus-ats/backend"
   ],
   "scripts": {
     "prepare": "node -e \"if (!process.env.VERCEL && !process.env.CI && process.env.NODE_ENV !== 'production') { import('child_process').then(cp => { try { cp.execSync('npx husky', { stdio: 'inherit' }); } catch(e){} }); }\"",
@@ -19,7 +20,9 @@
     "dev:key-vault": "concurrently --delay 0,2000 -n \"KV-BACK\",\"KV-FRONT\" -c \"cyan,blue\" \"npm run dev --workspace=apps/key-vault-manager/backend\" \"npm run dev --workspace=apps/key-vault-manager/frontend\"",
     "dev:portfolio": "npm run dev --workspace=apps/portfolio",
     "dev:commerce": "concurrently --delay 0,2000 -n \"NEXUS-API\",\"NEXUS-UI\" -c \"magenta,green\" \"npm run dev --workspace=apps/nexus-commerce/backend\" \"npm run dev --workspace=apps/nexus-commerce/frontend\"",
-    "dev:ats": "npm run dev --workspace=apps/nexus-ats/frontend"
+    "dev:ats": "concurrently --delay 0,1500 -n \"ATS-API\",\"ATS-UI\" -c \"cyan,magenta\" \"npm run dev --workspace=apps/nexus-ats/backend\" \"npm run dev --workspace=apps/nexus-ats/frontend\"",
+    "dev:ats:api": "npm run dev --workspace=apps/nexus-ats/backend",
+    "dev:ats:ui": "npm run dev --workspace=apps/nexus-ats/frontend"
   },
   "lint-staged": {
     "*.{js,jsx}": [

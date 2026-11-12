@@ -77,7 +77,15 @@ export const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <Navigate to={ROUTES.ADMIN.PIPELINE} replace />,
+            element: <Navigate to={ROUTES.ADMIN.DASHBOARD} replace />,
+          },
+          {
+            path: "dashboard",
+            lazy: async () => {
+              const { default: AdminDashboardPage } =
+                await import("@/pages/admin/AdminDashboardPage");
+              return { Component: AdminDashboardPage };
+            },
           },
           {
             path: "pipeline",
@@ -93,14 +101,6 @@ export const router = createBrowserRouter([
               const { default: JobManagerPage } =
                 await import("@/pages/admin/JobManagerPage");
               return { Component: JobManagerPage };
-            },
-          },
-          {
-            path: "dashboard",
-            lazy: async () => {
-              const { default: AdminDashboardPage } =
-                await import("@/pages/admin/AdminDashboardPage");
-              return { Component: AdminDashboardPage };
             },
           },
         ],

@@ -41,7 +41,7 @@ export function GuestRoute({ children }) {
   }
 
   if (status === AUTH_STATUS.AUTHENTICATED) {
-    return <Navigate to="/admin/pipeline" replace />;
+    return <Navigate to="/admin/dashboard" replace />;
   }
 
   return children ? children : <Outlet />;

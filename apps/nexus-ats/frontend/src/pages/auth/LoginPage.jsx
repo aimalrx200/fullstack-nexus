@@ -40,7 +40,7 @@ export default function LoginPage() {
       saveSession(DEFAULT_DEMO_RECRUITER);
       dispatch(setAuthenticatedUser(DEFAULT_DEMO_RECRUITER));
       toast.success("Welcome back, Sarah");
-      navigate("/admin/pipeline", { replace: true });
+      navigate("/admin/dashboard", { replace: true });
     }, 300);
   };
 
@@ -68,7 +68,7 @@ export default function LoginPage() {
       saveSession(customUser);
       dispatch(setAuthenticatedUser(customUser));
       toast.success("Signed in successfully");
-      navigate("/admin/pipeline", { replace: true });
+      navigate("/admin/dashboard", { replace: true });
     }, 400);
   };
 

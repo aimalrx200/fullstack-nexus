@@ -2,18 +2,20 @@
 
 .shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   width: 100%;
   background-color: var(--bg-app);
   color: var(--text-primary);
-  overflow-x: hidden;
+  overflow: hidden; /* Prevents window/body scroll entirely */
 }
 
 /* ==========================================================================
-   Desktop Sidebar
+   Desktop Persistent Sidebar
    ========================================================================== */
 .sidebar {
   width: 250px;
+  height: 100%;
   background-color: var(--bg-surface);
   border-right: 1px solid var(--border-subtle);
   display: flex;
@@ -21,12 +23,10 @@
   transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   flex-shrink: 0;
   z-index: 30;
+  overflow: hidden; /* Never scroll the parent sidebar */
 }
 
-.sidebarCollapsed {
-  width: 72px;
-}
-
+/* 1. PINNED HEADER (Never scrolls out of view) */
 .sidebarHeader {
   height: 64px;
   padding: 0 1rem;
@@ -35,6 +35,7 @@
   justify-content: space-between;
   border-bottom: 1px solid var(--border-subtle);
   gap: 0.5rem;
+  flex-shrink: 0; /* Pinned */
 }
 
 .brand {
@@ -88,6 +89,7 @@
   border: 1px solid var(--border-subtle);
   transition: var(--transition);
   flex-shrink: 0;
+  cursor: pointer;
 }
 
 .collapseBtn:hover {
@@ -95,12 +97,17 @@
   border-color: var(--border-default);
 }
 
+/* 2. SCROLLABLE MIDDLE NAVIGATION (Only this area scrolls if links grow) */
 .nav {
   padding: 1rem 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
   flex: 1;
+  min-height: 0; /* Critical for flex child overflow scrolling */
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .navLink {
@@ -116,6 +123,7 @@
   text-decoration: none;
   white-space: nowrap;
   position: relative;
+  flex-shrink: 0;
 }
 
 .navLink:hover {
@@ -157,9 +165,72 @@
   border-color: transparent;
 }
 
+/* 3. PINNED FOOTER (Never scrolls out of view) */
 .sidebarFooter {
   padding: 1rem 0.75rem;
   border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0; /* Pinned */
+  background-color: var(--bg-surface);
+}
+
+/* ==========================================================================
+   Collapsed State (72px Icon Rail) — Solves Half-Logo Cutoff
+   ========================================================================== */
+.sidebarCollapsed {
+  width: 72px;
+}
+
+.sidebarCollapsed .sidebarHeader {
+  height: auto;
+  min-height: 84px;
+  padding: 0.875rem 0.5rem;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.sidebarCollapsed .brand {
+  justify-content: center;
+  width: 100%;
+}
+
+.sidebarCollapsed .brandIcon {
+  margin: 0 auto;
+}
+
+.sidebarCollapsed .collapseBtn {
+  margin: 0 auto;
+}
+
+.sidebarCollapsed .nav {
+  padding: 1rem 0.5rem;
+  align-items: center;
+}
+
+.sidebarCollapsed .navLink {
+  justify-content: center;
+  padding: 0.625rem;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+}
+
+.sidebarCollapsed .navLinkActive::before {
+  left: 0;
+}
+
+.sidebarCollapsed .sidebarFooter {
+  padding: 1rem 0.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.sidebarCollapsed .publicPortalLink {
+  padding: 0.625rem;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
 }
 
 /* ==========================================================================
@@ -209,6 +280,8 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .topbar {
@@ -219,8 +292,7 @@
   justify-content: space-between;
   background-color: var(--bg-surface);
   border-bottom: 1px solid var(--border-subtle);
-  position: sticky;
-  top: 0;
+  flex-shrink: 0;
   z-index: 20;
 }
 
@@ -358,13 +430,15 @@
 }
 
 /* ==========================================================================
-   Content Canvas (GPU micro-fade on view change)
+   Content Canvas (Independently Scrolls)
    ========================================================================== */
 .contentCanvas {
   flex: 1;
+  min-height: 0; /* Ensures child overflow behaves properly */
   padding: 1.5rem;
   animation: canvasFadeIn 0.16s ease-out;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 @keyframes canvasFadeIn {
