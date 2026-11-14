@@ -15,7 +15,6 @@ import {
 } from "@/config/constants";
 import styles from "./CreateJobModal.module.css";
 
-// Filter out generic "All ..." filter options for creation form selects
 const AVAILABLE_DEPARTMENTS = DEPARTMENTS.filter(
   (d) => d !== "All Departments",
 );
@@ -49,6 +48,7 @@ export default function CreateJobModal() {
   const [currentResp, setCurrentResp] = useState("");
   const [requirements, setRequirements] = useState([]);
   const [currentReq, setCurrentReq] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleClose = useCallback(() => {
     dispatch(setCreateJobModalOpen(false));
@@ -57,29 +57,22 @@ export default function CreateJobModal() {
     setCurrentResp("");
     setRequirements([]);
     setCurrentReq("");
+    setIsSubmitting(false);
   }, [dispatch]);
 
-  // Escape key closes modal
   useEffect(() => {
     if (!isOpen) return;
-
     const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        handleClose();
-      }
+      if (e.key === "Escape") handleClose();
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, handleClose]);
 
-  // Lock background scroll safely
   useEffect(() => {
     if (!isOpen) return;
-
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
     return () => {
       document.body.style.overflow = originalOverflow;
     };
@@ -87,7 +80,6 @@ export default function CreateJobModal() {
 
   if (!isOpen) return null;
 
-  // Add Item Helpers
   const handleAddResponsibility = () => {
     if (!currentResp.trim()) return;
     setResponsibilities([...responsibilities, currentResp.trim()]);
@@ -108,7 +100,7 @@ export default function CreateJobModal() {
     setRequirements(requirements.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!formData.title.trim()) {
@@ -116,19 +108,11 @@ export default function CreateJobModal() {
       return;
     }
 
-    // Auto-generate URL-friendly kebab-case slug
-    const slug = formData.title
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/(^-|-$)/g, "");
+    setIsSubmitting(true);
 
     const newJobPayload = {
       ...formData,
       title: formData.title.trim(),
-      slug: `${slug}-${Date.now().toString().slice(-4)}`,
-      status: "Active",
-      postedDate: new Date().toISOString().split("T")[0],
       responsibilities:
         responsibilities.length > 0
           ? responsibilities
@@ -150,16 +134,22 @@ export default function CreateJobModal() {
       ],
     };
 
-    dispatch(createJob(newJobPayload));
-    toast.success(`Job requisition "${formData.title}" published!`);
-    handleClose();
+    try {
+      const created = await dispatch(createJob(newJobPayload)).unwrap();
+      toast.success(`Job requisition "${created.title}" published!`);
+      handleClose();
+    } catch (err) {
+      toast.error(err || "Failed to create requisition");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const modalContent = (
     <div
       className={styles.overlay}
       onClick={(e) => {
-        if (e.target === e.currentTarget) handleClose();
+        if (e.target === e.currentTarget && !isSubmitting) handleClose();
       }}
       aria-hidden="true"
     >
@@ -169,7 +159,6 @@ export default function CreateJobModal() {
         aria-modal="true"
         aria-label="Create New Job Requisition"
       >
-        {/* Pinned Top Header */}
         <div className={styles.header}>
           <div className={styles.headerTitleGroup}>
             <h2 className={styles.title}>New Job Requisition</h2>
@@ -182,13 +171,13 @@ export default function CreateJobModal() {
             type="button"
             className={styles.closeButton}
             onClick={handleClose}
+            disabled={isSubmitting}
             aria-label="Close modal"
           >
             <X size={16} />
           </button>
         </div>
 
-        {/* Scrollable Form Area */}
         <form
           id="create-job-form"
           onSubmit={handleSubmit}
@@ -209,10 +198,11 @@ export default function CreateJobModal() {
               onChange={(e) =>
                 setFormData({ ...formData, title: e.target.value })
               }
+              disabled={isSubmitting}
             />
           </div>
 
-          {/* Department & Workplace Type */}
+          {/* Department & Workplace */}
           <div className={styles.fieldGrid}>
             <div className={styles.formGroup}>
               <label htmlFor="job-department" className={styles.label}>
@@ -225,6 +215,7 @@ export default function CreateJobModal() {
                 onChange={(e) =>
                   setFormData({ ...formData, department: e.target.value })
                 }
+                disabled={isSubmitting}
               >
                 {AVAILABLE_DEPARTMENTS.map((dept) => (
                   <option key={dept} value={dept}>
@@ -245,6 +236,7 @@ export default function CreateJobModal() {
                 onChange={(e) =>
                   setFormData({ ...formData, workplaceType: e.target.value })
                 }
+                disabled={isSubmitting}
               >
                 {AVAILABLE_WORKPLACE_TYPES.map((type) => (
                   <option key={type} value={type}>
@@ -255,7 +247,7 @@ export default function CreateJobModal() {
             </div>
           </div>
 
-          {/* Employment Type & Experience Level */}
+          {/* Employment Type & Level */}
           <div className={styles.fieldGrid}>
             <div className={styles.formGroup}>
               <label htmlFor="job-employment" className={styles.label}>
@@ -268,6 +260,7 @@ export default function CreateJobModal() {
                 onChange={(e) =>
                   setFormData({ ...formData, employmentType: e.target.value })
                 }
+                disabled={isSubmitting}
               >
                 {AVAILABLE_EMPLOYMENT_TYPES.map((type) => (
                   <option key={type} value={type}>
@@ -288,6 +281,7 @@ export default function CreateJobModal() {
                 onChange={(e) =>
                   setFormData({ ...formData, experienceLevel: e.target.value })
                 }
+                disabled={isSubmitting}
               >
                 {AVAILABLE_EXPERIENCE_LEVELS.map((lvl) => (
                   <option key={lvl} value={lvl}>
@@ -298,7 +292,7 @@ export default function CreateJobModal() {
             </div>
           </div>
 
-          {/* Location & Salary Range */}
+          {/* Location & Salary */}
           <div className={styles.fieldGrid}>
             <div className={styles.formGroup}>
               <label htmlFor="job-location" className={styles.label}>
@@ -313,6 +307,7 @@ export default function CreateJobModal() {
                 onChange={(e) =>
                   setFormData({ ...formData, location: e.target.value })
                 }
+                disabled={isSubmitting}
               />
             </div>
 
@@ -329,6 +324,7 @@ export default function CreateJobModal() {
                 onChange={(e) =>
                   setFormData({ ...formData, salaryRange: e.target.value })
                 }
+                disabled={isSubmitting}
               />
             </div>
           </div>
@@ -341,16 +337,17 @@ export default function CreateJobModal() {
             <textarea
               id="job-summary"
               required
-              placeholder="Brief executive summary of the position and its impact on the organization..."
+              placeholder="Brief executive summary of the position..."
               className={styles.textarea}
               value={formData.summary}
               onChange={(e) =>
                 setFormData({ ...formData, summary: e.target.value })
               }
+              disabled={isSubmitting}
             />
           </div>
 
-          {/* Key Responsibilities Builder */}
+          {/* Key Responsibilities */}
           <div className={styles.formGroup}>
             <label htmlFor="add-resp" className={styles.label}>
               Key Responsibilities{" "}
@@ -360,7 +357,7 @@ export default function CreateJobModal() {
               <input
                 id="add-resp"
                 type="text"
-                placeholder="e.g. Maintain CI/CD pipelines and blue/green rollouts"
+                placeholder="e.g. Maintain CI/CD pipelines and zero-downtime deploys"
                 className={styles.input}
                 value={currentResp}
                 onChange={(e) => setCurrentResp(e.target.value)}
@@ -370,11 +367,13 @@ export default function CreateJobModal() {
                     handleAddResponsibility();
                   }
                 }}
+                disabled={isSubmitting}
               />
               <button
                 type="button"
                 className={styles.addBtn}
                 onClick={handleAddResponsibility}
+                disabled={isSubmitting}
               >
                 <Plus size={14} />
                 <span>Add</span>
@@ -400,7 +399,7 @@ export default function CreateJobModal() {
             )}
           </div>
 
-          {/* Required Qualifications Builder */}
+          {/* Qualifications */}
           <div className={styles.formGroup}>
             <label htmlFor="add-req" className={styles.label}>
               Required Qualifications{" "}
@@ -410,7 +409,7 @@ export default function CreateJobModal() {
               <input
                 id="add-req"
                 type="text"
-                placeholder="e.g. 5+ years experience in Node.js & Redis Lua scripting"
+                placeholder="e.g. 5+ years experience in Node.js & Redis Lua"
                 className={styles.input}
                 value={currentReq}
                 onChange={(e) => setCurrentReq(e.target.value)}
@@ -420,11 +419,13 @@ export default function CreateJobModal() {
                     handleAddRequirement();
                   }
                 }}
+                disabled={isSubmitting}
               />
               <button
                 type="button"
                 className={styles.addBtn}
                 onClick={handleAddRequirement}
+                disabled={isSubmitting}
               >
                 <Plus size={14} />
                 <span>Add</span>
@@ -451,12 +452,12 @@ export default function CreateJobModal() {
           </div>
         </form>
 
-        {/* Pinned Footer Actions */}
         <div className={styles.footer}>
           <button
             type="button"
             className={styles.cancelBtn}
             onClick={handleClose}
+            disabled={isSubmitting}
           >
             Cancel
           </button>
@@ -464,9 +465,12 @@ export default function CreateJobModal() {
             type="submit"
             form="create-job-form"
             className={styles.submitBtn}
+            disabled={isSubmitting}
           >
             <CheckCircle2 size={14} />
-            <span>Publish Requisition</span>
+            <span>
+              {isSubmitting ? "Publishing..." : "Publish Requisition"}
+            </span>
           </button>
         </div>
       </div>

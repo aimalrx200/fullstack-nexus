@@ -1,5 +1,8 @@
-import { useState } from "react";
+// apps/nexus-ats/frontend/src/pages/public/JobDetailPage.jsx
+
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router";
+import { useSelector } from "react-redux";
 import {
   ArrowLeft,
   MapPin,
@@ -7,7 +10,8 @@ import {
   CheckCircle,
   ShieldCheck,
 } from "lucide-react";
-import { MOCK_JOBS } from "@/lib/mockData/jobs.mock";
+import { selectAllJobs } from "@/redux/slices/jobSlice";
+import { jobApi } from "@/lib/api/jobApi";
 import Badge from "@/components/common/Badge";
 import Button from "@/components/common/Button";
 import ApplicationModal from "@/components/public/application/ApplicationModal";
@@ -16,9 +20,56 @@ import styles from "./JobDetailPage.module.css";
 export default function JobDetailPage() {
   const { slug } = useParams();
   const navigate = useNavigate();
+
+  const storeJobs = useSelector(selectAllJobs);
+  const [job, setJob] = useState(
+    () => storeJobs.find((j) => j.slug === slug) || null,
+  );
+  const [loading, setLoading] = useState(!job);
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
 
-  const job = MOCK_JOBS.find((j) => j.slug === slug);
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadJob = async () => {
+      // Check existing store job first
+      const foundInStore = storeJobs.find((j) => j.slug === slug);
+      if (foundInStore) {
+        setJob(foundInStore);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const data = await jobApi.getJobBySlugOrId(slug);
+        if (isMounted && data.job) {
+          setJob(data.job);
+        }
+        // eslint-disable-next-line no-unused-vars
+      } catch (err) {
+        if (isMounted) setJob(null);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadJob();
+    return () => {
+      isMounted = false;
+    };
+  }, [slug, storeJobs]);
+
+  if (loading) {
+    return (
+      <div className={styles.notFoundContainer}>
+        <h2 className={styles.notFoundTitle}>Loading Position...</h2>
+        <p className={styles.notFoundSubtitle}>
+          Retrieving job requisition specifications.
+        </p>
+      </div>
+    );
+  }
 
   if (!job) {
     return (
@@ -55,43 +106,49 @@ export default function JobDetailPage() {
           <p className={styles.jobSummary}>{job.summary}</p>
 
           {/* Responsibilities Section */}
-          <section className={styles.specSection}>
-            <h2 className={styles.sectionHeading}>Key Responsibilities</h2>
-            <ul className={styles.itemList}>
-              {job.responsibilities.map((resp, i) => (
-                <li key={i} className={styles.item}>
-                  <CheckCircle size={16} className={styles.checkIcon} />
-                  <span>{resp}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+          {job.responsibilities && job.responsibilities.length > 0 && (
+            <section className={styles.specSection}>
+              <h2 className={styles.sectionHeading}>Key Responsibilities</h2>
+              <ul className={styles.itemList}>
+                {job.responsibilities.map((resp, i) => (
+                  <li key={i} className={styles.item}>
+                    <CheckCircle size={16} className={styles.checkIcon} />
+                    <span>{resp}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {/* Requirements Section */}
-          <section className={styles.specSection}>
-            <h2 className={styles.sectionHeading}>Required Qualifications</h2>
-            <ul className={styles.itemList}>
-              {job.requirements.map((req, i) => (
-                <li key={i} className={styles.item}>
-                  <CheckCircle size={16} className={styles.checkIcon} />
-                  <span>{req}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+          {job.requirements && job.requirements.length > 0 && (
+            <section className={styles.specSection}>
+              <h2 className={styles.sectionHeading}>Required Qualifications</h2>
+              <ul className={styles.itemList}>
+                {job.requirements.map((req, i) => (
+                  <li key={i} className={styles.item}>
+                    <CheckCircle size={16} className={styles.checkIcon} />
+                    <span>{req}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {/* Perks Section */}
-          <section className={styles.specSection}>
-            <h2 className={styles.sectionHeading}>Perks & Total Rewards</h2>
-            <ul className={styles.itemList}>
-              {job.benefits.map((benefit, i) => (
-                <li key={i} className={styles.item}>
-                  <ShieldCheck size={16} className={styles.perkIcon} />
-                  <span>{benefit}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+          {job.benefits && job.benefits.length > 0 && (
+            <section className={styles.specSection}>
+              <h2 className={styles.sectionHeading}>Perks & Total Rewards</h2>
+              <ul className={styles.itemList}>
+                {job.benefits.map((benefit, i) => (
+                  <li key={i} className={styles.item}>
+                    <ShieldCheck size={16} className={styles.perkIcon} />
+                    <span>{benefit}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
 
         {/* Right Column: Sticky Application Box */}

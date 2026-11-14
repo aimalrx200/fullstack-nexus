@@ -1,8 +1,8 @@
 // apps/nexus-ats/frontend/src/pages/admin/AdminDashboardPage.jsx
 
-import { useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   Users,
   Briefcase,
@@ -22,21 +22,23 @@ import {
   CartesianGrid,
   Cell,
 } from "recharts";
-import { selectAllCandidates } from "@/redux/slices/candidateSlice";
-import { selectAllJobs } from "@/redux/slices/jobSlice";
+import {
+  fetchCandidates,
+  selectAllCandidates,
+} from "@/redux/slices/candidateSlice";
+import { fetchJobs, selectAllJobs } from "@/redux/slices/jobSlice";
+import { analyticsApi } from "@/lib/api/analyticsApi";
 import { DEPARTMENTS } from "@/config/constants";
 import styles from "./AdminDashboardPage.module.css";
 
-// Semantic Stage Hex Colors consistent across ATS
 const STAGE_COLORS = {
-  applied: "#3b82f6", // Blue
-  screen: "#8b5cf6", // Violet
-  interview: "#0ea5e9", // Sky
-  offer: "#10b981", // Emerald
-  rejected: "#ef4444", // Rose
+  applied: "#3b82f6",
+  screen: "#8b5cf6",
+  interview: "#0ea5e9",
+  offer: "#10b981",
+  rejected: "#ef4444",
 };
 
-// Custom Chart Tooltip (Zero Inline Styles)
 function CustomChartTooltip({ active, payload, label }) {
   if (active && payload && payload.length) {
     const item = payload[0];
@@ -53,17 +55,29 @@ function CustomChartTooltip({ active, payload, label }) {
 }
 
 export default function AdminDashboardPage() {
+  const dispatch = useDispatch();
   const candidates = useSelector(selectAllCandidates);
   const jobs = useSelector(selectAllJobs);
 
-  // 1. Calculate Top-Level KPI Metrics
+  const [serverAnalytics, setServerAnalytics] = useState(null);
+
+  useEffect(() => {
+    dispatch(fetchCandidates());
+    dispatch(fetchJobs());
+
+    analyticsApi
+      .getOverview()
+      .then((data) => setServerAnalytics(data))
+      .catch(() => {});
+  }, [dispatch]);
+
+  // Derived Real-Time KPI Metrics
   const metrics = useMemo(() => {
     const totalCandidates = candidates.length;
     const activeJobs = jobs.filter(
       (j) => j.status?.toLowerCase() === "active",
     ).length;
 
-    // Conversion rate: Candidates who reached Technical Interview or Offer
     const advancedCandidates = candidates.filter(
       (c) => c.stage === "interview" || c.stage === "offer",
     ).length;
@@ -71,7 +85,6 @@ export default function AdminDashboardPage() {
       ? Math.round((advancedCandidates / totalCandidates) * 100)
       : 0;
 
-    // Offer Rate
     const offerCandidates = candidates.filter(
       (c) => c.stage === "offer",
     ).length;
@@ -79,7 +92,6 @@ export default function AdminDashboardPage() {
       ? Math.round((offerCandidates / totalCandidates) * 100)
       : 0;
 
-    // Evaluator Quality Score
     const ratedCandidates = candidates.filter(
       (c) => (c.rating ?? c.score ?? 0) > 0,
     );
@@ -101,8 +113,12 @@ export default function AdminDashboardPage() {
     };
   }, [candidates, jobs]);
 
-  // 2. Stage Funnel Data
+  // Funnel Data
   const stageFunnelData = useMemo(() => {
+    if (serverAnalytics?.stageFunnel && candidates.length === 0) {
+      return serverAnalytics.stageFunnel;
+    }
+
     const stageCounts = {
       applied: 0,
       screen: 0,
@@ -110,13 +126,9 @@ export default function AdminDashboardPage() {
       offer: 0,
       rejected: 0,
     };
-
     candidates.forEach((c) => {
-      if (stageCounts[c.stage] !== undefined) {
-        stageCounts[c.stage] += 1;
-      } else {
-        stageCounts.applied += 1;
-      }
+      if (stageCounts[c.stage] !== undefined) stageCounts[c.stage] += 1;
+      else stageCounts.applied += 1;
     });
 
     return [
@@ -130,12 +142,11 @@ export default function AdminDashboardPage() {
       { name: "Offer Extended", key: "offer", count: stageCounts.offer },
       { name: "Archived", key: "rejected", count: stageCounts.rejected },
     ];
-  }, [candidates]);
+  }, [candidates, serverAnalytics]);
 
-  // 3. Department Volume Breakdown
+  // Department Velocity Data
   const departmentBreakdownData = useMemo(() => {
     const activeDepts = DEPARTMENTS.filter((d) => d !== "All Departments");
-
     return activeDepts
       .map((dept) => {
         const deptJobs = jobs.filter((j) => j.department === dept);
@@ -153,7 +164,7 @@ export default function AdminDashboardPage() {
       .filter((d) => d.candidates > 0 || d.jobs > 0);
   }, [candidates, jobs]);
 
-  // 4. Recommendation Counts & Percentages
+  // Recommendation Sentiment
   const recommendations = useMemo(() => {
     const total = candidates.length || 1;
     const strongHire = candidates.filter(
@@ -210,7 +221,6 @@ export default function AdminDashboardPage() {
 
   return (
     <div className={styles.pageContainer}>
-      {/* 1. Page Header */}
       <div className={styles.headerSection}>
         <div className={styles.titleGroup}>
           <h1 className={styles.title}>Recruitment Analytics</h1>
@@ -235,7 +245,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* 2. Top-Level Metric Cards */}
+      {/* Top-Level KPI Metric Cards */}
       <div className={styles.kpiGrid}>
         <div className={styles.kpiCard}>
           <div className={styles.kpiHeader}>
@@ -305,9 +315,8 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* 3. Recharts Analytics Suite */}
+      {/* Charts Grid */}
       <div className={styles.chartsGrid}>
-        {/* Pipeline Stage Distribution */}
         <div className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <div>
@@ -350,7 +359,6 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Department Volume Chart */}
         <div className={styles.chartCard}>
           <div className={styles.chartHeader}>
             <div>
@@ -389,7 +397,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* 4. Scorecard & Recommendation Breakdown */}
+      {/* Evaluator Sentiment Panel */}
       <div className={styles.healthCard}>
         <div className={styles.chartHeader}>
           <div>

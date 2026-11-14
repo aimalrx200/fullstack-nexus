@@ -11,25 +11,30 @@ export default function NotesTimeline({ candidate }) {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
   const [noteText, setNoteText] = useState("");
+  const [isPosting, setIsPosting] = useState(false);
 
   const notes = candidate.notes || [];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!noteText.trim()) return;
 
-    dispatch(
-      addCandidateNote({
-        candidateId: candidate.id,
-        author: user?.name
-          ? `${user.name} (Recruiter)`
-          : "Alex Sterling (Recruiter)",
-        text: noteText.trim(),
-      }),
-    );
+    setIsPosting(true);
+    try {
+      await dispatch(
+        addCandidateNote({
+          candidateId: candidate.id,
+          text: noteText.trim(),
+        }),
+      ).unwrap();
 
-    setNoteText("");
-    toast.success("Recruiter feedback note recorded");
+      setNoteText("");
+      toast.success("Recruiter feedback note recorded");
+    } catch (err) {
+      toast.error(err || "Failed to record note");
+    } finally {
+      setIsPosting(false);
+    }
   };
 
   return (
@@ -41,6 +46,7 @@ export default function NotesTimeline({ candidate }) {
           placeholder="Add interview feedback, phone screen observations, or compensation notes..."
           value={noteText}
           onChange={(e) => setNoteText(e.target.value)}
+          disabled={isPosting}
         />
         <div className={styles.formFooter}>
           <span className={styles.authorNote}>
@@ -49,10 +55,10 @@ export default function NotesTimeline({ candidate }) {
           <button
             type="submit"
             className={styles.submitBtn}
-            disabled={!noteText.trim()}
+            disabled={!noteText.trim() || isPosting}
           >
             <Send size={13} />
-            <span>Record Note</span>
+            <span>{isPosting ? "Recording..." : "Record Note"}</span>
           </button>
         </div>
       </form>
@@ -61,7 +67,7 @@ export default function NotesTimeline({ candidate }) {
       <div className={styles.notesFeed}>
         {notes.length > 0 ? (
           notes.map((note) => (
-            <div key={note.id} className={styles.noteItem}>
+            <div key={note.id || note._id} className={styles.noteItem}>
               <div className={styles.noteHeader}>
                 <div className={styles.authorRow}>
                   <div className={styles.noteAvatar}>

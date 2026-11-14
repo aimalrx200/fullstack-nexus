@@ -3,16 +3,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useDispatch } from "react-redux";
-import { X, UploadCloud, CheckCircle2, FileText } from "lucide-react";
+import { X, UploadCloud, CheckCircle2, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { addCandidate } from "@/redux/slices/candidateSlice";
+import { applyForJob } from "@/redux/slices/candidateSlice";
 import { incrementApplicantCount } from "@/redux/slices/jobSlice";
 import { APP_CONFIG } from "@/config/constants";
 import Button from "@/components/common/Button";
 import styles from "./ApplicationModal.module.css";
-
-const DEFAULT_DUMMY_PDF =
-  "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf";
 
 export default function ApplicationModal({ job, isOpen, onClose }) {
   const dispatch = useDispatch();
@@ -24,36 +21,32 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
     websiteOrProfile: "",
   });
   const [file, setFile] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const handleReset = useCallback(() => {
     setIsSubmitted(false);
+    setIsSubmitting(false);
     setFile(null);
     setFormData({ name: "", email: "", phone: "", websiteOrProfile: "" });
     onClose();
   }, [onClose]);
 
-  // Close on Escape key press
+  // Escape key closes modal
   useEffect(() => {
     if (!isOpen) return;
-
     const handleKeyDown = (e) => {
-      if (e.key === "Escape") {
-        handleReset();
-      }
+      if (e.key === "Escape") handleReset();
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, handleReset]);
 
-  // Lock background page scroll while modal is active
+  // Lock background scroll
   useEffect(() => {
     if (!isOpen) return;
-
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
     return () => {
       document.body.style.overflow = originalOverflow;
     };
@@ -63,58 +56,56 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        toast.error("File is too large. Please upload a PDF under 10MB.");
+        return;
+      }
+      setFile(selectedFile);
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const today = new Date().toISOString().split("T")[0];
-    const experienceDefaults = {
-      Junior: 1,
-      "Mid-Level": 3,
-      Senior: 5,
-      "Staff / Lead": 8,
-    };
+    if (!file) {
+      toast.error("Please upload your PDF resume");
+      return;
+    }
 
-    const newCandidate = {
-      jobId: job.id,
-      jobTitle: job.title,
-      name: formData.name.trim(),
-      email: formData.email.trim(),
-      phone: formData.phone.trim() || undefined,
-      location: job.location || "Remote",
-      avatar: "",
-      stage: "applied",
-      rating: 0,
-      score: 0,
-      appliedDate: today,
-      experienceYears: experienceDefaults[job.experienceLevel] || 3,
-      expectedSalary: job.salaryRange || "Negotiable",
-      resumeUrl: file ? URL.createObjectURL(file) : DEFAULT_DUMMY_PDF,
-      portfolioUrl: formData.websiteOrProfile.trim() || undefined,
-      tags: [job.department, "Inbound Applicant"],
-      scorecard: {
-        technical: 0,
-        communication: 0,
-        systemDesign: 0,
-        recommendation: "Review Required",
-      },
-      notes: [],
-    };
+    setIsSubmitting(true);
 
-    // Dispatch candidate insertion & increment job applicant count in store
-    dispatch(addCandidate(newCandidate));
-    dispatch(incrementApplicantCount(job.id));
+    try {
+      // Build multipart/form-data payload
+      const formPayload = new FormData();
+      formPayload.append("jobId", job.id);
+      formPayload.append("name", formData.name.trim());
+      formPayload.append("email", formData.email.trim());
+      if (formData.phone.trim())
+        formPayload.append("phone", formData.phone.trim());
+      formPayload.append("location", job.location || "Remote");
+      if (formData.websiteOrProfile.trim()) {
+        formPayload.append(
+          "websiteOrProfile",
+          formData.websiteOrProfile.trim(),
+        );
+      }
+      formPayload.append("resume", file);
 
-    toast.success(`Application received for ${job.title}!`);
-    setIsSubmitted(true);
+      await dispatch(applyForJob(formPayload)).unwrap();
+      dispatch(incrementApplicantCount(job.id));
+
+      toast.success(`Application received for ${job.title}!`);
+      setIsSubmitted(true);
+    } catch (err) {
+      toast.error(err || "Failed to submit application. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  // Closes modal when user clicks anywhere on the backdrop/overlay
   const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
+    if (e.target === e.currentTarget && !isSubmitting) {
       handleReset();
     }
   };
@@ -142,6 +133,7 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
                 type="button"
                 className={styles.closeButton}
                 onClick={handleReset}
+                disabled={isSubmitting}
                 aria-label="Close application form"
               >
                 <X size={18} />
@@ -163,6 +155,7 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -181,6 +174,7 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -198,6 +192,7 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
                   onChange={(e) =>
                     setFormData({ ...formData, phone: e.target.value })
                   }
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -209,7 +204,7 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
                 </label>
                 <input
                   type="url"
-                  placeholder="https://..."
+                  placeholder="https://github.com/..."
                   className={styles.input}
                   value={formData.websiteOrProfile}
                   onChange={(e) =>
@@ -218,6 +213,7 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
                       websiteOrProfile: e.target.value,
                     })
                   }
+                  disabled={isSubmitting}
                 />
               </div>
 
@@ -230,10 +226,11 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
                 <label className={styles.dropzone}>
                   <input
                     type="file"
-                    accept=".pdf"
+                    accept=".pdf,.doc,.docx"
                     required
                     onChange={handleFileChange}
                     className={styles.fileInputHidden}
+                    disabled={isSubmitting}
                   />
                   {file ? (
                     <div className={styles.fileSelected}>
@@ -250,7 +247,7 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
                         Choose PDF resume or drag it here
                       </span>
                       <span className={styles.dropzoneHint}>
-                        PDF up to 10MB
+                        PDF or DOCX up to 10MB
                       </span>
                     </>
                   )}
@@ -262,6 +259,7 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
                 <Button
                   variant="secondary"
                   onClick={handleReset}
+                  disabled={isSubmitting}
                   className={styles.actionBtn}
                 >
                   Cancel
@@ -269,9 +267,17 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
                 <Button
                   type="submit"
                   variant="primary"
+                  disabled={isSubmitting}
                   className={styles.actionBtn}
                 >
-                  Send Application
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={15} className="spinner" />
+                      <span>Uploading...</span>
+                    </>
+                  ) : (
+                    <span>Send Application</span>
+                  )}
                 </Button>
               </div>
             </form>
@@ -285,7 +291,6 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
             aria-label="Application Submitted"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Top right close button */}
             <button
               type="button"
               className={`${styles.closeButton} ${styles.closeButtonTopRight}`}
@@ -295,28 +300,23 @@ export default function ApplicationModal({ job, isOpen, onClose }) {
               <X size={18} />
             </button>
 
-            {/* Glowing Success Icon */}
             <div className={styles.successIconWrapper}>
               <CheckCircle2 size={30} />
             </div>
 
-            {/* Title */}
             <h2 className={styles.successTitle}>Application Submitted!</h2>
 
-            {/* Role Context Pill */}
             <div className={styles.jobPill}>
               <span className={styles.jobPillDot} />
               <span>{job.title}</span>
             </div>
 
-            {/* Subtitle / Description */}
             <p className={styles.successText}>
               Thank you for applying. The team at{" "}
               <strong>{APP_CONFIG.companyName}</strong> has received your
               application and will reach out via email regarding next steps.
             </p>
 
-            {/* Centered Return Button */}
             <div className={styles.successActions}>
               <Button
                 variant="primary"

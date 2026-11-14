@@ -1,10 +1,14 @@
+// apps/nexus-ats/backend/src/index.js
+
 import { app } from "./app.js";
 import { env } from "#config/env.js";
 import { connectDB } from "#config/db.js";
+import { seedDatabase } from "#services/seedService.js";
 import { logger } from "#config/logger.js";
 
 const startServer = async () => {
   await connectDB();
+  await seedDatabase();
 
   const server = app.listen(env.PORT, () => {
     logger.info(

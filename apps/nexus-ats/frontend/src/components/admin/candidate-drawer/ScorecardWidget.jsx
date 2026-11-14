@@ -32,14 +32,18 @@ export default function ScorecardWidget({ candidate }) {
     recommendation: currentScore >= 4 ? "Hire" : "Review Required",
   };
 
-  const handleRate = (score) => {
-    dispatch(
-      updateCandidateRating({
-        candidateId: candidate.id,
-        score,
-      }),
-    );
-    toast.success(`Evaluator score updated to ${score}/5`);
+  const handleRate = async (score) => {
+    try {
+      await dispatch(
+        updateCandidateRating({
+          candidateId: candidate.id,
+          score,
+        }),
+      ).unwrap();
+      toast.success(`Evaluator score updated to ${score}/5`);
+    } catch (err) {
+      toast.error(err || "Failed to update rating");
+    }
   };
 
   const recClass = REC_CLASS_MAP[scorecard.recommendation] || styles.recReview;

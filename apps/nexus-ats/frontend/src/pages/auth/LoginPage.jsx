@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   Briefcase,
   Sparkles,
@@ -13,17 +13,15 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  setAuthenticatedUser,
-  DEFAULT_DEMO_RECRUITER,
-} from "@/redux/slices/authSlice";
-import { saveSession } from "@/lib/auth/sessionManager";
+import { demoLoginUser, loginUser } from "@/redux/slices/authSlice";
 import styles from "./LoginPage.module.css";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
+
+  const authLoading = useSelector((state) => state.auth.loading);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,20 +30,22 @@ export default function LoginPage() {
 
   const reason = searchParams.get("reason");
 
-  // 1-Click Demo Recruiter Action
-  const handleDemoLogin = () => {
+  // 1-Click Demo Recruiter Login (Alex Sterling)
+  const handleDemoLogin = async () => {
     setIsDemoLoading(true);
-
-    setTimeout(() => {
-      saveSession(DEFAULT_DEMO_RECRUITER);
-      dispatch(setAuthenticatedUser(DEFAULT_DEMO_RECRUITER));
-      toast.success("Welcome back, Sarah");
+    try {
+      const user = await dispatch(demoLoginUser()).unwrap();
+      toast.success(`Welcome back, ${user.name}`);
       navigate("/admin/dashboard", { replace: true });
-    }, 300);
+    } catch (err) {
+      toast.error(err || "Demo evaluator sign-in failed");
+    } finally {
+      setIsDemoLoading(false);
+    }
   };
 
   // Standard Form Submission
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
       toast.error("Please fill in both email and password");
@@ -53,24 +53,20 @@ export default function LoginPage() {
     }
 
     setIsSubmitting(true);
-
-    // Mock direct login for custom credentials
-    setTimeout(() => {
-      const customUser = {
-        id: `rec_${Date.now()}`,
-        name: email.split("@")[0] || "Recruiter",
-        email: email.trim(),
-        role: "Talent Partner",
-        department: "General",
-        avatarUrl: "",
-      };
-
-      saveSession(customUser);
-      dispatch(setAuthenticatedUser(customUser));
-      toast.success("Signed in successfully");
+    try {
+      const user = await dispatch(
+        loginUser({ email: email.trim(), password }),
+      ).unwrap();
+      toast.success(`Welcome back, ${user.name}`);
       navigate("/admin/dashboard", { replace: true });
-    }, 400);
+    } catch (err) {
+      toast.error(err || "Invalid email or password");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  const isLoading = isSubmitting || isDemoLoading || authLoading;
 
   return (
     <div className={styles.pageContainer}>
@@ -114,7 +110,7 @@ export default function LoginPage() {
             type="button"
             className={styles.demoButton}
             onClick={handleDemoLogin}
-            disabled={isDemoLoading || isSubmitting}
+            disabled={isLoading}
           >
             <Sparkles size={16} />
             <span>
@@ -140,11 +136,11 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 className={styles.input}
-                placeholder="recruiter@company.com"
+                placeholder="recruiter@nexus-ats.dev"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
-                disabled={isSubmitting || isDemoLoading}
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -163,7 +159,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
-                disabled={isSubmitting || isDemoLoading}
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -171,7 +167,7 @@ export default function LoginPage() {
           <button
             type="submit"
             className={styles.submitButton}
-            disabled={isSubmitting || isDemoLoading}
+            disabled={isLoading}
           >
             {isSubmitting ? "Signing In..." : "Sign In with Password"}
           </button>

@@ -1,13 +1,17 @@
 import { Router } from "express";
 import { rootRouter } from "./root.route.js";
+import { authRouter } from "./auth.routes.js";
+import { jobRouter } from "./job.routes.js";
+import { candidateRouter } from "./candidate.routes.js";
+import { analyticsRouter } from "./analytics.routes.js";
 
 export const router = Router();
 
-// Root health check mounted on /api/v1
+// Health & Uptime
 router.use("/", rootRouter);
 
-// Domain route modules will be plugged in here in subsequent steps:
-// router.use("/auth", authRouter);
-// router.use("/jobs", jobRouter);
-// router.use("/candidates", candidateRouter);
-// router.use("/analytics", analyticsRouter);
+// Domain Route Modules
+router.use("/auth", authRouter);
+router.use("/jobs", jobRouter);
+router.use("/candidates", candidateRouter);
+router.use("/analytics", analyticsRouter);

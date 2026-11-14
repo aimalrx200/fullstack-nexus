@@ -1,32 +1,33 @@
 // apps/nexus-ats/frontend/src/pages/admin/PipelinePage.jsx
 
-import { useState, useEffect } from "react";
-import { useSelector } from "react-redux";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Users, Briefcase } from "lucide-react";
-import { selectAllCandidates } from "@/redux/slices/candidateSlice";
-import { selectAllJobs } from "@/redux/slices/jobSlice";
+import {
+  fetchCandidates,
+  selectAllCandidates,
+} from "@/redux/slices/candidateSlice";
+import { fetchJobs, selectAllJobs } from "@/redux/slices/jobSlice";
 import PipelineFilterBar from "@/components/admin/pipeline/PipelineFilterBar";
 import KanbanBoard from "@/components/admin/pipeline/KanbanBoard";
 import BoardSkeleton from "@/components/admin/pipeline/BoardSkeleton";
 import CandidateDrawer from "@/components/admin/candidate-drawer/CandidateDrawer";
 import styles from "./PipelinePage.module.css";
 
-const SKELETON_GRACE_PERIOD_MS = 250;
-
 export default function PipelinePage() {
+  const dispatch = useDispatch();
+
   const candidates = useSelector(selectAllCandidates);
   const jobs = useSelector(selectAllJobs);
+  const candidatesLoading = useSelector((state) => state.candidates.loading);
 
-  // Micro-skeleton debounce to guarantee 0.00 CLS during code-split route resolution
-  const [isMounting, setIsMounting] = useState(true);
-
+  // Fetch live pipeline data from Atlas
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsMounting(false);
-    }, SKELETON_GRACE_PERIOD_MS);
-
-    return () => clearTimeout(timer);
-  }, []);
+    dispatch(fetchCandidates());
+    if (jobs.length === 0) {
+      dispatch(fetchJobs());
+    }
+  }, [dispatch, jobs.length]);
 
   return (
     <div className={styles.pageContainer}>
@@ -61,7 +62,11 @@ export default function PipelinePage() {
 
       {/* Interactive Board Area */}
       <div className={styles.boardArea}>
-        {isMounting ? <BoardSkeleton /> : <KanbanBoard />}
+        {candidatesLoading && candidates.length === 0 ? (
+          <BoardSkeleton />
+        ) : (
+          <KanbanBoard />
+        )}
       </div>
 
       {/* Sliding Candidate Inspection Drawer (Portal) */}

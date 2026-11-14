@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import {
   setAuthenticatedUser,
   setUnauthenticated,
+  checkAuthSession,
 } from "@/redux/slices/authSlice";
 import {
   broadcastAuthEvent,
@@ -12,11 +13,8 @@ import {
 } from "./authBroadcast";
 
 const SESSION_KEY = "nexus_ats_session";
-const SESSION_DURATION_MS = 4 * 60 * 60 * 1000; // 4 Hours
+const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 Days (matches JWT cookie)
 
-/**
- * Read the current session from storage
- */
 export const getStoredSession = () => {
   try {
     const raw = sessionStorage.getItem(SESSION_KEY);
@@ -37,9 +35,6 @@ export const getStoredSession = () => {
   }
 };
 
-/**
- * Persist an active session and broadcast to other tabs
- */
 export const saveSession = (user) => {
   try {
     const sessionData = {
@@ -50,13 +45,10 @@ export const saveSession = (user) => {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
     broadcastAuthEvent(AUTH_EVENTS.LOGIN, user);
   } catch {
-    // Fail silently if storage is unavailable
+    // Fail silently
   }
 };
 
-/**
- * Clear the session and notify other tabs
- */
 export const removeSession = (reason = "manual") => {
   try {
     sessionStorage.removeItem(SESSION_KEY);
@@ -67,20 +59,18 @@ export const removeSession = (reason = "manual") => {
 };
 
 /**
- * Hydrates Redux auth state on initial boot
+ * Hydrates Redux auth state by verifying session cookie with the live backend
  */
 export const hydrateAuthSession = (dispatch) => {
-  const user = getStoredSession();
-  if (user) {
-    dispatch(setAuthenticatedUser(user));
-  } else {
-    dispatch(setUnauthenticated());
+  const cachedUser = getStoredSession();
+  if (cachedUser) {
+    // Optimistically set cached user to eliminate layout jump
+    dispatch(setAuthenticatedUser(cachedUser));
   }
+  // Validate real session cookie against live API
+  dispatch(checkAuthSession());
 };
 
-/**
- * Synchronize authentication across tabs
- */
 export const initializeCrossTabSync = (dispatch) => {
   return subscribeToAuthEvents(({ type, payload }) => {
     switch (type) {

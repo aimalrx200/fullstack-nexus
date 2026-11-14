@@ -1,22 +1,37 @@
-import { useState, useMemo } from "react";
+// apps/nexus-ats/frontend/src/pages/public/JobBoardPage.jsx
+
+import { useState, useEffect, useMemo } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Sparkles, Compass } from "lucide-react";
-import { MOCK_JOBS } from "@/lib/mockData/jobs.mock";
 import { APP_CONFIG } from "@/config/constants";
+import { fetchJobs, selectAllJobs } from "@/redux/slices/jobSlice";
 import JobCard from "@/components/public/job-board/JobCard";
 import JobFilters from "@/components/public/job-board/JobFilters";
 import ApplicationModal from "@/components/public/application/ApplicationModal";
 import styles from "./JobBoardPage.module.css";
 
 export default function JobBoardPage() {
+  const dispatch = useDispatch();
+  const jobs = useSelector(selectAllJobs);
+  const loading = useSelector((state) => state.jobs.loading);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDepartment, setSelectedDepartment] =
     useState("All Departments");
   const [selectedWorkplace, setSelectedWorkplace] = useState("All Locations");
   const [selectedJobToApply, setSelectedJobToApply] = useState(null);
 
+  // Fetch live jobs on initial mount
+  useEffect(() => {
+    dispatch(fetchJobs({ status: "Active" }));
+  }, [dispatch]);
+
   // Dynamic search and filter logic
   const filteredJobs = useMemo(() => {
-    return MOCK_JOBS.filter((job) => {
+    return jobs.filter((job) => {
+      // Only show Active jobs to candidates on public board
+      if (job.status && job.status.toLowerCase() !== "active") return false;
+
       const matchesSearch =
         searchQuery === "" ||
         job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -32,7 +47,7 @@ export default function JobBoardPage() {
 
       return matchesSearch && matchesDept && matchesWorkplace;
     });
-  }, [searchQuery, selectedDepartment, selectedWorkplace]);
+  }, [jobs, searchQuery, selectedDepartment, selectedWorkplace]);
 
   return (
     <div className={styles.pageContainer}>
@@ -72,8 +87,9 @@ export default function JobBoardPage() {
       <div className={styles.sectionHeader}>
         <h2 className={styles.sectionTitle}>Available Openings</h2>
         <span className={styles.jobCount}>
-          {filteredJobs.length} {filteredJobs.length === 1 ? "role" : "roles"}{" "}
-          available
+          {loading
+            ? "Loading positions..."
+            : `${filteredJobs.length} ${filteredJobs.length === 1 ? "role" : "roles"} available`}
         </span>
       </div>
 
@@ -92,10 +108,15 @@ export default function JobBoardPage() {
         /* Empty State */
         <div className={`glass-panel ${styles.emptyState}`}>
           <Compass size={36} color="var(--text-muted)" />
-          <h3 className={styles.emptyStateTitle}>No matching openings found</h3>
+          <h3 className={styles.emptyStateTitle}>
+            {loading
+              ? "Fetching opportunities..."
+              : "No matching openings found"}
+          </h3>
           <p className={styles.emptyStateText}>
-            Try clearing your search query or choosing another department to
-            view other open roles.
+            {loading
+              ? "Connecting to the Nexus ATS talent engine..."
+              : "Try clearing your search query or choosing another department to view other open roles."}
           </p>
         </div>
       )}

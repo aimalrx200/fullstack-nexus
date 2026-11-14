@@ -1,21 +1,25 @@
 // apps/nexus-ats/backend/src/app.js
 
+import path from "node:path";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import { env } from "#config/env.js";
 import { connectDB } from "#config/db.js";
+import { seedDatabase } from "#services/seedService.js";
 import { requestLogger } from "#middlewares/logger.js";
 import { notFoundHandler, errorHandler } from "#middlewares/errorMiddleware.js";
 import { router as apiRouter } from "#routes/router.js";
 
 export const app = express();
 
-// Ensure DB is connected across all serverless invocations
+// Ensure DB is connected and seeded across environments
 app.use(async (req, res, next) => {
   try {
     await connectDB();
+    // Auto-seed runs once if collections are empty
+    await seedDatabase();
     next();
   } catch (err) {
     next(err);
@@ -35,6 +39,11 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
+
+// Serve local uploads statically in development
+if (env.NODE_ENV === "development") {
+  app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+}
 
 // Request Telemetry
 if (env.NODE_ENV !== "test") {
@@ -58,5 +67,4 @@ app.use("/api/v1", apiRouter);
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-// CRITICAL FOR VERCEL: Provide both default export and named export
 export default app;
